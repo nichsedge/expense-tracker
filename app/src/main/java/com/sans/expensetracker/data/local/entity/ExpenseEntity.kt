@@ -13,7 +13,6 @@ data class ExpenseEntity(
     @ColumnInfo(name = "original_price") val originalPrice: Long,
     @ColumnInfo(name = "final_price") val finalPrice: Long,
     @ColumnInfo(name = "category_id") val categoryId: Long,
-    @ColumnInfo(name = "payment_method") val paymentMethod: String,
     val status: String,
     @ColumnInfo(name = "is_recurring") val isRecurring: Boolean,
     @ColumnInfo(name = "is_installment") val isInstallment: Boolean = false,

@@ -21,4 +21,7 @@ sealed class Screen {
 
     @Serializable
     object Stats : Screen()
+
+    @Serializable
+    object Settings : Screen()
 }

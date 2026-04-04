@@ -8,7 +8,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 class ExpenseRepositoryImpl(
-    private val dao: ExpenseDao
+    private val dao: com.sans.expensetracker.data.local.dao.ExpenseDao,
+    private val tagDao: com.sans.expensetracker.data.local.dao.TagDao,
+    private val categoryDao: com.sans.expensetracker.data.local.dao.CategoryDao
 ) : ExpenseRepository {
 
     override fun getAllExpenses(): Flow<List<Expense>> {
@@ -28,11 +30,26 @@ class ExpenseRepositoryImpl(
     }
 
     override suspend fun insertExpense(expense: Expense): Long {
-        return dao.insertExpense(expense.toEntity())
+        val expenseId = dao.insertExpense(expense.toEntity())
+        syncTags(expenseId, expense.tags)
+        return expenseId
     }
 
     override suspend fun updateExpense(expense: Expense) {
         dao.updateExpense(expense.toEntity())
+        syncTags(expense.id, expense.tags)
+    }
+
+    private suspend fun syncTags(expenseId: Long, tagNames: List<String>) {
+        dao.deleteExpenseTagRefs(expenseId)
+        val crossRefs = tagNames.map { tagName ->
+            val existingTag = tagDao.getTagByName(tagName)
+            val tagId = existingTag?.id ?: tagDao.insertTag(com.sans.expensetracker.data.local.entity.TagEntity(name = tagName))
+            com.sans.expensetracker.data.local.entity.ExpenseTagCrossRef(expenseId, tagId)
+        }
+        if (crossRefs.isNotEmpty()) {
+            dao.insertExpenseTagCrossRefs(crossRefs)
+        }
     }
 
     override suspend fun deleteExpense(expense: Expense) {
@@ -51,36 +68,68 @@ class ExpenseRepositoryImpl(
         return dao.getAllTimeSpent()
     }
 
+    override fun getAllTags(): Flow<List<String>> {
+        return tagDao.getAllTags().map { entities ->
+            entities.map { it.name }
+        }
+    }
+
+    override fun getAllCategories(): Flow<List<com.sans.expensetracker.data.local.entity.CategoryEntity>> {
+        return categoryDao.getAllCategories()
+    }
+
+    override suspend fun insertCategory(category: com.sans.expensetracker.data.local.entity.CategoryEntity) {
+        categoryDao.insertCategory(category)
+    }
+
+    override suspend fun updateCategory(category: com.sans.expensetracker.data.local.entity.CategoryEntity) {
+        categoryDao.updateCategory(category)
+    }
+
+    override suspend fun deleteCategory(category: com.sans.expensetracker.data.local.entity.CategoryEntity) {
+        categoryDao.deleteCategory(category)
+    }
+
+    override fun getAllTagEntities(): Flow<List<com.sans.expensetracker.data.local.entity.TagEntity>> {
+        return tagDao.getAllTags()
+    }
+
+    override suspend fun updateTag(tag: com.sans.expensetracker.data.local.entity.TagEntity) {
+        tagDao.updateTag(tag)
+    }
+
+    override suspend fun deleteTag(tag: com.sans.expensetracker.data.local.entity.TagEntity) {
+        tagDao.deleteTag(tag)
+    }
+
     // Internal mapping extension
-    private fun ExpenseEntity.toDomain(): Expense {
+    private fun com.sans.expensetracker.data.local.entity.ExpenseWithTags.toDomain(): Expense {
         return Expense(
-            id = id,
-            date = date,
-            itemName = itemName,
-            amount = finalPrice,
-            categoryId = categoryId,
-            paymentMethod = paymentMethod,
-            isRecurring = isRecurring,
-            isInstallment = isInstallment,
-            merchant = merchant,
-            platform = platform,
-            quantity = quantity
+            id = expense.id,
+            date = expense.date,
+            itemName = expense.itemName,
+            amount = expense.finalPrice,
+            categoryId = expense.categoryId,
+            isRecurring = expense.isRecurring,
+            isInstallment = expense.isInstallment,
+            merchant = expense.merchant,
+            tags = tags.map { it.name },
+            quantity = expense.quantity
         )
     }
 
-    private fun Expense.toEntity(): ExpenseEntity {
-        return ExpenseEntity(
+    private fun Expense.toEntity(): com.sans.expensetracker.data.local.entity.ExpenseEntity {
+        return com.sans.expensetracker.data.local.entity.ExpenseEntity(
             id = id,
             date = date,
             itemName = itemName,
             finalPrice = amount,
             originalPrice = amount,
             categoryId = categoryId,
-            paymentMethod = paymentMethod,
             isRecurring = isRecurring,
             isInstallment = isInstallment,
             merchant = merchant,
-            platform = platform,
+            platform = tags.firstOrNull(), // Keep for legacy if needed, or null
             quantity = quantity,
             status = "completed"
         )

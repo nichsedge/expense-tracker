@@ -27,7 +27,7 @@ object AppModule {
             AppDatabase::class.java,
             "expense_tracker_db"
         )
-        .fallbackToDestructiveMigration()
+        .addMigrations(AppDatabase.MIGRATION_5_6)
         .addCallback(callback)
         .build()
     }
@@ -57,7 +57,15 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideExpenseRepository(dao: ExpenseDao): ExpenseRepository = ExpenseRepositoryImpl(dao)
+    fun provideTagDao(db: AppDatabase): com.sans.expensetracker.data.local.dao.TagDao = db.tagDao
+
+    @Provides
+    @Singleton
+    fun provideExpenseRepository(
+        dao: ExpenseDao,
+        tagDao: com.sans.expensetracker.data.local.dao.TagDao,
+        categoryDao: com.sans.expensetracker.data.local.dao.CategoryDao
+    ): ExpenseRepository = ExpenseRepositoryImpl(dao, tagDao, categoryDao)
 
     @Provides
     @Singleton

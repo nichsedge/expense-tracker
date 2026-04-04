@@ -14,7 +14,7 @@ object CsvExporter {
 
         expenses.forEach { expense ->
             val dateStr = dateFormat.format(Date(expense.date))
-            val source = escapeCsv(expense.platform ?: "")
+            val source = escapeCsv(expense.tags.firstOrNull() ?: "")
             val store = escapeCsv(expense.merchant ?: "")
             val itemName = escapeCsv(expense.itemName)
             val qty = expense.quantity.toString()

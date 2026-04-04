@@ -1,6 +1,8 @@
 package com.sans.expensetracker.presentation.expense_list
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.lazy.LazyColumn
@@ -12,7 +14,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -29,22 +32,16 @@ fun ExpenseListScreen(
     onAddExpenseClick: () -> Unit,
     onInstallmentsClick: () -> Unit,
     onStatsClick: () -> Unit,
-    onLanguageToggle: () -> Unit,
+    onSettingsClick: () -> Unit,
     onExpenseClick: (Long) -> Unit,
     viewModel: ExpenseListViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
-    val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
     val snackbarHostState = remember { SnackbarHostState() }
     var expenseToDelete by remember { mutableStateOf<Expense?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(state.syncMessage) {
-        state.syncMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearSyncMessage()
-        }
-    }
 
     LaunchedEffect(state.error) {
         state.error?.let {
@@ -58,17 +55,14 @@ fun ExpenseListScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.app_name), fontWeight = FontWeight.Bold) },
                 actions = {
-                    IconButton(onClick = { viewModel.exportFullBackup(context) }) {
-                        Icon(Icons.Default.Sync, contentDescription = "Full Sync Data")
-                    }
-                    IconButton(onClick = onLanguageToggle) {
-                        Icon(Icons.Default.Translate, contentDescription = stringResource(R.string.language))
-                    }
                     IconButton(onClick = onStatsClick) {
                         Icon(Icons.Default.QueryStats, contentDescription = "Statistics")
                     }
                     IconButton(onClick = onInstallmentsClick) {
-                        Icon(Icons.Default.List, contentDescription = "Installment Plans")
+                        Icon(Icons.Default.Payments, contentDescription = "Active Installments")
+                    }
+                    IconButton(onClick = onSettingsClick) {
+                        Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }
                 }
             )
@@ -129,44 +123,16 @@ fun ExpenseListScreen(
                         key = { it.id },
                         contentType = { "expense" }
                     ) { expense ->
-                        val dismissState = rememberSwipeToDismissBoxState(
-                            confirmValueChange = {
-                                if (it == SwipeToDismissBoxValue.EndToStart) {
-                                    expenseToDelete = expense
-                                    showDeleteDialog = true
-                                }
-                                false
+                        ExpenseItem(
+                            expense = expense,
+                            category = state.categories.find { it.id == expense.categoryId },
+                            onClick = { onExpenseClick(expense.id) },
+                            onLongClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                expenseToDelete = expense
+                                showDeleteDialog = true
                             }
                         )
-
-                        SwipeToDismissBox(
-                            state = dismissState,
-                            enableDismissFromStartToEnd = false,
-                            backgroundContent = {
-                                val color = when (dismissState.dismissDirection) {
-                                    SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.errorContainer
-                                    else -> Color.Transparent
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(color, shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
-                                        .padding(horizontal = 20.dp),
-                                    contentAlignment = Alignment.CenterEnd
-                                ) {
-                                    Icon(
-                                        Icons.Default.Delete,
-                                        contentDescription = "Delete",
-                                        tint = MaterialTheme.colorScheme.onErrorContainer
-                                    )
-                                }
-                            }
-                        ) {
-                            ExpenseItem(
-                                expense = expense,
-                                onClick = { onExpenseClick(expense.id) }
-                            )
-                        }
                     }
                 }
             }
@@ -259,13 +225,33 @@ fun SummaryCard(thisMonth: Long, periodTotal: Long) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ExpenseItem(expense: Expense, onClick: () -> Unit) {
+fun ExpenseItem(
+    expense: Expense, 
+    category: com.sans.expensetracker.data.local.entity.CategoryEntity?,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
+) {
     val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale("id", "ID")) }
     
+    val icon = when (category?.icon) {
+        "restaurant" -> Icons.Default.Restaurant
+        "health_and_safety" -> Icons.Default.HealthAndSafety
+        "shopping_bag" -> Icons.Default.ShoppingBag
+        "commute" -> Icons.Default.Commute
+        "language" -> Icons.Default.Language
+        "category" -> Icons.Default.Category
+        else -> Icons.Default.ShoppingCart
+    }
+
     Surface(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
         shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 1.dp
@@ -283,9 +269,9 @@ fun ExpenseItem(expense: Expense, onClick: () -> Unit) {
                 color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
             ) {
                 Icon(
-                    imageVector = Icons.Default.ShoppingCart,
+                    imageVector = icon,
                     contentDescription = null,
-                    modifier = Modifier.padding(10.dp),
+                    modifier = Modifier.padding(12.dp),
                     tint = MaterialTheme.colorScheme.primary
                 )
             }
@@ -297,8 +283,13 @@ fun ExpenseItem(expense: Expense, onClick: () -> Unit) {
                     fontWeight = FontWeight.Bold,
                     maxLines = 1
                 )
+                val merchantDisplay = when {
+                    !expense.merchant.isNullOrBlank() -> "${expense.merchant} • "
+                    expense.tags.isNotEmpty() -> "${expense.tags.joinToString(", ")} • "
+                    else -> ""
+                }
                 Text(
-                    expense.merchant ?: stringResource(R.string.personal_expense),
+                    "$merchantDisplay${category?.name ?: stringResource(R.string.uncategorized)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

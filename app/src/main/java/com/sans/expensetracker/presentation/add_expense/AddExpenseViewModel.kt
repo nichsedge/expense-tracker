@@ -27,6 +27,7 @@ class AddExpenseViewModel @Inject constructor(
     private val getCategoriesUseCase: com.sans.expensetracker.domain.usecase.GetCategoriesUseCase,
     private val createInstallmentPlanUseCase: com.sans.expensetracker.domain.usecase.CreateInstallmentPlanUseCase,
     private val installmentRepository: com.sans.expensetracker.domain.repository.InstallmentRepository,
+    private val expenseRepository: com.sans.expensetracker.domain.repository.ExpenseRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -48,6 +49,7 @@ class AddExpenseViewModel @Inject constructor(
                     categoryId = expense.categoryId
                     isInstallment = expense.isInstallment
                     selectedDate = expense.date
+                    selectedTags = expense.tags
                     
                     if (expense.isInstallment) {
                         installmentRepository.getInstallmentByExpenseId(id)?.let { installment ->
@@ -68,10 +70,34 @@ class AddExpenseViewModel @Inject constructor(
     var amount by mutableStateOf("")
     var itemName by mutableStateOf("")
     var merchant by mutableStateOf("")
-    var categoryId by mutableLongStateOf(0L)
+    var categoryId by mutableLongStateOf(1L)
     var isInstallment by mutableStateOf(false)
     var durationMonths by mutableStateOf("")
     var selectedDate by mutableLongStateOf(System.currentTimeMillis())
+    var selectedTags by mutableStateOf(listOf<String>())
+    var newTagText by mutableStateOf("")
+
+    val allTags = expenseRepository.getAllTags().stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    fun toggleTag(tagName: String) {
+        selectedTags = if (selectedTags.contains(tagName)) {
+            selectedTags.filter { it != tagName }
+        } else {
+            selectedTags + tagName
+        }
+    }
+
+    fun addNewTag() {
+        val tagToAdd = newTagText.trim().lowercase()
+        if (tagToAdd.isNotBlank() && !selectedTags.contains(tagToAdd)) {
+            selectedTags = selectedTags + tagToAdd
+            newTagText = ""
+        }
+    }
 
     fun onSaveClick(onSuccess: () -> Unit) {
         val amountInCents = amount.toSafeLongCents() ?: 0L
@@ -83,9 +109,9 @@ class AddExpenseViewModel @Inject constructor(
                 itemName = itemName.ifBlank { "Uncategorized Item" },
                 amount = amountInCents,
                 categoryId = categoryId,
-                paymentMethod = "Cash",
                 isInstallment = isInstallment,
                 merchant = merchant.ifBlank { null },
+                tags = selectedTags,
                 quantity = 1
             )
             

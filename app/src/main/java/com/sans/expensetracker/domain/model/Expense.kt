@@ -6,10 +6,9 @@ data class Expense(
     val itemName: String,
     val amount: Long,
     val categoryId: Long,
-    val paymentMethod: String,
     val isRecurring: Boolean = false,
     val isInstallment: Boolean = false,
     val merchant: String? = null,
-    val platform: String? = null,
+    val tags: List<String> = emptyList(),
     val quantity: Int = 1
 )

@@ -8,7 +8,7 @@
     <string name="category">Kategori</string>
     <string name="what_did_you_buy">Beli apa?</string>
     <string name="merchant_store">Toko / Tempat (Opsional)</string>
-\n
+
     <string name="is_installment">Ini adalah Cicilan</string>
     <string name="duration_months">Durasi (Bulan)</string>
     <string name="confirm_transaction">Konfirmasi Transaksi</string>
@@ -20,7 +20,8 @@
     <string name="your_plans">Rencana Anda</string>
     <string name="no_active_installments">Belum ada cicilan aktif</string>
     <string name="personal_expense">Pengeluaran Pribadi</string>
-\n
+    <string name="uncategorized">Tanpa Kategori</string>
+
     <string name="language">Bahasa</string>
     <string name="paid">LUNAS</string>
     <string name="pending">TERTUNDA</string>
@@ -28,4 +29,11 @@
     <string name="delete_confirmation_msg">Apakah Anda yakin ingin menghapus transaksi ini? Tindakan ini tidak dapat dibatalkan.</string>
     <string name="delete">Hapus</string>
     <string name="cancel">Batal</string>
+    <string name="settings">Pengaturan</string>
+    <string name="categories">Kategori</string>
+    <string name="add_category">Tambah Kategori</string>
+    <string name="tags">Tag</string>
+    <string name="data_management">Manajemen Data</string>
+    <string name="full_backup">Cadangan Basis Data</string>
+    <string name="backup_to_downloads">Snapshot disimpan ke folder Unduhan</string>
 </resources>

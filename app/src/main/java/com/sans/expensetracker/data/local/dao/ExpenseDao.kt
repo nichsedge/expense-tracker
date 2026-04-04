@@ -6,14 +6,17 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ExpenseDao {
+    @Transaction
     @Query("SELECT * FROM expenses ORDER BY date DESC")
-    fun getAllExpenses(): Flow<List<ExpenseEntity>>
+    fun getAllExpenses(): Flow<List<com.sans.expensetracker.data.local.entity.ExpenseWithTags>>
 
+    @Transaction
     @Query("SELECT * FROM expenses WHERE date >= :since AND date < :until ORDER BY date DESC")
-    fun getExpensesBetween(since: Long, until: Long): Flow<List<ExpenseEntity>>
+    fun getExpensesBetween(since: Long, until: Long): Flow<List<com.sans.expensetracker.data.local.entity.ExpenseWithTags>>
 
+    @Transaction
     @Query("SELECT * FROM expenses WHERE id = :id")
-    suspend fun getExpenseById(id: Long): ExpenseEntity?
+    suspend fun getExpenseById(id: Long): com.sans.expensetracker.data.local.entity.ExpenseWithTags?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertExpense(expense: ExpenseEntity): Long
@@ -26,6 +29,12 @@ interface ExpenseDao {
 
     @Delete
     suspend fun deleteExpense(expense: ExpenseEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertExpenseTagCrossRefs(crossRefs: List<com.sans.expensetracker.data.local.entity.ExpenseTagCrossRef>)
+
+    @Query("DELETE FROM expense_tag_ref WHERE expenseId = :expenseId")
+    suspend fun deleteExpenseTagRefs(expenseId: Long)
 
     @Query("SELECT COUNT(*) FROM expenses")
     suspend fun getExpenseCount(): Int

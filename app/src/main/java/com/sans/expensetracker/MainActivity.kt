@@ -8,8 +8,11 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import com.sans.expensetracker.presentation.add_expense.AddExpenseScreen
 import com.sans.expensetracker.presentation.expense_list.ExpenseListScreen
+import com.sans.expensetracker.presentation.settings.SettingsScreen
 import com.sans.expensetracker.presentation.navigation.Screen
 import com.sans.expensetracker.ui.theme.ExpenseTrackerTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -40,7 +43,11 @@ fun AppNavigation(onLanguageToggle: () -> Unit) {
     val navController = rememberNavController()
     NavHost(
         navController = navController,
-        startDestination = Screen.ExpenseList
+        startDestination = Screen.ExpenseList,
+        enterTransition = { EnterTransition.None },
+        exitTransition = { ExitTransition.None },
+        popEnterTransition = { EnterTransition.None },
+        popExitTransition = { ExitTransition.None }
     ) {
         composable<Screen.ExpenseList> {
             ExpenseListScreen(
@@ -53,7 +60,9 @@ fun AppNavigation(onLanguageToggle: () -> Unit) {
                 onStatsClick = {
                     navController.navigate(Screen.Stats)
                 },
-                onLanguageToggle = onLanguageToggle,
+                onSettingsClick = {
+                    navController.navigate(Screen.Settings)
+                },
                 onExpenseClick = { id ->
                     navController.navigate(Screen.EditExpense(id))
                 }
@@ -73,6 +82,12 @@ fun AppNavigation(onLanguageToggle: () -> Unit) {
         composable<Screen.Stats> {
             com.sans.expensetracker.presentation.stats.StatsScreen(
                 onBack = { navController.popBackStack() }
+            )
+        }
+        composable<Screen.Settings> {
+            SettingsScreen(
+                onBack = { navController.popBackStack() },
+                onLanguageToggle = onLanguageToggle
             )
         }
     }

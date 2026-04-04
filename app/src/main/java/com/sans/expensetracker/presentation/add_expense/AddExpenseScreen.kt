@@ -1,8 +1,10 @@
 package com.sans.expensetracker.presentation.add_expense
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Done
@@ -136,6 +138,49 @@ fun AddExpenseScreen(
                     )
                 }
             }
+
+            Text("Tags", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+
+            val allTags by viewModel.allTags.collectAsState()
+
+            @OptIn(ExperimentalLayoutApi::class)
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                val tagsToShow = (allTags + viewModel.selectedTags).distinct()
+                tagsToShow.forEach { tagName ->
+                    FilterChip(
+                        selected = viewModel.selectedTags.contains(tagName),
+                        onClick = { viewModel.toggleTag(tagName) },
+                        label = { Text(tagName) },
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+                    )
+                }
+            }
+
+            OutlinedTextField(
+                value = viewModel.newTagText,
+                onValueChange = { viewModel.newTagText = it },
+                label = { Text("Add New Tag") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                trailingIcon = {
+                    IconButton(onClick = { viewModel.addNewTag() }) {
+                        Icon(Icons.Default.Add, contentDescription = "Add Tag")
+                    }
+                },
+                keyboardOptions = KeyboardOptions(
+                    imeAction = ImeAction.Send
+                ),
+                keyboardActions = KeyboardActions(
+                    onSend = {
+                        viewModel.addNewTag()
+                        focusManager.clearFocus()
+                    }
+                ),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
+            )
 
             OutlinedTextField(
                 value = viewModel.itemName,

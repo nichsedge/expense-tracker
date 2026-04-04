@@ -93,7 +93,6 @@ object CsvParser {
                 originalPrice = originalPrice,
                 finalPrice = finalPrice,
                 categoryId = categoryId,
-                paymentMethod = "Manual/CSV",
                 status = status,
                 isRecurring = false,
                 isInstallment = isInstallment
@@ -116,23 +115,23 @@ object CsvParser {
     }
 
     private fun getCategoryIdForPrompt(itemName: String, merchant: String?): Long {
-        val text = (itemName + (merchant ?: "")).lowercase()
+        val text = (itemName + " " + (merchant ?: "")).lowercase()
         return when {
-            // Priority: Subscriptions/Bills (Category 5)
-            containsAny(text, "pulsa", "kuota", "data", "inject", "tri", "xl", "indosat", "smartfren", "wifi", "modem") -> 5
-            
-            // Food & Drinks (Category 1)
-            containsAny(text, "makan", "teh", "coffee", "kopi", "nasi", "bakso", "oat", "gandum", "susu", "dancow", "kacang", "chickpea", "strawberry") -> 1
-            
             // Health & Personal Care (Category 2)
-            containsAny(text, "sehat", "vitamin", "madu", "kesehatan", "obat", "creatine", "haid", "perut", "kemiri", "emina", "skincare", "masker") -> 2
-            
+            containsAny(text, "sehat", "vitamin", "madu", "kesehatan", "obat", "creatine", "haid", "perut", "kemiri", "emina", "skincare", "masker", "whey", "fitness", "gym", "hospital", "doctor", "apotek", "suplemen") -> 2
+
             // Transport (Category 4)
-            containsAny(text, "bensin", "grab", "gojek", "transport", "parkir", "commute", "toll", "go-jek", "perjalanan") -> 4
-            
+            containsAny(text, "bensin", "grab", "gojek", "transport", "parkir", "commute", "toll", "go-jek", "perjalanan", "maxim", "fuel", "pertamina", "bus", "train", "kereta", "plane", "pesawat", "tiket", "travel") -> 4
+
+            // Food & Drinks (Category 1)
+            containsAny(text, "makan", "teh", "coffee", "kopi", "nasi", "bakso", "oat", "gandum", "susu", "dancow", "kacang", "chickpea", "strawberry", "restaurant", "warung", "ayam", "lele", "burger", "pizza", "snack", "camilan", "chips", "milk", "drink", "minum", "cola", "fanta", "sprite", "jus", "juice", "buah", "fruit", "cake", "bakery", "roti") -> 1
+
             // Shopping & Electronics & Home (Category 3)
-            containsAny(text, "belanja", "shopee", "tokopedia", "tiktok", "baju", "celana", "sepatu", "kacamata", "helm", "case", "mouse", "keyboard", "meja", "strap", "jaket", "hanger", "spatula", "wajan", "tas", "buku", "pen", "powerbank", "xiaomi", "redmi", "tcl", "tv", "air fryer", "panci", "lampu", "kursi", "sofa", "bantal", "sprei", "tws", "headphone", "helm", "koper", "obeng") -> 3
-            
+            containsAny(text, "belanja", "shopee", "tokopedia", "tiktok", "baju", "celana", "sepatu", "kacamata", "helm", "case", "mouse", "keyboard", "meja", "strap", "jaket", "hanger", "spatula", "wajan", "tas", "buku", "pen", "powerbank", "xiaomi", "redmi", "tcl", "tv", "air fryer", "panci", "lampu", "kursi", "sofa", "bantal", "sprei", "tws", "headphone", "koper", "obeng", "sandal", "ikat pinggang", "sabuk", "belt", "kaos", "shirt", "jersey", "polos", "ram", "laptop", "ryzen", "hdd", "ssd", "memory", "monitor", "cpu", "gpu", "fan", "soft start", "stop kontak", "colokan", "kabel", "jack", "pria", "wanita", "unisex", "cotton", "combed", "bamboo", "fashion", "hp", "phone", "baterai", "battery", "handgrip", "parfum", "jam tangan", "watch", "gelang", "anting", "elektronik", "gadget", "accessories", "aksesoris") -> 3
+
+            // Subscriptions & Bills (Category 5)
+            containsAny(text, "pulsa", "kuota", "data", "inject", "tri", "xl", "indosat", "smartfren", "wifi", "modem", "spotify", "netflix", "youtube", "bill", "invoice", "internet", "hosting", "software", "license", "activation", "visio", "office", "streaming", "subscription", "berlangganan") -> 5
+
             else -> 6 // Others
         }
     }

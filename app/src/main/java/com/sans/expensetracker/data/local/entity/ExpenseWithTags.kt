@@ -1,0 +1,19 @@
+package com.sans.expensetracker.data.local.entity
+
+import androidx.room.Embedded
+import androidx.room.Junction
+import androidx.room.Relation
+
+data class ExpenseWithTags(
+    @Embedded val expense: ExpenseEntity,
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "id",
+        associateBy = Junction(
+            value = ExpenseTagCrossRef::class,
+            parentColumn = "expenseId",
+            entityColumn = "tagId"
+        )
+    )
+    val tags: List<TagEntity>
+)
