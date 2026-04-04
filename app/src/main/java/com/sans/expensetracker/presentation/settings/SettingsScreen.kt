@@ -21,6 +21,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.sans.expensetracker.R
 import com.sans.expensetracker.data.local.entity.CategoryEntity
 import com.sans.expensetracker.data.local.entity.TagEntity
+import com.sans.expensetracker.presentation.components.CategoryIcon
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,6 +39,8 @@ fun SettingsScreen(
     var showAddCategoryDialog by remember { mutableStateOf(false) }
     var categoryToEdit by remember { mutableStateOf<CategoryEntity?>(null) }
     var tagToEdit by remember { mutableStateOf<TagEntity?>(null) }
+    var categoryToDelete by remember { mutableStateOf<CategoryEntity?>(null) }
+    var tagToDelete by remember { mutableStateOf<TagEntity?>(null) }
 
     LaunchedEffect(viewModel.syncMessage) {
         viewModel.syncMessage?.let {
@@ -152,9 +155,9 @@ fun SettingsScreen(
             items(categories) { category ->
                 SettingsItem(
                     title = category.name,
-                    icon = getIconForName(category.icon),
+                    icon = category.icon,
                     onEdit = { categoryToEdit = category },
-                    onDelete = { viewModel.deleteCategory(category) }
+                    onDelete = { categoryToDelete = category }
                 )
             }
 
@@ -177,9 +180,9 @@ fun SettingsScreen(
             items(tags) { tag ->
                 SettingsItem(
                     title = tag.name,
-                    icon = Icons.Default.Label,
+                    icon = "🏷️",
                     onEdit = { tagToEdit = tag },
-                    onDelete = { viewModel.deleteTag(tag) }
+                    onDelete = { tagToDelete = tag }
                 )
             }
 
@@ -218,6 +221,54 @@ fun SettingsScreen(
             }
         )
     }
+
+    categoryToDelete?.let { category ->
+        AlertDialog(
+            onDismissRequest = { categoryToDelete = null },
+            title = { Text("Delete Category") },
+            text = { Text("Are you sure you want to delete category '${category.name}'? All expenses in this category will become uncategorized.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteCategory(category)
+                        categoryToDelete = null
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { categoryToDelete = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    tagToDelete?.let { tag ->
+        AlertDialog(
+            onDismissRequest = { tagToDelete = null },
+            title = { Text("Delete Tag") },
+            text = { Text("Are you sure you want to delete tag '${tag.name}'? This will remove the tag from all associated expenses.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteTag(tag)
+                        tagToDelete = null
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { tagToDelete = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -234,7 +285,7 @@ fun SettingsSectionTitle(title: String) {
 @Composable
 fun SettingsItem(
     title: String,
-    icon: ImageVector,
+    icon: String,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -248,10 +299,8 @@ fun SettingsItem(
             modifier = Modifier.padding(12.dp).fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+            CategoryIcon(
+                icon = icon,
                 modifier = Modifier.size(24.dp)
             )
             Spacer(Modifier.width(16.dp))
@@ -272,36 +321,57 @@ fun CategoryEditDialog(
     onDismiss: () -> Unit,
     onConfirm: (String, String) -> Unit
 ) {
-    var name by remember { mutableStateOf(category?.name ?: "") }
-    var icon by remember { mutableStateOf(category?.icon ?: "category") }
+    var name by remember(category?.id) { mutableStateOf(category?.name ?: "") }
+    var icon by remember(category?.id) { mutableStateOf(category?.icon ?: "📁") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (category == null) "Add Category" else "Edit Category") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text("Name") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium
                 )
-                Text("Select Icon", style = MaterialTheme.typography.labelMedium)
-                val icons = listOf("restaurant", "health_and_safety", "shopping_bag", "commute", "language", "category")
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    icons.forEach { iconName ->
-                        val isSelected = icon == iconName
-                        IconButton(
-                            onClick = { icon = iconName },
-                            modifier = Modifier.background(
-                                if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
-                                shape = MaterialTheme.shapes.small
-                            )
-                        ) {
-                            Icon(getIconForName(iconName), contentDescription = null)
+                
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Select Icon", style = MaterialTheme.typography.labelMedium)
+                    
+                    val presets = listOf("🍔", "💊", "🛍️", "🚗", "🌐", "📁", "🏠", "🎮", "🎁", "💡", "💰", "🔧")
+                    
+                    @OptIn(ExperimentalLayoutApi::class)
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        presets.forEach { emoji ->
+                            val isSelected = icon == emoji
+                            Surface(
+                                onClick = { icon = emoji },
+                                shape = MaterialTheme.shapes.small,
+                                color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(emoji, fontSize = 20.sp)
+                                }
+                            }
                         }
                     }
+                    
+                    OutlinedTextField(
+                        value = icon,
+                        onValueChange = { if (it.length <= 2) icon = it },
+                        label = { Text("Custom Emoji") },
+                        singleLine = true,
+                        modifier = Modifier.width(120.dp),
+                        shape = MaterialTheme.shapes.medium
+                    )
                 }
             }
         },
@@ -324,7 +394,7 @@ fun TagEditDialog(
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit
 ) {
-    var name by remember { mutableStateOf(tag.name) }
+    var name by remember(tag.id) { mutableStateOf(tag.name) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -349,16 +419,4 @@ fun TagEditDialog(
             }
         }
     )
-}
-
-fun getIconForName(name: String): ImageVector {
-    return when (name) {
-        "restaurant" -> Icons.Default.Restaurant
-        "health_and_safety" -> Icons.Default.HealthAndSafety
-        "shopping_bag" -> Icons.Default.ShoppingBag
-        "commute" -> Icons.Default.Commute
-        "language" -> Icons.Default.Language
-        "category" -> Icons.Default.Category
-        else -> Icons.Default.Label
-    }
 }

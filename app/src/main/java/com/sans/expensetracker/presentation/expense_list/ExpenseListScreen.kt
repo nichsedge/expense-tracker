@@ -23,6 +23,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.sans.expensetracker.R
 import com.sans.expensetracker.domain.model.Expense
+import com.sans.expensetracker.presentation.components.CategoryIcon
 import java.text.NumberFormat
 import java.util.*
 
@@ -235,15 +236,7 @@ fun ExpenseItem(
 ) {
     val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale("id", "ID")) }
     
-    val icon = when (category?.icon) {
-        "restaurant" -> Icons.Default.Restaurant
-        "health_and_safety" -> Icons.Default.HealthAndSafety
-        "shopping_bag" -> Icons.Default.ShoppingBag
-        "commute" -> Icons.Default.Commute
-        "language" -> Icons.Default.Language
-        "category" -> Icons.Default.Category
-        else -> Icons.Default.ShoppingCart
-    }
+    val icon = category?.icon ?: ""
 
     Surface(
         modifier = Modifier
@@ -268,12 +261,12 @@ fun ExpenseItem(
                 shape = androidx.compose.foundation.shape.CircleShape,
                 color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    modifier = Modifier.padding(12.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
+                Box(contentAlignment = Alignment.Center) {
+                    CategoryIcon(
+                        icon = icon,
+                        fontSize = 20.sp
+                    )
+                }
             }
 
             Column(modifier = Modifier.weight(1f)) {

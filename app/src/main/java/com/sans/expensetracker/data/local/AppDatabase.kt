@@ -49,12 +49,12 @@ abstract class AppDatabase : RoomDatabase() {
 
                 // Always ensure basic categories exist
                 if (categoryDao.getCount() == 0) {
-                    categoryDao.insertCategory(CategoryEntity(name = "Food", icon = "restaurant"))
-                    categoryDao.insertCategory(CategoryEntity(name = "Health", icon = "health_and_safety"))
-                    categoryDao.insertCategory(CategoryEntity(name = "Shopping", icon = "shopping_bag"))
-                    categoryDao.insertCategory(CategoryEntity(name = "Transport", icon = "commute"))
-                    categoryDao.insertCategory(CategoryEntity(name = "Subscriptions", icon = "language"))
-                    categoryDao.insertCategory(CategoryEntity(name = "Others", icon = "category"))
+                    categoryDao.insertCategory(CategoryEntity(name = "Food", icon = "🍔"))
+                    categoryDao.insertCategory(CategoryEntity(name = "Health", icon = "💊"))
+                    categoryDao.insertCategory(CategoryEntity(name = "Shopping", icon = "🛍️"))
+                    categoryDao.insertCategory(CategoryEntity(name = "Transport", icon = "🚗"))
+                    categoryDao.insertCategory(CategoryEntity(name = "Subscriptions", icon = "🌐"))
+                    categoryDao.insertCategory(CategoryEntity(name = "Others", icon = "📁"))
                 }
 
                 // Inject Seed Data from CSV ONLY if EVERYTHING is empty

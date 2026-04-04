@@ -15,6 +15,8 @@ data class StatsState(
     val lastMonthSpent: Long = 0L,
     val thisYearSpent: Long = 0L,
     val lastYearSpent: Long = 0L,
+    val spendingByCategory: List<com.sans.expensetracker.data.local.entity.CategorySpent> = emptyList(),
+    val dailySpending: List<com.sans.expensetracker.data.local.entity.DaySpent> = emptyList(),
     val isLoading: Boolean = true
 )
 
@@ -60,17 +62,33 @@ class StatsViewModel @Inject constructor(
         val lastYearExpFlow = expenseRepository.getTotalSpentBetween(lastYearStart.timeInMillis, lastYearEnd.timeInMillis)
         val lastYearInstFlow = installmentRepository.getTotalPaidAmountBetween(lastYearStart.timeInMillis, lastYearEnd.timeInMillis)
 
+        val spendingByCategoryFlow = expenseRepository.getSpendingByCategoryBetween(thisMonthStart.timeInMillis, Long.MAX_VALUE)
+        val dailySpendingFlow = expenseRepository.getDailySpendingBetween(thisMonthStart.timeInMillis, Long.MAX_VALUE)
+
         combine(
             combine(thisMonthExpFlow, thisMonthInstFlow) { e, i -> (e ?: 0L) + (i ?: 0L) },
             combine(lastMonthExpFlow, lastMonthInstFlow) { e, i -> (e ?: 0L) + (i ?: 0L) },
             combine(thisYearExpFlow, thisYearInstFlow) { e, i -> (e ?: 0L) + (i ?: 0L) },
-            combine(lastYearExpFlow, lastYearInstFlow) { e, i -> (e ?: 0L) + (i ?: 0L) }
-        ) { tm, lm, ty, ly ->
+            combine(lastYearExpFlow, lastYearInstFlow) { e, i -> (e ?: 0L) + (i ?: 0L) },
+            spendingByCategoryFlow,
+            dailySpendingFlow
+        ) { values ->
+            val tm = values[0] as Long
+            val lm = values[1] as Long
+            val ty = values[2] as Long
+            val ly = values[3] as Long
+            @Suppress("UNCHECKED_CAST")
+            val sbc = values[4] as List<com.sans.expensetracker.data.local.entity.CategorySpent>
+            @Suppress("UNCHECKED_CAST")
+            val ds = values[5] as List<com.sans.expensetracker.data.local.entity.DaySpent>
+
             StatsState(
                 thisMonthSpent = tm,
                 lastMonthSpent = lm,
                 thisYearSpent = ty,
                 lastYearSpent = ly,
+                spendingByCategory = sbc,
+                dailySpending = ds,
                 isLoading = false
             )
         }.onEach { newState ->

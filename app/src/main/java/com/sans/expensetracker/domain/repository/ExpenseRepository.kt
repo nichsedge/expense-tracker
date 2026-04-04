@@ -25,4 +25,7 @@ interface ExpenseRepository {
     fun getAllTagEntities(): Flow<List<com.sans.expensetracker.data.local.entity.TagEntity>>
     suspend fun updateTag(tag: com.sans.expensetracker.data.local.entity.TagEntity)
     suspend fun deleteTag(tag: com.sans.expensetracker.data.local.entity.TagEntity)
+    
+    fun getSpendingByCategoryBetween(since: Long, until: Long): Flow<List<com.sans.expensetracker.data.local.entity.CategorySpent>>
+    fun getDailySpendingBetween(since: Long, until: Long): Flow<List<com.sans.expensetracker.data.local.entity.DaySpent>>
 }

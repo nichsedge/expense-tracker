@@ -15,7 +15,7 @@ interface TagDao {
     @Query("SELECT * FROM tags WHERE name = :name LIMIT 1")
     suspend fun getTagByName(name: String): TagEntity?
 
-    @Update
+    @Update(onConflict = OnConflictStrategy.REPLACE)
     suspend fun updateTag(tag: TagEntity)
 
     @Delete

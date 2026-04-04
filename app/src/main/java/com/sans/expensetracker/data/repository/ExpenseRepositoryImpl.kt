@@ -102,6 +102,14 @@ class ExpenseRepositoryImpl(
         tagDao.deleteTag(tag)
     }
 
+    override fun getSpendingByCategoryBetween(since: Long, until: Long): Flow<List<com.sans.expensetracker.data.local.entity.CategorySpent>> {
+        return dao.getSpendingByCategoryBetween(since, until)
+    }
+
+    override fun getDailySpendingBetween(since: Long, until: Long): Flow<List<com.sans.expensetracker.data.local.entity.DaySpent>> {
+        return dao.getDailySpendingBetween(since, until)
+    }
+
     // Internal mapping extension
     private fun com.sans.expensetracker.data.local.entity.ExpenseWithTags.toDomain(): Expense {
         return Expense(

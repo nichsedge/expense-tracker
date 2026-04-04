@@ -31,6 +31,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
+import com.sans.expensetracker.presentation.components.CategoryIcon
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -133,7 +134,13 @@ fun AddExpenseScreen(
                     FilterChip(
                         selected = viewModel.categoryId == category.id,
                         onClick = { viewModel.categoryId = category.id },
-                        label = { Text(category.name) },
+                        label = { 
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                CategoryIcon(category.icon, fontSize = 16.sp)
+                                Spacer(Modifier.width(8.dp))
+                                Text(category.name)
+                            }
+                        },
                         shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
                     )
                 }

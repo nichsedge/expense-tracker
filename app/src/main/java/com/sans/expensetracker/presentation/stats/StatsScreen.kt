@@ -1,18 +1,35 @@
 package com.sans.expensetracker.presentation.stats
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
+import com.patrykandpatrick.vico.compose.cartesian.layer.rememberColumnCartesianLayer
+import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
+import com.patrykandpatrick.vico.compose.common.ProvideVicoTheme
+import com.patrykandpatrick.vico.compose.m3.common.rememberM3VicoTheme
+import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
+import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
+import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModel
+import com.patrykandpatrick.vico.core.cartesian.data.ColumnCartesianLayerModel
 import com.sans.expensetracker.R
 import java.text.NumberFormat
 import java.util.*
@@ -25,10 +42,11 @@ fun StatsScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val currencyFormat = NumberFormat.getCurrencyInstance(Locale("id", "ID"))
+    currencyFormat.maximumFractionDigits = 0
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.statistics), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -47,47 +65,80 @@ fun StatsScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
+                    .verticalScroll(rememberScrollState())
                     .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
-                Text(
-                    stringResource(R.string.monthly_summary),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Black
-                )
-                
-                StatsComparisonCard(
+                // Monthly Overview Header
+                HeaderPart(
                     title = stringResource(R.string.this_month),
                     amount = state.thisMonthSpent,
+                    lastMonthAmount = state.lastMonthSpent,
                     currencyFormat = currencyFormat
                 )
+
+                // Spending Trend Chart
+                SpendingTrendChart(state.dailySpending)
+
+                // Categories Breakdown
+                CategoryBreakdown(state.spendingByCategory, currencyFormat)
+
+                // Comparison Cards
+                SectionTitle(stringResource(R.string.yearly_summary))
                 
-                StatsComparisonCard(
-                    title = stringResource(R.string.last_month),
-                    amount = state.lastMonthSpent,
-                    currencyFormat = currencyFormat,
-                    isSecondary = true
-                )
-
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    StatsSimpleCard(
+                        modifier = Modifier.weight(1.0f),
+                        title = stringResource(R.string.this_year),
+                        amount = state.thisYearSpent,
+                        currencyFormat = currencyFormat,
+                        color = MaterialTheme.colorScheme.primaryContainer
+                    )
+                    StatsSimpleCard(
+                        modifier = Modifier.weight(1.0f),
+                        title = stringResource(R.string.last_year),
+                        amount = state.lastYearSpent,
+                        currencyFormat = currencyFormat,
+                        color = MaterialTheme.colorScheme.secondaryContainer
+                    )
+                }
+                
                 Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
+    }
+}
 
+@Composable
+fun HeaderPart(
+    title: String,
+    amount: Long,
+    lastMonthAmount: Long,
+    currencyFormat: NumberFormat
+) {
+    val diff = amount - lastMonthAmount
+    val percent = if (lastMonthAmount > 0) (diff.toDouble() / lastMonthAmount * 100).toInt() else 0
+    
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+        Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.secondary)
+        Text(
+            currencyFormat.format(amount / 100.0),
+            style = MaterialTheme.typography.displaySmall,
+            fontWeight = FontWeight.Black,
+            color = MaterialTheme.colorScheme.primary
+        )
+        
+        if (lastMonthAmount > 0) {
+            Surface(
+                color = if (diff > 0) MaterialTheme.colorScheme.errorContainer else Color(0xFFC8E6C9),
+                shape = CircleShape
+            ) {
                 Text(
-                    stringResource(R.string.yearly_summary),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Black
-                )
-
-                StatsComparisonCard(
-                    title = stringResource(R.string.this_year),
-                    amount = state.thisYearSpent,
-                    currencyFormat = currencyFormat
-                )
-
-                StatsComparisonCard(
-                    title = stringResource(R.string.last_year),
-                    amount = state.lastYearSpent,
-                    currencyFormat = currencyFormat,
-                    isSecondary = true
+                    text = "${if (diff > 0) "+" else ""}$percent% from last month",
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (diff > 0) MaterialTheme.colorScheme.error else Color(0xFF2E7D32),
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
@@ -95,40 +146,129 @@ fun StatsScreen(
 }
 
 @Composable
-fun StatsComparisonCard(
+fun SpendingTrendChart(dailySpending: List<com.sans.expensetracker.data.local.entity.DaySpent>) {
+    SectionTitle("Spending Trend")
+    
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+    ) {
+        Box(modifier = Modifier.padding(16.dp).fillMaxWidth().height(200.dp)) {
+            if (dailySpending.isEmpty()) {
+                Text("No data for this month", modifier = Modifier.align(Alignment.Center))
+            } else {
+                val model = remember(dailySpending) {
+                    CartesianChartModel(
+                        ColumnCartesianLayerModel.build {
+                            series(dailySpending.map { it.amount / 100f })
+                        }
+                    )
+                }
+                
+                ProvideVicoTheme(rememberM3VicoTheme()) {
+                    CartesianChartHost(
+                        chart = rememberCartesianChart(
+                            rememberColumnCartesianLayer(),
+                            startAxis = VerticalAxis.rememberStart(),
+                            bottomAxis = HorizontalAxis.rememberBottom(),
+                        ),
+                        model = model,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CategoryBreakdown(
+    categories: List<com.sans.expensetracker.data.local.entity.CategorySpent>,
+    currencyFormat: NumberFormat
+) {
+    SectionTitle("By Category")
+    
+    val totalInCategories = categories.sumOf { it.totalAmount }
+    
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(modifier = Modifier.padding(8.dp)) {
+            categories.sortedByDescending { it.totalAmount }.forEach { category ->
+                val percent = if (totalInCategories > 0) category.totalAmount.toFloat() / totalInCategories else 0f
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(category.categoryIcon, fontSize = 24.sp)
+                    }
+                    
+                    Spacer(modifier = Modifier.width(16.dp))
+                    
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(category.categoryName, fontWeight = FontWeight.Bold)
+                        LinearProgressIndicator(
+                            progress = percent,
+                            modifier = Modifier.fillMaxWidth().height(4.dp).clip(CircleShape),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.width(16.dp))
+                    
+                    Text(
+                        currencyFormat.format(category.totalAmount / 100.0),
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun StatsSimpleCard(
+    modifier: Modifier = Modifier,
     title: String,
     amount: Long,
     currencyFormat: NumberFormat,
-    isSecondary: Boolean = false
+    color: Color
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSecondary) 
-                MaterialTheme.colorScheme.secondaryContainer 
-            else 
-                MaterialTheme.colorScheme.primaryContainer
-        ),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp)
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = color),
+        shape = RoundedCornerShape(24.dp)
     ) {
-        Column(modifier = Modifier.padding(24.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(title, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(
-                title,
-                style = MaterialTheme.typography.labelMedium,
-                color = if (isSecondary)
-                    MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
-                else
-                    MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-            )
-            Text(
-                currencyFormat.format(amount / 100.0).replace(",00", ""),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.ExtraBold,
-                color = if (isSecondary)
-                    MaterialTheme.colorScheme.onSecondaryContainer
-                else
-                    MaterialTheme.colorScheme.onPrimaryContainer
+                currencyFormat.format(amount / 100.0),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.ExtraBold
             )
         }
     }
+}
+
+@Composable
+fun SectionTitle(title: String) {
+    Text(
+        title,
+        style = MaterialTheme.typography.titleLarge,
+        fontWeight = FontWeight.Black,
+        modifier = Modifier.padding(bottom = 8.dp)
+    )
 }
