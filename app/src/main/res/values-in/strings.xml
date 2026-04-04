@@ -1,0 +1,31 @@
+<resources>
+    <string name="app_name">Pelacak Pengeluaran</string>
+    <string name="this_month">BULAN INI</string>
+    <string name="total_filtered">TOTAL PERIODE INI</string>
+    <string name="recent_transactions">Transaksi Terakhir</string>
+    <string name="add_expense">Catat Pengeluaran</string>
+    <string name="amount_spent">Jumlah Pengeluaran</string>
+    <string name="category">Kategori</string>
+    <string name="what_did_you_buy">Beli apa?</string>
+    <string name="merchant_store">Toko / Tempat (Opsional)</string>
+\n
+    <string name="is_installment">Ini adalah Cicilan</string>
+    <string name="duration_months">Durasi (Bulan)</string>
+    <string name="confirm_transaction">Konfirmasi Transaksi</string>
+    <string name="update_transaction">Perbarui Transaksi</string>
+    <string name="edit_transaction">Edit Transaksi</string>
+    <string name="active_installments">Cicilan Aktif</string>
+    <string name="total_monthly_due">TOTAL TAGIHAN BULANAN</string>
+    <string name="total_remaining_balance">Total Sisa Tagihan</string>
+    <string name="your_plans">Rencana Anda</string>
+    <string name="no_active_installments">Belum ada cicilan aktif</string>
+    <string name="personal_expense">Pengeluaran Pribadi</string>
+\n
+    <string name="language">Bahasa</string>
+    <string name="paid">LUNAS</string>
+    <string name="pending">TERTUNDA</string>
+    <string name="delete_confirmation_title">Hapus Transaksi</string>
+    <string name="delete_confirmation_msg">Apakah Anda yakin ingin menghapus transaksi ini? Tindakan ini tidak dapat dibatalkan.</string>
+    <string name="delete">Hapus</string>
+    <string name="cancel">Batal</string>
+</resources>

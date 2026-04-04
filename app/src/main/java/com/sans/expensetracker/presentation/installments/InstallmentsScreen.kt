@@ -1,0 +1,201 @@
+package com.sans.expensetracker.presentation.installments
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.outlined.Circle
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.res.stringResource
+import com.sans.expensetracker.R
+import com.sans.expensetracker.domain.model.Installment
+import com.sans.expensetracker.domain.model.InstallmentItem
+import java.text.NumberFormat
+import java.text.SimpleDateFormat
+import java.util.*
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun InstallmentsScreen(
+    onBack: () -> Unit,
+    viewModel: InstallmentsViewModel = hiltViewModel()
+) {
+    val state by viewModel.state.collectAsState()
+    val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale("id", "ID")) }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.active_installments), fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp)
+            ) {
+                Column(modifier = Modifier.padding(24.dp)) {
+                    Text(
+                        stringResource(R.string.total_monthly_due),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                    )
+                    Text(
+                        currencyFormat.format(state.totalMonthlyDue / 100.0).replace(",00", ""),
+                        style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Black),
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        stringResource(R.string.total_remaining_balance) + ": " + currencyFormat.format(state.totalRemainingBalance / 100.0).replace(",00", ""),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                    )
+                }
+            }
+
+            Text(stringResource(R.string.your_plans), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+
+            if (state.activeInstallments.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(stringResource(R.string.no_active_installments), style = MaterialTheme.typography.bodyLarge)
+                }
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    items(state.activeInstallments) { item ->
+                        ExpandableInstallment(item, currencyFormat, viewModel)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ExpandableInstallment(
+    installment: Installment,
+    currencyFormat: NumberFormat,
+    viewModel: InstallmentsViewModel
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val items by viewModel.getItemsForInstallment(installment.id).collectAsState(initial = emptyList())
+    val dateFormatter = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()) }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        onClick = { expanded = !expanded }
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "Installment Plan #${installment.id}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "Due: " + dateFormatter.format(Date(installment.nextDueDate)),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        currencyFormat.format(installment.monthlyPayment / 100.0).replace(",00", "") + "/mo",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                    Icon(
+                        if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = null
+                    )
+                }
+            }
+            
+            if (expanded) {
+                Column(
+                    modifier = Modifier.padding(top = 16.dp)
+                ) {
+                    Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f))
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    items.forEach { monthlyItem ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    "Month ${monthlyItem.monthNumber}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    dateFormatter.format(Date(monthlyItem.dueDate)),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    if (monthlyItem.status == "Paid") stringResource(R.string.paid) else stringResource(R.string.pending),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (monthlyItem.status == "Paid") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                                    fontWeight = FontWeight.Black
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                IconButton(
+                                    onClick = { viewModel.onToggleStatus(monthlyItem.id, monthlyItem.status) }
+                                ) {
+                                    Icon(
+                                        if (monthlyItem.status == "Paid") Icons.Default.CheckCircle else Icons.Outlined.Circle,
+                                        contentDescription = "Toggle Status",
+                                        tint = if (monthlyItem.status == "Paid") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,43 @@
+<resources>
+    <string name="app_name">Expense Tracker</string>
+    <string name="this_month">THIS MONTH</string>
+    <string name="total_filtered">TOTAL FOR PERIOD</string>
+    <string name="recent_transactions">Recent Transactions</string>
+    <string name="add_expense">Record Expense</string>
+    <string name="amount_spent">Amount Spent</string>
+    <string name="category">Category</string>
+    <string name="what_did_you_buy">What did you buy?</string>
+    <string name="merchant_store">Merchant / Store (Optional)</string>
+\n
+    <string name="is_installment">This is an Installment Plan</string>
+    <string name="duration_months">Duration (Months)</string>
+    <string name="confirm_transaction">Confirm Transaction</string>
+    <string name="update_transaction">Update Transaction</string>
+    <string name="edit_transaction">Edit Transaction</string>
+    <string name="active_installments">Active Installments</string>
+    <string name="total_monthly_due">TOTAL MONTHLY DUE</string>
+    <string name="total_remaining_balance">Total Remaining Balance</string>
+    <string name="your_plans">Your Plans</string>
+    <string name="no_active_installments">No active installment plans</string>
+    <string name="personal_expense">Personal Expense</string>
+\n
+    <string name="language">Language</string>
+    <string name="paid">PAID</string>
+    <string name="pending">PENDING</string>
+    <string name="delete_confirmation_title">Delete Transaction</string>
+    <string name="delete_confirmation_msg">Are you sure you want to delete this transaction? This action cannot be undone.</string>
+    <string name="delete">Delete</string>
+    <string name="cancel">Cancel</string>
+    <string name="statistics">Statistics</string>
+    <string name="monthly_details">Monthly Details</string>
+    <string name="yearly_breakdown">Yearly Breakdown</string>
+    <string name="last_month">Last Month</string>
+    <string name="this_year">This Year</string>
+    <string name="last_year">Last Year</string>
+    <string name="monthly_summary">Monthly Summarized</string>
+    <string name="yearly_summary">Yearly Summarized</string>
+    <string name="filter_7d">7D</string>
+    <string name="filter_30d">30D</string>
+    <string name="filter_month">This Month</string>
+    <string name="filter_all">All</string>
+</resources>
