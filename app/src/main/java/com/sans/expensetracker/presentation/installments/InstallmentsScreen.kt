@@ -21,7 +21,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.res.stringResource
 import com.sans.expensetracker.R
 import com.sans.expensetracker.domain.model.Installment
-import com.sans.expensetracker.domain.model.InstallmentItem
 import java.text.SimpleDateFormat
 import java.util.*
 
