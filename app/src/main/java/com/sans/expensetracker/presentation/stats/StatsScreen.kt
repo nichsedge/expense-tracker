@@ -22,16 +22,19 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
-import com.patrykandpatrick.vico.compose.cartesian.layer.rememberColumnCartesianLayer
+import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import com.patrykandpatrick.vico.compose.common.ProvideVicoTheme
 import com.patrykandpatrick.vico.compose.m3.common.rememberM3VicoTheme
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModel
-import com.patrykandpatrick.vico.core.cartesian.data.ColumnCartesianLayerModel
+import com.patrykandpatrick.vico.core.cartesian.data.CartesianValueFormatter
+import com.patrykandpatrick.vico.core.cartesian.data.LineCartesianLayerModel
 import com.sans.expensetracker.R
+import com.sans.expensetracker.core.util.CurrencyFormatter
 import java.util.*
+import kotlin.math.roundToLong
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -151,20 +154,39 @@ fun SpendingTrendChart(dailySpending: List<com.sans.expensetracker.data.local.en
             if (dailySpending.isEmpty()) {
                 Text("No data for this month", modifier = Modifier.align(Alignment.Center))
             } else {
-                val model = remember(dailySpending) {
+                val sortedSpending = remember(dailySpending) { dailySpending.sortedBy { it.day } }
+                val model = remember(sortedSpending) {
                     CartesianChartModel(
-                        ColumnCartesianLayerModel.build {
-                            series(dailySpending.map { kotlin.math.ceil(it.amount / 100.0).toFloat() })
+                        LineCartesianLayerModel.build {
+                            series(
+                                sortedSpending.map { it.day.toDouble() },
+                                sortedSpending.map { it.amount / 100.0 }
+                            )
                         }
                     )
+                }
+                val dateLabelFormatter = remember(sortedSpending) {
+                    val dateFormat = java.text.SimpleDateFormat("d MMM", Locale.getDefault())
+                    CartesianValueFormatter { _, value, _ ->
+                        dateFormat.format(Date(value.roundToLong()))
+                    }
+                }
+                val currencyLabelFormatter = remember {
+                    CartesianValueFormatter { _, value, _ ->
+                        CurrencyFormatter.formatAmount((value * 100).roundToLong())
+                    }
                 }
                 
                 ProvideVicoTheme(rememberM3VicoTheme()) {
                     CartesianChartHost(
                         chart = rememberCartesianChart(
-                            rememberColumnCartesianLayer(),
-                            startAxis = VerticalAxis.rememberStart(),
-                            bottomAxis = HorizontalAxis.rememberBottom(),
+                            rememberLineCartesianLayer(),
+                            startAxis = VerticalAxis.rememberStart(
+                                valueFormatter = currencyLabelFormatter
+                            ),
+                            bottomAxis = HorizontalAxis.rememberBottom(
+                                valueFormatter = dateLabelFormatter
+                            ),
                         ),
                         model = model,
                         modifier = Modifier.fillMaxSize()
