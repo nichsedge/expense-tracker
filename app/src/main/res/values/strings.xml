@@ -37,6 +37,8 @@
     <string name="last_year">Last Year</string>
     <string name="monthly_summary">Monthly Summarized</string>
     <string name="yearly_summary">Yearly Summarized</string>
+    <string name="by_category">By Category</string>
+    <string name="spending_trend">Spending Trend</string>
     <string name="filter_7d">7D</string>
     <string name="filter_30d">30D</string>
     <string name="filter_month">This Month</string>

@@ -8,17 +8,22 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.sans.expensetracker.presentation.components.CategoryIcon
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
@@ -83,7 +88,8 @@ fun StatsScreen(
                 CategoryBreakdown(state.spendingByCategory)
 
                 // Comparison Cards
-                SectionTitle(stringResource(R.string.yearly_summary))
+                // Comparison Cards
+                SectionTitle(stringResource(R.string.yearly_summary), icon = Icons.Default.CalendarMonth)
                 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     StatsSimpleCard(
@@ -143,7 +149,7 @@ fun HeaderPart(
 
 @Composable
 fun SpendingTrendChart(dailySpending: List<com.sans.expensetracker.data.local.entity.DaySpent>) {
-    SectionTitle("Spending Trend")
+    SectionTitle(stringResource(R.string.spending_trend), icon = Icons.Default.Insights)
     
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -201,7 +207,7 @@ fun SpendingTrendChart(dailySpending: List<com.sans.expensetracker.data.local.en
 fun CategoryBreakdown(
     categories: List<com.sans.expensetracker.data.local.entity.CategorySpent>
 ) {
-    SectionTitle("By Category")
+    SectionTitle(stringResource(R.string.by_category), icon = Icons.Default.PieChart)
     
     val totalInCategories = categories.sumOf { it.totalAmount }
     
@@ -226,7 +232,7 @@ fun CategoryBreakdown(
                             .background(MaterialTheme.colorScheme.primaryContainer),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(category.categoryIcon, fontSize = 24.sp)
+                        CategoryIcon(category.categoryIcon, fontSize = 24.sp)
                     }
                     
                     Spacer(modifier = Modifier.width(16.dp))
@@ -277,11 +283,24 @@ fun StatsSimpleCard(
 }
 
 @Composable
-fun SectionTitle(title: String) {
-    Text(
-        title,
-        style = MaterialTheme.typography.titleLarge,
-        fontWeight = FontWeight.Black,
-        modifier = Modifier.padding(bottom = 8.dp)
-    )
+fun SectionTitle(title: String, icon: ImageVector? = null) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(bottom = 12.dp)
+    ) {
+        if (icon != null) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+        }
+        Text(
+            title,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Black
+        )
+    }
 }

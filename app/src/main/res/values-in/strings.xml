@@ -35,5 +35,7 @@
     <string name="tags">Tag</string>
     <string name="data_management">Manajemen Data</string>
     <string name="full_backup">Cadangan Basis Data</string>
+    <string name="by_category">Berdasarkan Kategori</string>
+    <string name="spending_trend">Tren Pengeluaran</string>
     <string name="backup_to_downloads">Snapshot disimpan ke folder Unduhan</string>
 </resources>
