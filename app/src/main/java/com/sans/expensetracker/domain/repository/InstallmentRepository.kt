@@ -14,4 +14,6 @@ interface InstallmentRepository {
     suspend fun updateInstallmentItemStatus(itemId: Long, status: String)
     fun getTotalPaidAmountSince(since: Long): Flow<Long?>
     fun getTotalPaidAmountBetween(since: Long, until: Long): Flow<Long?>
+    fun getPaidItemsInDateRange(since: Long, until: Long): Flow<List<com.sans.expensetracker.domain.model.InstallmentItem>>
+    suspend fun deleteInstallmentByExpenseId(expenseId: Long)
 }

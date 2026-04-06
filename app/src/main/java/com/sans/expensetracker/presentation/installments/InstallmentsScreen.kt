@@ -23,7 +23,6 @@ import androidx.compose.ui.res.stringResource
 import com.sans.expensetracker.R
 import com.sans.expensetracker.domain.model.Installment
 import com.sans.expensetracker.domain.model.InstallmentItem
-import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -34,7 +33,6 @@ fun InstallmentsScreen(
     viewModel: InstallmentsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
-    val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale("id", "ID")) }
 
     Scaffold(
         topBar = {
@@ -67,13 +65,13 @@ fun InstallmentsScreen(
                         color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
                     )
                     Text(
-                        currencyFormat.format(state.totalMonthlyDue / 100.0).replace(",00", ""),
+                        com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(state.totalMonthlyDue),
                         style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Black),
                         color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        stringResource(R.string.total_remaining_balance) + ": " + currencyFormat.format(state.totalRemainingBalance / 100.0).replace(",00", ""),
+                        stringResource(R.string.total_remaining_balance) + ": " + com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(state.totalRemainingBalance),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
                     )
@@ -89,7 +87,7 @@ fun InstallmentsScreen(
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     items(state.activeInstallments) { item ->
-                        ExpandableInstallment(item, currencyFormat, viewModel)
+                        ExpandableInstallment(item, viewModel)
                     }
                 }
             }
@@ -100,7 +98,6 @@ fun InstallmentsScreen(
 @Composable
 fun ExpandableInstallment(
     installment: Installment,
-    currencyFormat: NumberFormat,
     viewModel: InstallmentsViewModel
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -121,20 +118,22 @@ fun ExpandableInstallment(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        "Installment Plan #${installment.id}",
+                        installment.expenseName ?: "Installment Plan #${installment.id}",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
-                    Text(
-                        "Due: " + dateFormatter.format(Date(installment.nextDueDate)),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    installment.expenseDate?.let {
+                        Text(
+                            dateFormatter.format(Date(it)),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
                 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        currencyFormat.format(installment.monthlyPayment / 100.0).replace(",00", "") + "/mo",
+                        com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(installment.monthlyPayment) + "/mo",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.ExtraBold

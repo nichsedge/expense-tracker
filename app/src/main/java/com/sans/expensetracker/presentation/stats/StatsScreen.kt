@@ -31,7 +31,6 @@ import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModel
 import com.patrykandpatrick.vico.core.cartesian.data.ColumnCartesianLayerModel
 import com.sans.expensetracker.R
-import java.text.NumberFormat
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -41,8 +40,6 @@ fun StatsScreen(
     viewModel: StatsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
-    val currencyFormat = NumberFormat.getCurrencyInstance(Locale("id", "ID"))
-    currencyFormat.maximumFractionDigits = 0
 
     Scaffold(
         topBar = {
@@ -73,15 +70,14 @@ fun StatsScreen(
                 HeaderPart(
                     title = stringResource(R.string.this_month),
                     amount = state.thisMonthSpent,
-                    lastMonthAmount = state.lastMonthSpent,
-                    currencyFormat = currencyFormat
+                    lastMonthAmount = state.lastMonthSpent
                 )
 
                 // Spending Trend Chart
                 SpendingTrendChart(state.dailySpending)
 
                 // Categories Breakdown
-                CategoryBreakdown(state.spendingByCategory, currencyFormat)
+                CategoryBreakdown(state.spendingByCategory)
 
                 // Comparison Cards
                 SectionTitle(stringResource(R.string.yearly_summary))
@@ -91,14 +87,12 @@ fun StatsScreen(
                         modifier = Modifier.weight(1.0f),
                         title = stringResource(R.string.this_year),
                         amount = state.thisYearSpent,
-                        currencyFormat = currencyFormat,
                         color = MaterialTheme.colorScheme.primaryContainer
                     )
                     StatsSimpleCard(
                         modifier = Modifier.weight(1.0f),
                         title = stringResource(R.string.last_year),
                         amount = state.lastYearSpent,
-                        currencyFormat = currencyFormat,
                         color = MaterialTheme.colorScheme.secondaryContainer
                     )
                 }
@@ -113,8 +107,7 @@ fun StatsScreen(
 fun HeaderPart(
     title: String,
     amount: Long,
-    lastMonthAmount: Long,
-    currencyFormat: NumberFormat
+    lastMonthAmount: Long
 ) {
     val diff = amount - lastMonthAmount
     val percent = if (lastMonthAmount > 0) (diff.toDouble() / lastMonthAmount * 100).toInt() else 0
@@ -122,7 +115,7 @@ fun HeaderPart(
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
         Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.secondary)
         Text(
-            currencyFormat.format(amount / 100.0),
+            com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(amount),
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.Black,
             color = MaterialTheme.colorScheme.primary
@@ -161,7 +154,7 @@ fun SpendingTrendChart(dailySpending: List<com.sans.expensetracker.data.local.en
                 val model = remember(dailySpending) {
                     CartesianChartModel(
                         ColumnCartesianLayerModel.build {
-                            series(dailySpending.map { it.amount / 100f })
+                            series(dailySpending.map { kotlin.math.ceil(it.amount / 100.0).toFloat() })
                         }
                     )
                 }
@@ -184,8 +177,7 @@ fun SpendingTrendChart(dailySpending: List<com.sans.expensetracker.data.local.en
 
 @Composable
 fun CategoryBreakdown(
-    categories: List<com.sans.expensetracker.data.local.entity.CategorySpent>,
-    currencyFormat: NumberFormat
+    categories: List<com.sans.expensetracker.data.local.entity.CategorySpent>
 ) {
     SectionTitle("By Category")
     
@@ -230,7 +222,7 @@ fun CategoryBreakdown(
                     Spacer(modifier = Modifier.width(16.dp))
                     
                     Text(
-                        currencyFormat.format(category.totalAmount / 100.0),
+                        com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(category.totalAmount),
                         fontWeight = FontWeight.ExtraBold
                     )
                 }
@@ -244,7 +236,6 @@ fun StatsSimpleCard(
     modifier: Modifier = Modifier,
     title: String,
     amount: Long,
-    currencyFormat: NumberFormat,
     color: Color
 ) {
     Card(
@@ -255,7 +246,7 @@ fun StatsSimpleCard(
         Column(modifier = Modifier.padding(16.dp)) {
             Text(title, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(
-                currencyFormat.format(amount / 100.0),
+                com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(amount),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.ExtraBold
             )

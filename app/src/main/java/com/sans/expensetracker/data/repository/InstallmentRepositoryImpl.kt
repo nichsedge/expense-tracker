@@ -30,7 +30,7 @@ class InstallmentRepositoryImpl(
         for (i in 1..duration) {
             val calendar = java.util.Calendar.getInstance()
             calendar.timeInMillis = startDate
-            calendar.add(java.util.Calendar.MONTH, i)
+            calendar.add(java.util.Calendar.MONTH, i - 1)
             
             val item = com.sans.expensetracker.data.local.entity.InstallmentItemEntity(
                 installmentId = installmentId,
@@ -75,6 +75,21 @@ class InstallmentRepositoryImpl(
 
     override fun getTotalPaidAmountBetween(since: Long, until: Long): Flow<Long?> {
         return dao.getTotalPaidAmountBetween(since, until)
+    }
+
+    override suspend fun deleteInstallmentByExpenseId(expenseId: Long) {
+        dao.deleteInstallmentByExpenseId(expenseId)
+    }
+
+    override fun getPaidItemsInDateRange(since: Long, until: Long): Flow<List<com.sans.expensetracker.domain.model.InstallmentItem>> {
+        return dao.getPaidItemsInDateRange(since, until).map { list -> list.map { it.toDomain() } }
+    }
+
+    private fun com.sans.expensetracker.data.local.entity.InstallmentWithExpense.toDomainModel(): Installment {
+        return installment.toDomainModel().copy(
+            expenseName = expense.itemName,
+            expenseDate = expense.date
+        )
     }
 
     private fun InstallmentEntity.toDomainModel(): Installment {

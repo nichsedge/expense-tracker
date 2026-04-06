@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -15,8 +16,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
@@ -24,7 +27,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.sans.expensetracker.R
 import com.sans.expensetracker.domain.model.Expense
 import com.sans.expensetracker.presentation.components.CategoryIcon
-import java.text.NumberFormat
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,9 +41,11 @@ fun ExpenseListScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val haptic = LocalHapticFeedback.current
+    val focusManager = LocalFocusManager.current
     val snackbarHostState = remember { SnackbarHostState() }
     var expenseToDelete by remember { mutableStateOf<Expense?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showFilterSheet by remember { mutableStateOf(false) }
 
 
     LaunchedEffect(state.error) {
@@ -79,6 +83,40 @@ fun ExpenseListScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                OutlinedTextField(
+                    value = state.searchQuery,
+                    onValueChange = { viewModel.updateSearchQuery(it) },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text(stringResource(R.string.search_expenses)) },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    trailingIcon = {
+                        IconButton(onClick = { showFilterSheet = true }) {
+                            val isFiltered = state.selectedCategoryId != null || 
+                                           state.minAmount != null || 
+                                           state.maxAmount != null || 
+                                           state.selectedTags.isNotEmpty()
+                            Icon(
+                                Icons.Default.Tune, 
+                                contentDescription = "Filters",
+                                tint = if (isFiltered) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
+                    singleLine = true,
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                        focusedContainerColor = MaterialTheme.colorScheme.surface
+                    )
+                )
+            }
+
             SummaryCard(
                 thisMonth = state.thisMonthSpent,
                 periodTotal = state.totalFilteredAmount
@@ -170,12 +208,168 @@ fun ExpenseListScreen(
             }
         )
     }
+
+    if (showFilterSheet) {
+        AdvancedFilterSheet(
+            state = state,
+            onDismiss = { showFilterSheet = false },
+            onCategorySelected = { viewModel.updateCategoryFilter(it) },
+            onAmountFilterChanged = { min, max -> viewModel.updateAmountFilter(min, max) },
+            onTagToggle = { viewModel.toggleTagFilter(it) },
+            onClearFilters = { 
+                viewModel.clearFilters()
+                showFilterSheet = false
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+fun AdvancedFilterSheet(
+    state: ExpenseListState,
+    onDismiss: () -> Unit,
+    onCategorySelected: (Long?) -> Unit,
+    onAmountFilterChanged: (Long?, Long?) -> Unit,
+    onTagToggle: (String) -> Unit,
+    onClearFilters: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState()
+    var minAmountStr by remember { mutableStateOf(state.minAmount?.let { kotlin.math.ceil(it / 100.0).toLong().toString() } ?: "") }
+    var maxAmountStr by remember { mutableStateOf(state.maxAmount?.let { kotlin.math.ceil(it / 100.0).toLong().toString() } ?: "") }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+                .navigationBarsPadding()
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    stringResource(R.string.filters),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                TextButton(onClick = onClearFilters) {
+                    Text(stringResource(R.string.clear_filters))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                stringResource(R.string.category),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            
+            FlowRow(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    selected = state.selectedCategoryId == null,
+                    onClick = { onCategorySelected(null) },
+                    label = { Text(stringResource(R.string.filter_all)) }
+                )
+                state.categories.forEach { category ->
+                    FilterChip(
+                        selected = state.selectedCategoryId == category.id,
+                        onClick = { onCategorySelected(category.id) },
+                        label = { Text(category.name) },
+                        leadingIcon = {
+                            CategoryIcon(icon = category.icon, fontSize = 14.sp)
+                        }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                stringResource(R.string.amount_spent),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                OutlinedTextField(
+                    value = minAmountStr,
+                    onValueChange = { 
+                        minAmountStr = it
+                        onAmountFilterChanged(it.toLongOrNull()?.let { v -> v * 100 }, maxAmountStr.toLongOrNull()?.let { v -> v * 100 })
+                    },
+                    modifier = Modifier.weight(1f),
+                    label = { Text(stringResource(R.string.min_amount)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = maxAmountStr,
+                    onValueChange = { 
+                        maxAmountStr = it
+                        onAmountFilterChanged(minAmountStr.toLongOrNull()?.let { v -> v * 100 }, it.toLongOrNull()?.let { v -> v * 100 })
+                    },
+                    modifier = Modifier.weight(1f),
+                    label = { Text(stringResource(R.string.max_amount)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
+            }
+
+            if (state.availableTags.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    stringResource(R.string.tags),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    state.availableTags.forEach { tag ->
+                        FilterChip(
+                            selected = state.selectedTags.contains(tag),
+                            onClick = { onTagToggle(tag) },
+                            label = { Text(tag) }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Button(
+                onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth(),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+            ) {
+                Text(stringResource(R.string.apply_filters))
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
 }
 
 @Composable
 fun SummaryCard(thisMonth: Long, periodTotal: Long) {
-    val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale("id", "ID")) }
-    
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -202,7 +396,7 @@ fun SummaryCard(thisMonth: Long, periodTotal: Long) {
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        currencyFormat.format(thisMonth / 100.0).replace(",00", ""),
+                        com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(thisMonth),
                         style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black),
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
@@ -216,7 +410,7 @@ fun SummaryCard(thisMonth: Long, periodTotal: Long) {
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        currencyFormat.format(periodTotal / 100.0).replace(",00", ""),
+                        com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(periodTotal),
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold),
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                     )
@@ -234,8 +428,6 @@ fun ExpenseItem(
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
-    val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale("id", "ID")) }
-    
     val icon = category?.icon ?: ""
 
     Surface(
@@ -286,11 +478,22 @@ fun ExpenseItem(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                if (expense.isInstallment && expense.monthlyPayment > 0) {
+                    val totalPaid = com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(expense.totalPaid)
+                    val totalAmount = com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(expense.amount)
+                    Text(
+                        "Paid: $totalPaid / $totalAmount",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             Column(horizontalAlignment = Alignment.End) {
+                val displayAmount = if (expense.isInstallment && expense.monthlyPayment > 0) expense.monthlyPayment else expense.amount
                 Text(
-                    currencyFormat.format(expense.amount / 100.0).replace(",00", ""),
+                    com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(displayAmount),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Black,
                     color = MaterialTheme.colorScheme.onSurface

@@ -15,5 +15,10 @@ data class ExpenseWithTags(
             entityColumn = "tagId"
         )
     )
-    val tags: List<TagEntity>
+    val tags: List<TagEntity>,
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "expense_id"
+    )
+    val installment: InstallmentEntity?
 )

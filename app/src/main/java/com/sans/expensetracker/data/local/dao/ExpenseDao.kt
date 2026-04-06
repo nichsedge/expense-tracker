@@ -15,6 +15,30 @@ interface ExpenseDao {
     fun getExpensesBetween(since: Long, until: Long): Flow<List<com.sans.expensetracker.data.local.entity.ExpenseWithTags>>
 
     @Transaction
+    @Query("""
+        SELECT DISTINCT e.* FROM expenses e
+        LEFT JOIN expense_tag_ref etr ON e.id = etr.expenseId
+        LEFT JOIN tags t ON etr.tagId = t.id
+        WHERE (:query IS NULL OR e.item_name LIKE '%' || :query || '%' OR e.merchant LIKE '%' || :query || '%')
+        AND (:categoryId IS NULL OR e.category_id = :categoryId)
+        AND (e.date >= :since AND e.date < :until)
+        AND (:minAmount IS NULL OR e.final_price >= :minAmount)
+        AND (:maxAmount IS NULL OR e.final_price <= :maxAmount)
+        AND (:tagCount = 0 OR t.name IN (:tags))
+        ORDER BY e.date DESC
+    """)
+    fun getFilteredExpenses(
+        query: String?,
+        categoryId: Long?,
+        since: Long,
+        until: Long,
+        minAmount: Long?,
+        maxAmount: Long?,
+        tags: List<String>,
+        tagCount: Int
+    ): Flow<List<com.sans.expensetracker.data.local.entity.ExpenseWithTags>>
+
+    @Transaction
     @Query("SELECT * FROM expenses WHERE id = :id")
     suspend fun getExpenseById(id: Long): com.sans.expensetracker.data.local.entity.ExpenseWithTags?
 

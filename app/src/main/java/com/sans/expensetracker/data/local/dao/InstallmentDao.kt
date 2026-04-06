@@ -6,15 +6,18 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.sans.expensetracker.data.local.entity.InstallmentEntity
+import com.sans.expensetracker.data.local.entity.InstallmentWithExpense
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface InstallmentDao {
+    @androidx.room.Transaction
     @Query("SELECT * FROM installments ORDER BY created_at DESC")
-    fun getAllInstallments(): Flow<List<InstallmentEntity>>
+    fun getAllInstallments(): Flow<List<InstallmentWithExpense>>
 
+    @androidx.room.Transaction
     @Query("SELECT * FROM installments WHERE status = 'Active' ORDER BY next_due_date ASC")
-    fun getActiveInstallments(): Flow<List<InstallmentEntity>>
+    fun getActiveInstallments(): Flow<List<InstallmentWithExpense>>
 
     @Query("SELECT * FROM installments WHERE expense_id = :expenseId")
     suspend fun getInstallmentByExpenseId(expenseId: Long): InstallmentEntity?
@@ -43,9 +46,15 @@ interface InstallmentDao {
     @Query("SELECT SUM(amount) FROM installment_items WHERE status = 'Paid' AND due_date >= :since AND due_date < :until")
     fun getTotalPaidAmountBetween(since: Long, until: Long): Flow<Long?>
 
+    @Query("SELECT * FROM installment_items WHERE status = 'Paid' AND due_date >= :since AND due_date < :until")
+    fun getPaidItemsInDateRange(since: Long, until: Long): Flow<List<com.sans.expensetracker.data.local.entity.InstallmentItemEntity>>
+
     @Update
     suspend fun updateInstallment(installment: InstallmentEntity)
 
     @Query("SELECT COUNT(*) FROM installments")
     suspend fun getInstallmentCount(): Int
+
+    @Query("DELETE FROM installments WHERE expense_id = :expenseId")
+    suspend fun deleteInstallmentByExpenseId(expenseId: Long)
 }

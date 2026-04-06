@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import java.text.SimpleDateFormat
 import java.util.Locale
+import java.util.Date
 
 data class ExpenseListState(
     val expenses: List<Expense> = emptyList(),
@@ -21,7 +22,14 @@ data class ExpenseListState(
     val endDate: Long = Long.MAX_VALUE,
     val isLoading: Boolean = true,
     val error: String? = null,
-    val categories: List<com.sans.expensetracker.data.local.entity.CategoryEntity> = emptyList()
+    val categories: List<com.sans.expensetracker.data.local.entity.CategoryEntity> = emptyList(),
+    val availableTags: List<String> = emptyList(),
+    val selectedTags: Set<String> = emptySet(),
+    val searchQuery: String = "",
+    val selectedCategoryId: Long? = null,
+    val minAmount: Long? = null,
+    val maxAmount: Long? = null,
+    val dailySpending: Map<Long, Long> = emptyMap()
 )
 
 @HiltViewModel
@@ -51,6 +59,15 @@ class ExpenseListViewModel @Inject constructor(
         loadExpenses()
         loadHistoricalStats()
         loadCategories()
+        loadTags()
+    }
+
+    private fun loadTags() {
+        repository.getAllTags()
+            .onEach { tags ->
+                _state.update { it.copy(availableTags = tags) }
+            }
+            .launchIn(viewModelScope)
     }
 
     private fun loadCategories() {
@@ -64,31 +81,116 @@ class ExpenseListViewModel @Inject constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun loadExpenses() {
         _state
-            .map { it.startDate to it.endDate }
-            .distinctUntilChanged()
-            .flatMapLatest { (start, end) ->
-                repository.getExpensesBetween(start, end)
+            .map { 
+                listOf(
+                    it.startDate, 
+                    it.endDate, 
+                    it.searchQuery, 
+                    it.selectedCategoryId, 
+                    it.minAmount, 
+                    it.maxAmount,
+                    it.selectedTags
+                ) 
             }
-            .onEach { expenses ->
-                val grouped = groupExpensesByDate(expenses)
+            .distinctUntilChanged()
+            .flatMapLatest { _ ->
+                val s = _state.value
+                val expensesFlow = repository.getFilteredExpenses(
+                    query = s.searchQuery,
+                    categoryId = s.selectedCategoryId,
+                    since = s.startDate,
+                    until = s.endDate,
+                    minAmount = s.minAmount,
+                    maxAmount = s.maxAmount,
+                    tags = s.selectedTags.toList()
+                )
+                
+                // Only if no specific amount filter is active (or we could try to filter installment payments too)
+                // For simplicity, we combine if not searching/filtering specific categories that might exclude them
+                val instFlow = if (s.searchQuery.isBlank() && s.minAmount == null && s.maxAmount == null) {
+                    installmentRepository.getTotalPaidAmountBetween(s.startDate, s.endDate)
+                } else {
+                    flowOf(0L)
+                }
+                
+                val dailyFlow = repository.getDailySpendingBetween(s.startDate, s.endDate)
+
+                expensesFlow.combine(instFlow) { e, i -> Pair(e, i ?: 0L) }
+                    .combine(dailyFlow) { (e, i), d -> Triple(e, i, d) }
+            }
+            .onEach { (expenses, instSum, dailySpending) ->
+                val dailyMap = dailySpending.associate { it.day to it.amount }
+                val grouped = groupExpensesByDate(expenses, dailyMap)
+                // Filtered item totals: normal items + installment payments
+                val normalItemsSum = expenses.filter { !it.isInstallment }.sumOf { it.amount }
                 _state.update { it.copy(
                     expenses = expenses, 
                     groupedExpenses = grouped,
-                    totalFilteredAmount = expenses.sumOf { it.amount },
+                    totalFilteredAmount = normalItemsSum + instSum,
+                    dailySpending = dailyMap,
                     isLoading = false
                 ) }
             }
             .launchIn(viewModelScope)
     }
 
-    private fun groupExpensesByDate(expenses: List<Expense>): Map<String, List<Expense>> {
-        val dailyTotalFormat = java.text.NumberFormat.getCurrencyInstance(java.util.Locale("id", "ID"))
+    fun updateSearchQuery(query: String) {
+        _state.update { it.copy(searchQuery = query) }
+    }
+
+    fun updateCategoryFilter(categoryId: Long?) {
+        _state.update { it.copy(selectedCategoryId = categoryId) }
+    }
+
+    fun updateAmountFilter(min: Long?, max: Long?) {
+        _state.update { it.copy(minAmount = min, maxAmount = max) }
+    }
+
+    fun clearFilters() {
+        _state.update { it.copy(
+            searchQuery = "",
+            selectedCategoryId = null,
+            minAmount = null,
+            maxAmount = null,
+            selectedTags = emptySet()
+        ) }
+    }
+
+    fun toggleTagFilter(tag: String) {
+        _state.update { currentState ->
+            val newSelectedTags = if (currentState.selectedTags.contains(tag)) {
+                currentState.selectedTags - tag
+            } else {
+                currentState.selectedTags + tag
+            }
+            currentState.copy(selectedTags = newSelectedTags)
+        }
+    }
+
+    private fun groupExpensesByDate(
+        expenses: List<Expense>,
+        dailySpendingMap: Map<Long, Long> = emptyMap()
+    ): Map<String, List<Expense>> {
+        val calendar = java.util.Calendar.getInstance()
+        
         return expenses.groupBy { expense ->
             dateFormat.format(java.util.Date(expense.date))
-        }.mapKeys { (date, items) ->
-            val total = items.sumOf { it.amount }
-            val totalStr = dailyTotalFormat.format(total / 100.0).replace(",00", "")
-            "$date • Total: $totalStr"
+        }.mapKeys { (dateStr, items) ->
+            if (items.isNotEmpty()) {
+                val itemDate = items[0].date
+                calendar.timeInMillis = itemDate
+                calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
+                calendar.set(java.util.Calendar.MINUTE, 0)
+                calendar.set(java.util.Calendar.SECOND, 0)
+                calendar.set(java.util.Calendar.MILLISECOND, 0)
+                val dayStart = calendar.timeInMillis
+                
+                val dayTotal = dailySpendingMap[dayStart] ?: items.sumOf { if (it.isInstallment) it.monthlyPayment else it.amount }
+                val totalStr = com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(dayTotal)
+                "$dateStr • Total: $totalStr"
+            } else {
+                dateStr
+            }
         }
     }
 

@@ -9,5 +9,7 @@ data class Installment(
     val remainingBalance: Long,
     val nextDueDate: Long,
     val status: String = "Active",
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    val expenseName: String? = null,
+    val expenseDate: Long? = null
 )

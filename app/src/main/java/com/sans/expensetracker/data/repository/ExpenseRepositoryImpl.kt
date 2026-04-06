@@ -25,6 +25,30 @@ class ExpenseRepositoryImpl(
         }
     }
 
+    override fun getFilteredExpenses(
+        query: String?,
+        categoryId: Long?,
+        since: Long,
+        until: Long,
+        minAmount: Long?,
+        maxAmount: Long?,
+        tags: List<String>
+    ): Flow<List<Expense>> {
+        val searchQuery = if (query.isNullOrBlank()) null else query
+        return dao.getFilteredExpenses(
+            searchQuery,
+            categoryId,
+            since,
+            until,
+            minAmount,
+            maxAmount,
+            tags,
+            tags.size
+        ).map { entities ->
+            entities.map { it.toDomain() }
+        }
+    }
+
     override suspend fun getExpenseById(id: Long): Expense? {
         return dao.getExpenseById(id)?.toDomain()
     }
@@ -112,6 +136,7 @@ class ExpenseRepositoryImpl(
 
     // Internal mapping extension
     private fun com.sans.expensetracker.data.local.entity.ExpenseWithTags.toDomain(): Expense {
+        val totalPaid = installment?.let { it.totalAmount - it.remainingBalance } ?: 0L
         return Expense(
             id = expense.id,
             date = expense.date,
@@ -122,7 +147,10 @@ class ExpenseRepositoryImpl(
             isInstallment = expense.isInstallment,
             merchant = expense.merchant,
             tags = tags.map { it.name },
-            quantity = expense.quantity
+            quantity = expense.quantity,
+            totalPaid = totalPaid,
+            remainingBalance = installment?.remainingBalance ?: 0L,
+            monthlyPayment = installment?.monthlyPayment ?: 0L
         )
     }
 

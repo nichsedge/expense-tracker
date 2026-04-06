@@ -43,7 +43,7 @@ class AddExpenseViewModel @Inject constructor(
         editExpenseId?.let { id ->
             viewModelScope.launch {
                 getExpenseByIdUseCase(id)?.let { expense ->
-                    amount = (expense.amount.toDouble() / 100.0).toString()
+                    amount = kotlin.math.ceil(expense.amount / 100.0).toLong().toString()
                     itemName = expense.itemName
                     merchant = expense.merchant ?: ""
                     categoryId = expense.categoryId

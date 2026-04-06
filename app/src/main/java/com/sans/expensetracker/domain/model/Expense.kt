@@ -10,5 +10,9 @@ data class Expense(
     val isInstallment: Boolean = false,
     val merchant: String? = null,
     val tags: List<String> = emptyList(),
-    val quantity: Int = 1
+    val quantity: Int = 1,
+    // Installment specific fields
+    val totalPaid: Long = 0L,
+    val remainingBalance: Long = 0L,
+    val monthlyPayment: Long = 0L
 )

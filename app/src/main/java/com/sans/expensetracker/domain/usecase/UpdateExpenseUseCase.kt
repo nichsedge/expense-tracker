@@ -14,22 +14,21 @@ class UpdateExpenseUseCase @Inject constructor(
         val oldExpense = repository.getExpenseById(expense.id)
         repository.updateExpense(expense)
         
-        // Convert to installment if it wasn't and now it is
-        if (expense.isInstallment && oldExpense?.isInstallment != true && durationMonths != null && durationMonths > 0) {
-            createInstallmentPlanUseCase(
-                expenseId = expense.id,
-                totalAmount = expense.amount,
-                durationMonths = durationMonths,
-                startDate = expense.date
-            )
-        } else if (expense.isInstallment && durationMonths != null && durationMonths > 0) {
-            // Update existing installment if needed?
-            // For now, let's just update the installment amount if it changed
-            val existingInstallment = installmentRepository.getInstallmentByExpenseId(expense.id)
-            if (existingInstallment != null) {
-                // If amount or duration changed, we might need to recreate items
-                // But for simplicity of this task, let's keep it basic
-                // If the user wants to "make regular to installment", we handle that.
+        // Handle installment transitions
+        if (oldExpense?.isInstallment == true && !expense.isInstallment) {
+            // Case: Installment -> Regular
+            installmentRepository.deleteInstallmentByExpenseId(expense.id)
+        } else if (expense.isInstallment) {
+            // Case: Either already installment or switching to it
+            // We delete existing and re-create to keep it simple and avoid duplicates or inconsistent states
+            if (durationMonths != null && durationMonths > 0) {
+                installmentRepository.deleteInstallmentByExpenseId(expense.id)
+                createInstallmentPlanUseCase(
+                    expenseId = expense.id,
+                    totalAmount = expense.amount,
+                    durationMonths = durationMonths,
+                    startDate = expense.date
+                )
             }
         }
     }
