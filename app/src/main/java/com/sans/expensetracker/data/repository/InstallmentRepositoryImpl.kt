@@ -27,8 +27,8 @@ class InstallmentRepositoryImpl(
     }
 
     override suspend fun createInstallmentItems(installmentId: Long, duration: Int, monthlyAmount: Long, startDate: Long) {
+        val calendar = java.util.Calendar.getInstance()
         for (i in 1..duration) {
-            val calendar = java.util.Calendar.getInstance()
             calendar.timeInMillis = startDate
             calendar.add(java.util.Calendar.MONTH, i - 1)
             
