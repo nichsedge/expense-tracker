@@ -1,6 +1,6 @@
 package com.sans.expensetracker.presentation.components
 
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
