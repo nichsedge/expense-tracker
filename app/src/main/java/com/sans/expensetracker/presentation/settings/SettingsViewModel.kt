@@ -1,8 +1,7 @@
 package com.sans.expensetracker.presentation.settings
 
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sans.expensetracker.data.local.entity.CategoryEntity
@@ -22,12 +21,14 @@ class SettingsViewModel @Inject constructor(
     private val db: AppDatabase
 ) : ViewModel() {
 
-    var isLoading by mutableStateOf(false)
-        private set
-    var error by mutableStateOf<String?>(null)
-        private set
-    var syncMessage by mutableStateOf<String?>(null)
-        private set
+    private val _isLoading = mutableStateOf(false)
+    val isLoading: State<Boolean> = _isLoading
+
+    private val _error = mutableStateOf<String?>(null)
+    val error: State<String?> = _error
+
+    private val _syncMessage = mutableStateOf<String?>(null)
+    val syncMessage: State<String?> = _syncMessage
 
     val categories = repository.getAllCategories().stateIn(
         scope = viewModelScope,
@@ -41,11 +42,11 @@ class SettingsViewModel @Inject constructor(
         initialValue = emptyList()
     )
 
-    var currentLanguage by mutableStateOf(localeManager.getLocale())
-        private set
+    private val _currentLanguage = mutableStateOf(localeManager.getLocale())
+    val currentLanguage: State<String> = _currentLanguage
 
     fun updateLanguage(lang: String) {
-        currentLanguage = lang
+        _currentLanguage.value = lang
     }
 
     // Category CRUD
@@ -81,7 +82,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun exportFullBackup(context: android.content.Context) {
-        isLoading = true
+        _isLoading.value = true
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {
                 db.checkpoint()
@@ -89,8 +90,8 @@ class SettingsViewModel @Inject constructor(
                 val dbFile = context.getDatabasePath(dbName)
                 
                 if (!dbFile.exists()) {
-                    error = "Database not found"
-                    isLoading = false
+                    _error.value = "Database not found"
+                    _isLoading.value = false
                     return@launch
                 }
 
@@ -124,21 +125,21 @@ class SettingsViewModel @Inject constructor(
                         }
                         resolver.update(it, done, null, null)
                     }
-                    syncMessage = "Snapshot Saved: $snapshotName"
-                    isLoading = false
+                    _syncMessage.value = "Snapshot Saved: $snapshotName"
+                    _isLoading.value = false
                 } ?: run {
-                    error = "Failed to create snapshot"
-                    isLoading = false
+                    _error.value = "Failed to create snapshot"
+                    _isLoading.value = false
                 }
             } catch (e: Exception) {
-                error = e.message
-                isLoading = false
+                _error.value = e.message
+                _isLoading.value = false
             }
         }
     }
 
     fun clearMessages() {
-        error = null
-        syncMessage = null
+        _error.value = null
+        _syncMessage.value = null
     }
 }
