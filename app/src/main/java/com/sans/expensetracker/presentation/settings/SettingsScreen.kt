@@ -32,7 +32,7 @@ fun SettingsScreen(
 ) {
     val categories by viewModel.categories.collectAsState()
     val tags by viewModel.tags.collectAsState()
-    val currentLanguage = viewModel.currentLanguage
+    val currentLanguage = viewModel.currentLanguage.value
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -42,15 +42,15 @@ fun SettingsScreen(
     var categoryToDelete by remember { mutableStateOf<CategoryEntity?>(null) }
     var tagToDelete by remember { mutableStateOf<TagEntity?>(null) }
 
-    LaunchedEffect(viewModel.syncMessage) {
-        viewModel.syncMessage?.let {
+    LaunchedEffect(viewModel.syncMessage.value) {
+        viewModel.syncMessage.value?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.clearMessages()
         }
     }
 
-    LaunchedEffect(viewModel.error) {
-        viewModel.error?.let {
+    LaunchedEffect(viewModel.error.value) {
+        viewModel.error.value?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.clearMessages()
         }
@@ -89,7 +89,7 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (viewModel.isLoading) {
+                            if (viewModel.isLoading.value) {
                                 CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                             } else {
                                 Icon(Icons.Default.Sync, contentDescription = null, tint = MaterialTheme.colorScheme.onTertiaryContainer)
