@@ -92,26 +92,22 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_expense_tag_ref_expenseId` ON `expense_tag_ref` (`expenseId`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_expense_tag_ref_tagId` ON `expense_tag_ref` (`tagId`)")
 
-                // Extract and migrate platform values
-                val cursor = db.query("SELECT DISTINCT platform FROM expenses WHERE platform IS NOT NULL AND platform != ''")
-                val platforms = mutableListOf<String>()
-                while (cursor.moveToNext()) {
-                    platforms.add(cursor.getString(0))
-                }
-                cursor.close()
+                // Pre-insert distinct platforms into tags
+                db.execSQL("""
+                    INSERT OR IGNORE INTO tags (name)
+                    SELECT DISTINCT platform
+                    FROM expenses
+                    WHERE platform IS NOT NULL AND platform != ''
+                """.trimIndent())
 
-                for (platform in platforms) {
-                    // Pre-insert each platform into tags if it doesn't exist
-                    db.execSQL("INSERT OR IGNORE INTO tags (name) VALUES (?)", arrayOf(platform))
-                    
-                    // Link expenses to these tags
-                    db.execSQL("""
-                        INSERT INTO expense_tag_ref (expenseId, tagId)
-                        SELECT e.id, t.id
-                        FROM expenses e, tags t
-                        WHERE e.platform = ? AND t.name = ?
-                    """.trimIndent(), arrayOf(platform, platform))
-                }
+                // Link expenses to these tags
+                db.execSQL("""
+                    INSERT INTO expense_tag_ref (expenseId, tagId)
+                    SELECT e.id, t.id
+                    FROM expenses e
+                    JOIN tags t ON e.platform = t.name
+                    WHERE e.platform IS NOT NULL AND e.platform != ''
+                """.trimIndent())
             }
         }
     }
