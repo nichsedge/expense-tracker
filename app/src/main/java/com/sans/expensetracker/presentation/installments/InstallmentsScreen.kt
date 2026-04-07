@@ -13,14 +13,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.res.stringResource
 import com.sans.expensetracker.R
 import com.sans.expensetracker.domain.model.Installment
-import com.sans.expensetracker.domain.model.InstallmentItem
 import java.text.SimpleDateFormat
 import java.util.*
 

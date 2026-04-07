@@ -2,7 +2,6 @@ package com.sans.expensetracker.domain.usecase
 
 import com.sans.expensetracker.domain.model.Installment
 import com.sans.expensetracker.domain.repository.InstallmentRepository
-import java.util.Calendar
 import javax.inject.Inject
 
 class CreateInstallmentPlanUseCase @Inject constructor(
