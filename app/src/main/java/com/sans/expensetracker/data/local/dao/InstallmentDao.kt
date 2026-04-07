@@ -28,6 +28,9 @@ interface InstallmentDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertInstallmentItem(item: com.sans.expensetracker.data.local.entity.InstallmentItemEntity)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertInstallmentItems(items: List<com.sans.expensetracker.data.local.entity.InstallmentItemEntity>)
+
     @Query("SELECT * FROM installment_items WHERE installment_id = :installmentId")
     fun getItemsByInstallmentId(installmentId: Long): Flow<List<com.sans.expensetracker.data.local.entity.InstallmentItemEntity>>
 
