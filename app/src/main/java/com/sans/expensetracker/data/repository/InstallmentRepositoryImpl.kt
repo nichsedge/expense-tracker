@@ -27,7 +27,11 @@ class InstallmentRepositoryImpl(
     }
 
     override suspend fun createInstallmentItems(installmentId: Long, duration: Int, monthlyAmount: Long, startDate: Long) {
+
+        val items = mutableListOf<com.sans.expensetracker.data.local.entity.InstallmentItemEntity>()
+
         val calendar = java.util.Calendar.getInstance()
+
         for (i in 1..duration) {
             calendar.timeInMillis = startDate
             calendar.add(java.util.Calendar.MONTH, i - 1)
@@ -39,8 +43,9 @@ class InstallmentRepositoryImpl(
                 status = "Pending",
                 monthNumber = i
             )
-            dao.insertInstallmentItem(item)
+            items.add(item)
         }
+        dao.insertInstallmentItems(items)
     }
 
     override suspend fun updateInstallment(installment: Installment) {
