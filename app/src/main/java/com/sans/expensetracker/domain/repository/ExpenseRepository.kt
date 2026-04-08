@@ -8,7 +8,7 @@ interface ExpenseRepository {
     fun getExpensesBetween(since: Long, until: Long): Flow<List<Expense>>
     fun getFilteredExpenses(
         query: String? = null,
-        categoryId: Long? = null,
+        categoryIds: List<Long> = emptyList(),
         since: Long = 0L,
         until: Long = Long.MAX_VALUE,
         minAmount: Long? = null,

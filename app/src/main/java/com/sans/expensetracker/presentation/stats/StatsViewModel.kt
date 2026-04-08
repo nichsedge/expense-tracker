@@ -9,6 +9,10 @@ import kotlinx.coroutines.flow.*
 import java.util.*
 import javax.inject.Inject
 
+enum class TrendPeriod {
+    DAILY, WEEKLY, MONTHLY, QUARTERLY, YEARLY
+}
+
 data class StatsState(
     val thisMonthSpent: Long = 0L,
     val lastMonthSpent: Long = 0L,
@@ -16,6 +20,8 @@ data class StatsState(
     val lastYearSpent: Long = 0L,
     val spendingByCategory: List<com.sans.expensetracker.data.local.entity.CategorySpent> = emptyList(),
     val dailySpending: List<com.sans.expensetracker.data.local.entity.DaySpent> = emptyList(),
+    val trendSpending: List<com.sans.expensetracker.data.local.entity.DaySpent> = emptyList(),
+    val selectedTrendPeriod: TrendPeriod = TrendPeriod.DAILY,
     val isLoading: Boolean = true
 )
 
@@ -28,8 +34,129 @@ class StatsViewModel @Inject constructor(
     private val _state = MutableStateFlow(StatsState())
     val state: StateFlow<StatsState> = _state.asStateFlow()
 
+    private val _selectedTrendPeriod = MutableStateFlow(TrendPeriod.DAILY)
+
     init {
         loadStats()
+        observeTrendPeriod()
+    }
+
+    private fun observeTrendPeriod() {
+        _selectedTrendPeriod
+            .onEach { period ->
+                _state.update { it.copy(selectedTrendPeriod = period) }
+                updateTrendData(period)
+            }
+            .launchIn(viewModelScope)
+    }
+
+    fun onTrendPeriodSelected(period: TrendPeriod) {
+        _selectedTrendPeriod.value = period
+    }
+
+    private fun updateTrendData(period: TrendPeriod) {
+        val now = Calendar.getInstance()
+        val since = when (period) {
+            TrendPeriod.DAILY -> (now.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, -30) }.timeInMillis
+            TrendPeriod.WEEKLY -> (now.clone() as Calendar).apply { add(Calendar.WEEK_OF_YEAR, -12); set(Calendar.DAY_OF_WEEK, firstDayOfWeek) }.timeInMillis
+            TrendPeriod.MONTHLY -> (now.clone() as Calendar).apply { add(Calendar.MONTH, -12); set(Calendar.DAY_OF_MONTH, 1) }.timeInMillis
+            TrendPeriod.QUARTERLY -> (now.clone() as Calendar).apply { add(Calendar.MONTH, -24); set(Calendar.DAY_OF_MONTH, 1) }.timeInMillis // 2 years = 8 quarters
+            TrendPeriod.YEARLY -> 0L // All time
+        }
+
+        expenseRepository.getDailySpendingBetween(since, Long.MAX_VALUE)
+            .map { daily ->
+                groupSpendingByPeriod(daily, period)
+            }
+            .onEach { trend ->
+                _state.update { it.copy(trendSpending = trend) }
+            }
+            .launchIn(viewModelScope)
+    }
+
+    private fun groupSpendingByPeriod(
+        daily: List<com.sans.expensetracker.data.local.entity.DaySpent>,
+        period: TrendPeriod
+    ): List<com.sans.expensetracker.data.local.entity.DaySpent> {
+        if (period == TrendPeriod.DAILY) return daily
+
+        val calendar = Calendar.getInstance()
+        
+        // 1. Group by the start of the period
+        val groupedByPeriod = daily.groupBy { item ->
+            calendar.timeInMillis = item.day
+            when (period) {
+                TrendPeriod.WEEKLY -> calendar.set(Calendar.DAY_OF_WEEK, calendar.firstDayOfWeek)
+                TrendPeriod.MONTHLY -> calendar.set(Calendar.DAY_OF_MONTH, 1)
+                TrendPeriod.QUARTERLY -> {
+                    calendar.set(Calendar.DAY_OF_MONTH, 1)
+                    calendar.set(Calendar.MONTH, (calendar.get(Calendar.MONTH) / 3) * 3)
+                }
+                TrendPeriod.YEARLY -> calendar.set(Calendar.DAY_OF_YEAR, 1)
+                else -> {}
+            }
+            calendar.set(Calendar.HOUR_OF_DAY, 0)
+            calendar.set(Calendar.MINUTE, 0)
+            calendar.set(Calendar.SECOND, 0)
+            calendar.set(Calendar.MILLISECOND, 0)
+            calendar.timeInMillis
+        }
+
+        // 2. Sum the amounts for each period
+        val summedMap = groupedByPeriod.mapValues { entry -> 
+            entry.value.sumOf { it.amount } 
+        }
+
+        val result = mutableListOf<com.sans.expensetracker.data.local.entity.DaySpent>()
+        
+        // 3. Fill gaps and generate result
+        val startCal = Calendar.getInstance().apply { 
+            val firstItem = daily.minByOrNull { it.day }?.day ?: System.currentTimeMillis()
+            timeInMillis = firstItem
+            // Normalize start based on period
+            when (period) {
+                TrendPeriod.WEEKLY -> set(Calendar.DAY_OF_WEEK, firstDayOfWeek)
+                TrendPeriod.MONTHLY -> set(Calendar.DAY_OF_MONTH, 1)
+                TrendPeriod.QUARTERLY -> {
+                    set(Calendar.DAY_OF_MONTH, 1)
+                    set(Calendar.MONTH, (get(Calendar.MONTH) / 3) * 3)
+                }
+                TrendPeriod.YEARLY -> set(Calendar.DAY_OF_YEAR, 1)
+                else -> {}
+            }
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        
+        val endCal = Calendar.getInstance().apply { 
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+
+        while (startCal.timeInMillis <= endCal.timeInMillis) {
+            val periodStart = startCal.timeInMillis
+            result.add(
+                com.sans.expensetracker.data.local.entity.DaySpent(
+                    periodStart,
+                    summedMap[periodStart] ?: 0L
+                )
+            )
+            
+            // Increment based on period
+            when (period) {
+                TrendPeriod.DAILY -> startCal.add(Calendar.DAY_OF_YEAR, 1)
+                TrendPeriod.WEEKLY -> startCal.add(Calendar.WEEK_OF_YEAR, 1)
+                TrendPeriod.MONTHLY -> startCal.add(Calendar.MONTH, 1)
+                TrendPeriod.QUARTERLY -> startCal.add(Calendar.MONTH, 3)
+                TrendPeriod.YEARLY -> startCal.add(Calendar.YEAR, 1)
+            }
+        }
+
+        return result
     }
 
     private fun loadStats() {

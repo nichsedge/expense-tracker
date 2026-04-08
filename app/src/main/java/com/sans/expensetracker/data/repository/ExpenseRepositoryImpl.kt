@@ -27,7 +27,7 @@ class ExpenseRepositoryImpl(
 
     override fun getFilteredExpenses(
         query: String?,
-        categoryId: Long?,
+        categoryIds: List<Long>,
         since: Long,
         until: Long,
         minAmount: Long?,
@@ -37,7 +37,8 @@ class ExpenseRepositoryImpl(
         val searchQuery = if (query.isNullOrBlank()) null else query
         return dao.getFilteredExpenses(
             searchQuery,
-            categoryId,
+            categoryIds,
+            categoryIds.size,
             since,
             until,
             minAmount,
