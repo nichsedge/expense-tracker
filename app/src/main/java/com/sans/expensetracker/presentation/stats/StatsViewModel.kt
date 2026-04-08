@@ -93,7 +93,7 @@ class StatsViewModel @Inject constructor(
                     calendar.set(Calendar.MONTH, (calendar.get(Calendar.MONTH) / 3) * 3)
                 }
                 TrendPeriod.YEARLY -> calendar.set(Calendar.DAY_OF_YEAR, 1)
-                else -> {}
+                TrendPeriod.DAILY -> {}
             }
             calendar.set(Calendar.HOUR_OF_DAY, 0)
             calendar.set(Calendar.MINUTE, 0)
@@ -122,7 +122,7 @@ class StatsViewModel @Inject constructor(
                     set(Calendar.MONTH, (get(Calendar.MONTH) / 3) * 3)
                 }
                 TrendPeriod.YEARLY -> set(Calendar.DAY_OF_YEAR, 1)
-                else -> {}
+                TrendPeriod.DAILY -> {}
             }
             set(Calendar.HOUR_OF_DAY, 0)
             set(Calendar.MINUTE, 0)
@@ -208,7 +208,7 @@ class StatsViewModel @Inject constructor(
             @Suppress("UNCHECKED_CAST")
             val ds = values[5] as List<com.sans.expensetracker.data.local.entity.DaySpent>
 
-            StatsState(
+            _state.value.copy(
                 thisMonthSpent = tm,
                 lastMonthSpent = lm,
                 thisYearSpent = ty,
