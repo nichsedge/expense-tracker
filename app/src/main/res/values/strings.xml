@@ -56,4 +56,6 @@
     <string name="monthly">Monthly</string>
     <string name="quarterly">Quarterly</string>
     <string name="yearly">Yearly</string>
+    <string name="recurring_expenses">Recurring Expenses</string>
+    <string name="back">Back</string>
 </resources>

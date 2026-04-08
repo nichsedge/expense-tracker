@@ -118,7 +118,8 @@ fun ExpenseListScreen(
 
             SummaryCard(
                 thisMonth = state.thisMonthSpent,
-                periodTotal = state.totalFilteredAmount
+                periodTotal = state.totalFilteredAmount,
+                budget = state.monthlyBudget
             )
             
             Text(
@@ -363,7 +364,7 @@ fun AdvancedFilterSheet(
 }
 
 @Composable
-fun SummaryCard(thisMonth: Long, periodTotal: Long) {
+fun SummaryCard(thisMonth: Long, periodTotal: Long, budget: Long = 0L) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -407,6 +408,49 @@ fun SummaryCard(thisMonth: Long, periodTotal: Long) {
                         com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(periodTotal),
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold),
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                    )
+                }
+            }
+
+            if (budget > 0L) {
+                Spacer(modifier = Modifier.height(16.dp))
+                val progress = (thisMonth.toFloat() / budget.toFloat()).coerceIn(0f, 1f)
+                val isOverBudget = thisMonth > budget
+                val progressColor = if (isOverBudget) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            "Monthly Budget Progress",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                        )
+                        Text(
+                            "${(progress * 100).toInt()}%",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = progressColor,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp),
+                        color = progressColor,
+                        trackColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f),
+                        strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        "${com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(thisMonth)} of ${com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(budget)}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                        modifier = Modifier.align(Alignment.End)
                     )
                 }
             }
