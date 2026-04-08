@@ -210,7 +210,7 @@ fun SpendingTrendChart(spending: List<com.sans.expensetracker.data.local.entity.
                     CartesianChartModel(
                         LineCartesianLayerModel.build {
                             series(
-                                sortedSpending.map { it.day.toDouble() },
+                                sortedSpending.indices.map { it.toDouble() },
                                 sortedSpending.map { it.amount / 100.0 }
                             )
                         }
@@ -237,7 +237,12 @@ fun SpendingTrendChart(spending: List<com.sans.expensetracker.data.local.entity.
                         TrendPeriod.YEARLY -> java.text.SimpleDateFormat("yyyy", Locale.getDefault())
                     }
                     CartesianValueFormatter { _, value, _ ->
-                        dateFormat.format(Date(value.roundToLong()))
+                        val index = value.toInt()
+                        if (index in sortedSpending.indices) {
+                            dateFormat.format(Date(sortedSpending[index].day))
+                        } else {
+                            ""
+                        }
                     }
                 }
                 val currencyLabelFormatter = remember {

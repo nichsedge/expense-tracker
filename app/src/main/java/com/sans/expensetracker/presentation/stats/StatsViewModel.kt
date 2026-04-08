@@ -208,7 +208,7 @@ class StatsViewModel @Inject constructor(
             @Suppress("UNCHECKED_CAST")
             val ds = values[5] as List<com.sans.expensetracker.data.local.entity.DaySpent>
 
-            StatsState(
+            _state.value.copy(
                 thisMonthSpent = tm,
                 lastMonthSpent = lm,
                 thisYearSpent = ty,
