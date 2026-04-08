@@ -1,0 +1,104 @@
+package com.sans.expensetracker.presentation.recurring
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.sans.expensetracker.R
+import com.sans.expensetracker.core.util.CurrencyFormatter
+import com.sans.expensetracker.presentation.expense_list.ExpenseItem
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RecurringExpensesScreen(
+    onNavigateBack: () -> Unit,
+    onExpenseClick: (Long) -> Unit,
+    viewModel: RecurringExpensesViewModel = hiltViewModel()
+) {
+    val state by viewModel.state.collectAsState()
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.recurring_expenses)) },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 16.dp)
+        ) {
+
+            // Total monthly card
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                ),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp)
+                ) {
+                    Text(
+                        "Total Monthly Recurring",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        CurrencyFormatter.formatAmount(state.totalMonthlyRecurring),
+                        style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black),
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
+
+            if (state.recurringExpenses.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("No recurring expenses found.")
+                }
+            } else {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(state.recurringExpenses, key = { it.id }) { expense ->
+                        val category = state.categories.find { it.id == expense.categoryId }
+                        ExpenseItem(
+                            expense = expense,
+                            category = category,
+                            onClick = { onExpenseClick(expense.id) },
+                            onLongClick = {}
+                        )
+                    }
+                    item {
+                        Spacer(modifier = Modifier.height(32.dp))
+                    }
+                }
+            }
+        }
+    }
+}

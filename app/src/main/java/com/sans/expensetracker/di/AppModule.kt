@@ -6,6 +6,8 @@ import com.sans.expensetracker.data.local.AppDatabase
 import com.sans.expensetracker.data.local.dao.ExpenseDao
 import com.sans.expensetracker.data.repository.ExpenseRepositoryImpl
 import com.sans.expensetracker.domain.repository.ExpenseRepository
+import com.sans.expensetracker.domain.preferences.BudgetPreferences
+import com.sans.expensetracker.data.preferences.BudgetPreferencesImpl
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -74,4 +76,8 @@ object AppModule {
     @Provides
     @Singleton
     fun provideLocaleManager(app: Application): com.sans.expensetracker.data.util.LocaleManager = com.sans.expensetracker.data.util.LocaleManager(app)
+
+    @Provides
+    @Singleton
+    fun provideBudgetPreferences(app: Application): BudgetPreferences = BudgetPreferencesImpl(app)
 }
