@@ -19,7 +19,6 @@
     <string name="total_remaining_balance">Total Remaining Balance</string>
     <string name="your_plans">Your Plans</string>
     <string name="no_active_installments">No active installment plans</string>
-    <string name="personal_expense">Personal Expense</string>
     <string name="uncategorized">Uncategorized</string>
 
     <string name="language">Language</string>
@@ -30,12 +29,8 @@
     <string name="delete">Delete</string>
     <string name="cancel">Cancel</string>
     <string name="statistics">Statistics</string>
-    <string name="monthly_details">Monthly Details</string>
-    <string name="yearly_breakdown">Yearly Breakdown</string>
-    <string name="last_month">Last Month</string>
     <string name="this_year">This Year</string>
     <string name="last_year">Last Year</string>
-    <string name="monthly_summary">Monthly Summarized</string>
     <string name="yearly_summary">Yearly Summarized</string>
     <string name="by_category">By Category</string>
     <string name="spending_trend">Spending Trend</string>
@@ -56,7 +51,6 @@
     <string name="max_amount">Max Amount</string>
     <string name="clear_filters">Clear Filters</string>
     <string name="apply_filters">Apply Filters</string>
-    <string name="select_category">Select Category</string>
     <string name="daily">Daily</string>
     <string name="weekly">Weekly</string>
     <string name="monthly">Monthly</string>
