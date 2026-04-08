@@ -20,7 +20,7 @@ interface ExpenseDao {
         LEFT JOIN expense_tag_ref etr ON e.id = etr.expenseId
         LEFT JOIN tags t ON etr.tagId = t.id
         WHERE (:query IS NULL OR e.item_name LIKE '%' || :query || '%' OR e.merchant LIKE '%' || :query || '%')
-        AND (:categoryId IS NULL OR e.category_id = :categoryId)
+        AND (:categoryCount = 0 OR e.category_id IN (:categoryIds))
         AND (e.date >= :since AND e.date < :until)
         AND (:minAmount IS NULL OR e.final_price >= :minAmount)
         AND (:maxAmount IS NULL OR e.final_price <= :maxAmount)
@@ -29,7 +29,8 @@ interface ExpenseDao {
     """)
     fun getFilteredExpenses(
         query: String?,
-        categoryId: Long?,
+        categoryIds: List<Long>,
+        categoryCount: Int,
         since: Long,
         until: Long,
         minAmount: Long?,

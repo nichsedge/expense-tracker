@@ -7,7 +7,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.PieChart
@@ -16,13 +16,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.sans.expensetracker.presentation.components.CategoryIcon
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.HorizontalAxis
@@ -30,12 +31,18 @@ import com.patrykandpatrick.vico.compose.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianChartModel
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianValueFormatter
 import com.patrykandpatrick.vico.compose.cartesian.data.LineCartesianLayerModel
+import com.patrykandpatrick.vico.compose.cartesian.layer.LineCartesianLayer
+import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLine
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
+import com.patrykandpatrick.vico.compose.cartesian.marker.rememberDefaultCartesianMarker
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import com.patrykandpatrick.vico.compose.common.ProvideVicoTheme
+import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
 import com.patrykandpatrick.vico.compose.m3.common.rememberM3VicoTheme
 import com.sans.expensetracker.R
 import com.sans.expensetracker.core.util.CurrencyFormatter
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.text.TextStyle
 import java.util.*
 import kotlin.math.roundToLong
 
@@ -53,7 +60,7 @@ fun StatsScreen(
                 title = { Text(stringResource(R.string.statistics), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
@@ -80,7 +87,12 @@ fun StatsScreen(
                 )
 
                 // Spending Trend Chart
-                SpendingTrendChart(state.dailySpending)
+                TrendPeriodSelector(
+                    selectedPeriod = state.selectedTrendPeriod,
+                    onPeriodSelected = viewModel::onTrendPeriodSelected
+                )
+                
+                SpendingTrendChart(state.trendSpending, state.selectedTrendPeriod)
 
                 // Categories Breakdown
                 CategoryBreakdown(state.spendingByCategory)
@@ -145,8 +157,43 @@ fun HeaderPart(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SpendingTrendChart(dailySpending: List<com.sans.expensetracker.data.local.entity.DaySpent>) {
+fun TrendPeriodSelector(
+    selectedPeriod: TrendPeriod,
+    onPeriodSelected: (TrendPeriod) -> Unit
+) {
+    val periods = TrendPeriod.values()
+    val options = listOf(
+        stringResource(R.string.daily),
+        stringResource(R.string.weekly),
+        stringResource(R.string.monthly),
+        stringResource(R.string.quarterly),
+        stringResource(R.string.yearly)
+    )
+    
+    SingleChoiceSegmentedButtonRow(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        periods.forEachIndexed { index, period ->
+            SegmentedButton(
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = periods.size),
+                onClick = { onPeriodSelected(period) },
+                selected = selectedPeriod == period,
+                label = { 
+                    Text(
+                        options[index], 
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1
+                    ) 
+                }
+            )
+        }
+    }
+}
+
+@Composable
+fun SpendingTrendChart(spending: List<com.sans.expensetracker.data.local.entity.DaySpent>, period: TrendPeriod) {
     SectionTitle(stringResource(R.string.spending_trend), icon = Icons.Default.Insights)
     
     Card(
@@ -154,11 +201,11 @@ fun SpendingTrendChart(dailySpending: List<com.sans.expensetracker.data.local.en
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
     ) {
-        Box(modifier = Modifier.padding(16.dp).fillMaxWidth().height(200.dp)) {
-            if (dailySpending.isEmpty()) {
-                Text("No data for this month", modifier = Modifier.align(Alignment.Center))
+        Box(modifier = Modifier.padding(16.dp).fillMaxWidth().height(220.dp)) {
+            if (spending.isEmpty()) {
+                Text("No data for this period", modifier = Modifier.align(Alignment.Center))
             } else {
-                val sortedSpending = remember(dailySpending) { dailySpending.sortedBy { it.day } }
+                val sortedSpending = remember(spending) { spending.sortedBy { it.day } }
                 val model = remember(sortedSpending) {
                     CartesianChartModel(
                         LineCartesianLayerModel.build {
@@ -169,8 +216,26 @@ fun SpendingTrendChart(dailySpending: List<com.sans.expensetracker.data.local.en
                         }
                     )
                 }
-                val dateLabelFormatter = remember(sortedSpending) {
-                    val dateFormat = java.text.SimpleDateFormat("d MMM", Locale.getDefault())
+                val dateLabelFormatter = remember(sortedSpending, period) {
+                    val dateFormat = when (period) {
+                        TrendPeriod.DAILY -> java.text.SimpleDateFormat("d MMM", Locale.getDefault())
+                        TrendPeriod.WEEKLY -> java.text.SimpleDateFormat("d MMM", Locale.getDefault())
+                        TrendPeriod.MONTHLY -> java.text.SimpleDateFormat("MMM yy", Locale.getDefault())
+                        TrendPeriod.QUARTERLY -> {
+                            object : java.text.Format() {
+                                override fun format(obj: Any?, toAppendTo: StringBuffer, pos: java.text.FieldPosition): StringBuffer {
+                                    val date = obj as Date
+                                    val cal = Calendar.getInstance().apply { time = date }
+                                    val year = cal.get(Calendar.YEAR) % 100
+                                    val quarter = (cal.get(Calendar.MONTH) / 3) + 1
+                                    toAppendTo.append("Q$quarter '$year")
+                                    return toAppendTo
+                                }
+                                override fun parseObject(source: String?, pos: java.text.ParsePosition?): Any? = null
+                            }
+                        }
+                        TrendPeriod.YEARLY -> java.text.SimpleDateFormat("yyyy", Locale.getDefault())
+                    }
                     CartesianValueFormatter { _, value, _ ->
                         dateFormat.format(Date(value.roundToLong()))
                     }
@@ -181,16 +246,39 @@ fun SpendingTrendChart(dailySpending: List<com.sans.expensetracker.data.local.en
                     }
                 }
                 
-                ProvideVicoTheme(rememberM3VicoTheme()) {
+                val markerLabel = rememberTextComponent(
+                    style = TextStyle(color = MaterialTheme.colorScheme.onSurface),
+                    lineCount = 1
+                )
+                
+                val marker = rememberDefaultCartesianMarker(label = markerLabel)
+                val primaryColor = MaterialTheme.colorScheme.primary
+
+                val lineLayer = rememberLineCartesianLayer(
+                    lineProvider = LineCartesianLayer.LineProvider.series(
+                        LineCartesianLayer.rememberLine(
+                            interpolator = remember { LineCartesianLayer.Interpolator.cubic() }
+                        )
+                    )
+                )
+
+                ProvideVicoTheme(
+                    rememberM3VicoTheme(
+                        lineCartesianLayerColors = listOf(primaryColor)
+                    )
+                ) {
                     CartesianChartHost(
                         chart = rememberCartesianChart(
-                            rememberLineCartesianLayer(),
+                            lineLayer,
                             startAxis = VerticalAxis.rememberStart(
-                                valueFormatter = currencyLabelFormatter
+                                valueFormatter = currencyLabelFormatter,
+                                itemPlacer = remember { VerticalAxis.ItemPlacer.count(count = { 5 }) }
                             ),
                             bottomAxis = HorizontalAxis.rememberBottom(
-                                valueFormatter = dateLabelFormatter
+                                valueFormatter = dateLabelFormatter,
+                                itemPlacer = remember { HorizontalAxis.ItemPlacer.segmented() }
                             ),
+                            marker = marker
                         ),
                         model = model,
                         modifier = Modifier.fillMaxSize()
@@ -238,7 +326,7 @@ fun CategoryBreakdown(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(category.categoryName, fontWeight = FontWeight.Bold)
                         LinearProgressIndicator(
-                            progress = percent,
+                            progress = { percent },
                             modifier = Modifier.fillMaxWidth().height(4.dp).clip(CircleShape),
                             color = MaterialTheme.colorScheme.primary,
                             trackColor = MaterialTheme.colorScheme.surfaceVariant

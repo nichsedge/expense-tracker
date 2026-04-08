@@ -95,7 +95,7 @@ fun ExpenseListScreen(
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     trailingIcon = {
                         IconButton(onClick = { showFilterSheet = true }) {
-                            val isFiltered = state.selectedCategoryId != null || 
+                            val isFiltered = state.selectedCategoryIds.isNotEmpty() || 
                                            state.minAmount != null || 
                                            state.maxAmount != null || 
                                            state.selectedTags.isNotEmpty()
@@ -129,9 +129,9 @@ fun ExpenseListScreen(
             )
 
             DateRangeFilterBar(
-                currentStart = state.startDate,
-                onRangeSelected = { start, end ->
-                    viewModel.updateDateRange(start, end)
+                activeFilter = state.activeDateFilter,
+                onFilterSelected = { filter ->
+                    viewModel.updateDateRange(filter)
                 }
             )
             
@@ -212,7 +212,7 @@ fun ExpenseListScreen(
         AdvancedFilterSheet(
             state = state,
             onDismiss = { showFilterSheet = false },
-            onCategorySelected = { viewModel.updateCategoryFilter(it) },
+            onCategoryToggle = { viewModel.toggleCategoryFilter(it) },
             onAmountFilterChanged = { min, max -> viewModel.updateAmountFilter(min, max) },
             onTagToggle = { viewModel.toggleTagFilter(it) },
             onClearFilters = { 
@@ -228,7 +228,7 @@ fun ExpenseListScreen(
 fun AdvancedFilterSheet(
     state: ExpenseListState,
     onDismiss: () -> Unit,
-    onCategorySelected: (Long?) -> Unit,
+    onCategoryToggle: (Long) -> Unit,
     onAmountFilterChanged: (Long?, Long?) -> Unit,
     onTagToggle: (String) -> Unit,
     onClearFilters: () -> Unit
@@ -275,20 +275,39 @@ fun AdvancedFilterSheet(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                FilterChip(
-                    selected = state.selectedCategoryId == null,
-                    onClick = { onCategorySelected(null) },
-                    label = { Text(stringResource(R.string.filter_all)) }
-                )
                 state.categories.forEach { category ->
                     FilterChip(
-                        selected = state.selectedCategoryId == category.id,
-                        onClick = { onCategorySelected(category.id) },
+                        selected = state.selectedCategoryIds.contains(category.id),
+                        onClick = { onCategoryToggle(category.id) },
                         label = { Text(category.name) },
                         leadingIcon = {
                             CategoryIcon(icon = category.icon, fontSize = 14.sp)
                         }
                     )
+                }
+            }
+
+            if (state.availableTags.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    stringResource(R.string.tags),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    state.availableTags.forEach { tag ->
+                        FilterChip(
+                            selected = state.selectedTags.contains(tag),
+                            onClick = { onTagToggle(tag) },
+                            label = { Text(tag) }
+                        )
+                    }
                 }
             }
 
@@ -327,30 +346,6 @@ fun AdvancedFilterSheet(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true
                 )
-            }
-
-            if (state.availableTags.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    stringResource(R.string.tags),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    state.availableTags.forEach { tag ->
-                        FilterChip(
-                            selected = state.selectedTags.contains(tag),
-                            onClick = { onTagToggle(tag) },
-                            label = { Text(tag) }
-                        )
-                    }
-                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -505,33 +500,9 @@ fun ExpenseItem(
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun DateRangeFilterBar(
-    currentStart: Long,
-    onRangeSelected: (Long, Long) -> Unit
+    activeFilter: DateRangeFilter,
+    onFilterSelected: (DateRangeFilter) -> Unit
 ) {
-    val calendar = Calendar.getInstance()
-    
-    // Normalize today for comparisons
-    val today = (calendar.clone() as Calendar).apply {
-        set(Calendar.HOUR_OF_DAY, 0)
-        set(Calendar.MINUTE, 0)
-        set(Calendar.SECOND, 0)
-        set(Calendar.MILLISECOND, 0)
-    }
-    
-    // 7 Days
-    val sevenDaysAgo = (today.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, -7) }.timeInMillis
-    
-    // 30 Days
-    val thirtyDaysAgo = (today.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, -30) }.timeInMillis
-    
-    // This Month
-    val thisMonthStart = (today.clone() as Calendar).apply { 
-        set(Calendar.DAY_OF_MONTH, 1)
-    }.timeInMillis
-    
-    // All time
-    val allTimeStart = 0L
-
     FlowRow(
         modifier = Modifier
             .fillMaxWidth()
@@ -539,23 +510,23 @@ fun DateRangeFilterBar(
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         FilterChip(
-            selected = currentStart == sevenDaysAgo,
-            onClick = { onRangeSelected(sevenDaysAgo, Long.MAX_VALUE) },
+            selected = activeFilter == DateRangeFilter.SEVEN_DAYS,
+            onClick = { onFilterSelected(DateRangeFilter.SEVEN_DAYS) },
             label = { Text(stringResource(R.string.filter_7d)) }
         )
         FilterChip(
-            selected = currentStart == thirtyDaysAgo,
-            onClick = { onRangeSelected(thirtyDaysAgo, Long.MAX_VALUE) },
+            selected = activeFilter == DateRangeFilter.THIRTY_DAYS,
+            onClick = { onFilterSelected(DateRangeFilter.THIRTY_DAYS) },
             label = { Text(stringResource(R.string.filter_30d)) }
         )
         FilterChip(
-            selected = currentStart == thisMonthStart,
-            onClick = { onRangeSelected(thisMonthStart, Long.MAX_VALUE) },
+            selected = activeFilter == DateRangeFilter.THIS_MONTH,
+            onClick = { onFilterSelected(DateRangeFilter.THIS_MONTH) },
             label = { Text(stringResource(R.string.filter_month)) }
         )
         FilterChip(
-            selected = currentStart == allTimeStart,
-            onClick = { onRangeSelected(allTimeStart, Long.MAX_VALUE) },
+            selected = activeFilter == DateRangeFilter.ALL_TIME,
+            onClick = { onFilterSelected(DateRangeFilter.ALL_TIME) },
             label = { Text(stringResource(R.string.filter_all)) }
         )
     }
