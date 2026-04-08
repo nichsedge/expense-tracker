@@ -13,7 +13,7 @@ hilt = "2.59.2"
 navigation = "2.10.0-alpha02"
 ksp = "2.3.6"
 kotlinxCoroutines = "1.10.2"
-vico = "2.4.3"
+vico-compose = "3.1.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -54,9 +54,8 @@ kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }
 
 # Vico Charts
-vico-compose = { group = "com.patrykandpatrick.vico", name = "compose", version.ref = "vico" }
-vico-compose-m3 = { group = "com.patrykandpatrick.vico", name = "compose-m3", version.ref = "vico" }
-vico-core = { group = "com.patrykandpatrick.vico", name = "core", version.ref = "vico" }
+vico-compose = { group = "com.patrykandpatrick.vico", name = "compose-android", version.ref = "vico-compose" }
+vico-compose-m3 = { group = "com.patrykandpatrick.vico", name = "compose-m3-android", version.ref = "vico-compose" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
