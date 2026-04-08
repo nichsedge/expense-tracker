@@ -12,13 +12,15 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import com.sans.expensetracker.data.local.AppDatabase
+import com.sans.expensetracker.domain.preferences.BudgetPreferences
 import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val repository: ExpenseRepository,
     private val localeManager: com.sans.expensetracker.data.util.LocaleManager,
-    private val db: AppDatabase
+    private val db: AppDatabase,
+    private val budgetPreferences: BudgetPreferences
 ) : ViewModel() {
 
     private val _isLoading = mutableStateOf(false)
@@ -47,6 +49,18 @@ class SettingsViewModel @Inject constructor(
 
     fun updateLanguage(lang: String) {
         _currentLanguage.value = lang
+    }
+
+    val monthlyBudget = budgetPreferences.getMonthlyBudget().stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = 0L
+    )
+
+    fun updateMonthlyBudget(amount: Long) {
+        viewModelScope.launch {
+            budgetPreferences.setMonthlyBudget(amount)
+        }
     }
 
     // Category CRUD

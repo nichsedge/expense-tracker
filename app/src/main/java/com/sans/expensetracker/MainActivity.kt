@@ -87,7 +87,16 @@ fun AppNavigation(onLanguageToggle: () -> Unit) {
         composable<Screen.Settings> {
             SettingsScreen(
                 onBack = { navController.popBackStack() },
-                onLanguageToggle = onLanguageToggle
+                onLanguageToggle = onLanguageToggle,
+                onNavigateToRecurring = { navController.navigate(Screen.RecurringExpenses) }
+            )
+        }
+        composable<Screen.RecurringExpenses> {
+            com.sans.expensetracker.presentation.recurring.RecurringExpensesScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onExpenseClick = { id ->
+                    navController.navigate(Screen.EditExpense(id))
+                }
             )
         }
     }

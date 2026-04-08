@@ -3,6 +3,7 @@ package com.sans.expensetracker.presentation.expense_list
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sans.expensetracker.domain.model.Expense
+import com.sans.expensetracker.domain.preferences.BudgetPreferences
 import com.sans.expensetracker.domain.usecase.GetExpensesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -39,7 +40,8 @@ data class ExpenseListState(
     val selectedCategoryIds: Set<Long> = emptySet(),
     val minAmount: Long? = null,
     val maxAmount: Long? = null,
-    val dailySpending: Map<Long, Long> = emptyMap()
+    val dailySpending: Map<Long, Long> = emptyMap(),
+    val monthlyBudget: Long = 0L
 )
 
 @HiltViewModel
@@ -47,7 +49,8 @@ class ExpenseListViewModel @Inject constructor(
     private val getExpensesUseCase: GetExpensesUseCase,
     private val repository: com.sans.expensetracker.domain.repository.ExpenseRepository,
     private val installmentRepository: com.sans.expensetracker.domain.repository.InstallmentRepository,
-    private val getCategoriesUseCase: com.sans.expensetracker.domain.usecase.GetCategoriesUseCase
+    private val getCategoriesUseCase: com.sans.expensetracker.domain.usecase.GetCategoriesUseCase,
+    private val budgetPreferences: BudgetPreferences
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ExpenseListState())
@@ -62,6 +65,15 @@ class ExpenseListViewModel @Inject constructor(
         loadHistoricalStats()
         loadCategories()
         loadTags()
+        loadBudget()
+    }
+
+    private fun loadBudget() {
+        budgetPreferences.getMonthlyBudget()
+            .onEach { budget ->
+                _state.update { it.copy(monthlyBudget = budget) }
+            }
+            .launchIn(viewModelScope)
     }
 
     private fun loadTags() {

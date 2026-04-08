@@ -27,6 +27,7 @@ import com.sans.expensetracker.presentation.components.CategoryIcon
 fun SettingsScreen(
     onBack: () -> Unit,
     onLanguageToggle: () -> Unit,
+    onNavigateToRecurring: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val categories by viewModel.categories.collectAsState()
@@ -40,6 +41,8 @@ fun SettingsScreen(
     var tagToEdit by remember { mutableStateOf<TagEntity?>(null) }
     var categoryToDelete by remember { mutableStateOf<CategoryEntity?>(null) }
     var tagToDelete by remember { mutableStateOf<TagEntity?>(null) }
+    var showBudgetDialog by remember { mutableStateOf(false) }
+    val currentBudget by viewModel.monthlyBudget.collectAsState()
 
     LaunchedEffect(viewModel.syncMessage.value) {
         viewModel.syncMessage.value?.let {
@@ -131,6 +134,51 @@ fun SettingsScreen(
                             Text(if (currentLanguage == "en") "English" else "Indonesia", style = MaterialTheme.typography.bodyLarge)
                         }
                         Icon(Icons.Default.ChevronRight, contentDescription = null)
+                    }
+                }
+            }
+
+            item {
+                Spacer(Modifier.height(16.dp))
+                SettingsSectionTitle("Features")
+                Surface(
+                    onClick = onNavigateToRecurring,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 1.dp
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(16.dp))
+                        Text(stringResource(R.string.recurring_expenses), modifier = Modifier.weight(1f))
+                    }
+                }
+
+                Surface(
+                    onClick = { showBudgetDialog = true },
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 1.dp
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.ShoppingCart, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Monthly Budget")
+                            Text(
+                                if (currentBudget > 0L) com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(currentBudget) else "Not Set",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
@@ -263,6 +311,41 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { tagToDelete = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showBudgetDialog) {
+        var budgetInput by remember {
+            mutableStateOf(if (currentBudget > 0L) (currentBudget / 100).toString() else "")
+        }
+
+        AlertDialog(
+            onDismissRequest = { showBudgetDialog = false },
+            title = { Text("Set Monthly Budget") },
+            text = {
+                OutlinedTextField(
+                    value = budgetInput,
+                    onValueChange = { budgetInput = it.filter { char -> char.isDigit() } },
+                    label = { Text("Amount") },
+                    singleLine = true,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    val newBudget = budgetInput.toLongOrNull()?.times(100) ?: 0L
+                    viewModel.updateMonthlyBudget(newBudget)
+                    showBudgetDialog = false
+                }) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBudgetDialog = false }) {
                     Text("Cancel")
                 }
             }
