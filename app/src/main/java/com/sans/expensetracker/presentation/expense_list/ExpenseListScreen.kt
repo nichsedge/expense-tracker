@@ -22,7 +22,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.sans.expensetracker.R
 import com.sans.expensetracker.domain.model.Expense
 import com.sans.expensetracker.presentation.components.CategoryIcon
