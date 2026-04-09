@@ -19,7 +19,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
+import com.sans.expensetracker.core.util.CalendarUtils
+import com.sans.expensetracker.core.util.DateFormatterUtils
 import java.util.Calendar
 import java.util.Locale
 import javax.inject.Inject
@@ -65,7 +66,8 @@ class ExpenseListViewModel @Inject constructor(
     private val _state = MutableStateFlow(ExpenseListState())
     val state: StateFlow<ExpenseListState> = _state.asStateFlow()
 
-    private val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+    private val dateFormat
+        get() = DateFormatterUtils.getStandardFormatter()
 
     init {
         updateDateRange(DateRangeFilter.THIS_MONTH)
@@ -207,7 +209,7 @@ class ExpenseListViewModel @Inject constructor(
         expenses: List<Expense>,
         dailySpendingMap: Map<Long, Long> = emptyMap()
     ): Map<String, List<Expense>> {
-        val calendar = Calendar.getInstance()
+        val calendar = CalendarUtils.getInstance()
 
         return expenses.groupBy { expense ->
             dateFormat.format(java.util.Date(expense.date))
@@ -233,7 +235,7 @@ class ExpenseListViewModel @Inject constructor(
     }
 
     fun updateDateRange(filter: DateRangeFilter) {
-        val calendar = Calendar.getInstance()
+        val calendar = CalendarUtils.getInstance()
         calendar.set(Calendar.HOUR_OF_DAY, 0)
         calendar.set(Calendar.MINUTE, 0)
         calendar.set(Calendar.SECOND, 0)
@@ -278,7 +280,7 @@ class ExpenseListViewModel @Inject constructor(
 
     private fun loadHistoricalStats() {
         // This Month
-        val calendar = Calendar.getInstance()
+        val calendar = CalendarUtils.getInstance()
         calendar.set(Calendar.DAY_OF_MONTH, 1)
         calendar.set(Calendar.HOUR_OF_DAY, 0)
 
