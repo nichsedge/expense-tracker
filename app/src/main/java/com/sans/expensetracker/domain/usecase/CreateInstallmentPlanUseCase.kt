@@ -32,7 +32,7 @@ class CreateInstallmentPlanUseCase @Inject constructor(
         installmentRepository.createInstallmentItems(
             installmentId,
             durationMonths,
-            monthlyPayment,
+            totalAmount,
             startDate
         )
     }

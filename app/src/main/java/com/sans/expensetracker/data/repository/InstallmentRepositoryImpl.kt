@@ -33,10 +33,11 @@ class InstallmentRepositoryImpl(
     override suspend fun createInstallmentItems(
         installmentId: Long,
         duration: Int,
-        monthlyAmount: Long,
+        totalAmount: Long,
         startDate: Long
     ) {
 
+        val monthlyAmount = totalAmount / duration
         val items = mutableListOf<com.sans.expensetracker.data.local.entity.InstallmentItemEntity>()
 
         val calendar = java.util.Calendar.getInstance()
@@ -45,9 +46,15 @@ class InstallmentRepositoryImpl(
             calendar.timeInMillis = startDate
             calendar.add(java.util.Calendar.MONTH, i - 1)
 
+            val amount = if (i == duration) {
+                totalAmount - (monthlyAmount * (duration - 1))
+            } else {
+                monthlyAmount
+            }
+
             val item = com.sans.expensetracker.data.local.entity.InstallmentItemEntity(
                 installmentId = installmentId,
-                amount = monthlyAmount,
+                amount = amount,
                 dueDate = calendar.timeInMillis,
                 status = "Pending",
                 monthNumber = i
@@ -78,7 +85,8 @@ class InstallmentRepositoryImpl(
             if (parent != null) {
                 val totalPaid = dao.getPaidAmountForInstallment(installmentId) ?: 0L
                 val newBalance = parent.totalAmount - totalPaid
-                val newStatus = if (newBalance <= 0) "Completed" else "Active"
+                val pendingCount = dao.getPendingItemsCount(installmentId)
+                val newStatus = if (pendingCount == 0) "Completed" else "Active"
                 dao.updateInstallment(parent.copy(remainingBalance = newBalance, status = newStatus))
             }
         }

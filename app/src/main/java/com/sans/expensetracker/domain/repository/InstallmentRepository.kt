@@ -12,7 +12,7 @@ interface InstallmentRepository {
     suspend fun createInstallmentItems(
         installmentId: Long,
         duration: Int,
-        monthlyAmount: Long,
+        totalAmount: Long,
         startDate: Long
     )
 
