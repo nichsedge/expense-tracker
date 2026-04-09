@@ -18,6 +18,10 @@ class InstallmentRepositoryImpl(
         return dao.getActiveInstallments().map { list -> list.map { it.toDomainModel() } }
     }
 
+    override fun getCompletedInstallments(): Flow<List<Installment>> {
+        return dao.getCompletedInstallments().map { list -> list.map { it.toDomainModel() } }
+    }
+
     override suspend fun getInstallmentByExpenseId(expenseId: Long): Installment? {
         return dao.getInstallmentByExpenseId(expenseId)?.toDomainModel()
     }
@@ -74,7 +78,8 @@ class InstallmentRepositoryImpl(
             if (parent != null) {
                 val totalPaid = dao.getPaidAmountForInstallment(installmentId) ?: 0L
                 val newBalance = parent.totalAmount - totalPaid
-                dao.updateInstallment(parent.copy(remainingBalance = newBalance))
+                val newStatus = if (newBalance <= 0) "Completed" else "Active"
+                dao.updateInstallment(parent.copy(remainingBalance = newBalance, status = newStatus))
             }
         }
     }
