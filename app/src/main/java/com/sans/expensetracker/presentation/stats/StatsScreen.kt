@@ -53,6 +53,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.sans.expensetracker.R
 import com.sans.expensetracker.core.util.CurrencyFormatter
+import com.sans.expensetracker.core.util.DateFormatterUtils
+import com.sans.expensetracker.core.util.CalendarUtils
 import com.sans.expensetracker.presentation.components.CategoryIcon
 import java.util.Calendar
 import java.util.Date
@@ -248,14 +250,14 @@ fun SpendingTrendChart(
 
                 val dateFormat = remember(period) {
                     when (period) {
-                        TrendPeriod.DAILY -> java.text.SimpleDateFormat("d MMM", Locale.getDefault())
-                        TrendPeriod.WEEKLY -> java.text.SimpleDateFormat("d MMM", Locale.getDefault())
-                        TrendPeriod.MONTHLY -> java.text.SimpleDateFormat("MMM yy", Locale.getDefault())
+                        TrendPeriod.DAILY -> DateFormatterUtils.getDayMonthFormatter()
+                        TrendPeriod.WEEKLY -> DateFormatterUtils.getDayMonthFormatter()
+                        TrendPeriod.MONTHLY -> DateFormatterUtils.getMonthYearFormatter()
                         TrendPeriod.QUARTERLY -> {
                             object : java.text.Format() {
                                 override fun format(obj: Any?, toAppendTo: StringBuffer, pos: java.text.FieldPosition): StringBuffer {
                                     val date = obj as Date
-                                    val cal = Calendar.getInstance().apply { time = date }
+                                    val cal = CalendarUtils.getInstance().apply { time = date }
                                     val year = cal.get(Calendar.YEAR) % 100
                                     val quarter = (cal.get(Calendar.MONTH) / 3) + 1
                                     toAppendTo.append("Q$quarter '$year")
@@ -264,7 +266,7 @@ fun SpendingTrendChart(
                                 override fun parseObject(source: String?, pos: java.text.ParsePosition?): Any? = null
                             }
                         }
-                        TrendPeriod.YEARLY -> java.text.SimpleDateFormat("yyyy", Locale.getDefault())
+                        TrendPeriod.YEARLY -> DateFormatterUtils.getYearFormatter()
                     }
                 }
 

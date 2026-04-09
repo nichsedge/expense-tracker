@@ -7,15 +7,22 @@ import kotlin.math.ceil
 object CurrencyFormatter {
     private val locale = Locale("id", "ID")
 
+    private val threadLocalFormatter = object : ThreadLocal<NumberFormat>() {
+        override fun initialValue(): NumberFormat {
+            val formatter = NumberFormat.getCurrencyInstance(locale)
+            formatter.isGroupingUsed = true
+            formatter.maximumFractionDigits = 0
+            return formatter
+        }
+    }
+
     /**
      * Formats the amount in cents (Long) into a display string.
      * Rounds up to the nearest whole number and removes thousands separators.
      */
     fun formatAmount(amountInCents: Long): String {
         val amount = ceil(amountInCents / 100.0).toLong()
-        val formatter = NumberFormat.getCurrencyInstance(locale)
-        formatter.isGroupingUsed = true
-        formatter.maximumFractionDigits = 0
+        val formatter = threadLocalFormatter.get()!!
 
         // This will include the currency symbol and thousands separator but NO decimal part.
         return formatter.format(amount)
