@@ -246,17 +246,31 @@ class ExpenseListViewModel @Inject constructor(
         val (start, end) = when (filter) {
             DateRangeFilter.SEVEN_DAYS -> {
                 calendar.add(Calendar.DAY_OF_YEAR, -7)
-                Pair(calendar.timeInMillis, Long.MAX_VALUE)
+                val endCal = CalendarUtils.getInstance()
+                endCal.add(Calendar.DAY_OF_YEAR, 1)
+                endCal.set(Calendar.HOUR_OF_DAY, 0)
+                endCal.set(Calendar.MINUTE, 0)
+                endCal.set(Calendar.SECOND, 0)
+                endCal.set(Calendar.MILLISECOND, 0)
+                Pair(calendar.timeInMillis, endCal.timeInMillis)
             }
 
             DateRangeFilter.THIRTY_DAYS -> {
                 calendar.add(Calendar.DAY_OF_YEAR, -30)
-                Pair(calendar.timeInMillis, Long.MAX_VALUE)
+                val endCal = CalendarUtils.getInstance()
+                endCal.add(Calendar.DAY_OF_YEAR, 1)
+                endCal.set(Calendar.HOUR_OF_DAY, 0)
+                endCal.set(Calendar.MINUTE, 0)
+                endCal.set(Calendar.SECOND, 0)
+                endCal.set(Calendar.MILLISECOND, 0)
+                Pair(calendar.timeInMillis, endCal.timeInMillis)
             }
 
             DateRangeFilter.THIS_MONTH -> {
                 calendar.set(Calendar.DAY_OF_MONTH, 1)
-                Pair(calendar.timeInMillis, Long.MAX_VALUE)
+                val endCal = calendar.clone() as Calendar
+                endCal.add(Calendar.MONTH, 1)
+                Pair(calendar.timeInMillis, endCal.timeInMillis)
             }
 
             DateRangeFilter.ALL_TIME -> {
@@ -283,10 +297,16 @@ class ExpenseListViewModel @Inject constructor(
         val calendar = CalendarUtils.getInstance()
         calendar.set(Calendar.DAY_OF_MONTH, 1)
         calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
 
-        val monthExpensesFlow = repository.getTotalSpentSince(calendar.timeInMillis)
+        val endCal = calendar.clone() as Calendar
+        endCal.add(Calendar.MONTH, 1)
+
+        val monthExpensesFlow = repository.getTotalSpentBetween(calendar.timeInMillis, endCal.timeInMillis)
         val monthInstallmentsFlow =
-            installmentRepository.getTotalPaidAmountSince(calendar.timeInMillis)
+            installmentRepository.getTotalPaidAmountBetween(calendar.timeInMillis, endCal.timeInMillis)
 
         monthExpensesFlow.combine(monthInstallmentsFlow) { exp, inst ->
             (exp ?: 0L) + (inst ?: 0L)
