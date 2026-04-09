@@ -130,30 +130,21 @@ class ExpenseListViewModel @Inject constructor(
                     tags = s.selectedTags.toList()
                 )
 
-                // Only if no specific amount filter is active (or we could try to filter installment payments too)
-                // For simplicity, we combine if not searching/filtering specific categories that might exclude them
-                val instFlow =
-                    if (s.searchQuery.isBlank() && s.minAmount == null && s.maxAmount == null) {
-                        installmentRepository.getTotalPaidAmountBetween(s.startDate, s.endDate)
-                    } else {
-                        flowOf(0L)
-                    }
-
                 val dailyFlow = repository.getDailySpendingBetween(s.startDate, s.endDate)
 
-                expensesFlow.combine(instFlow) { e, i -> Pair(e, i ?: 0L) }
-                    .combine(dailyFlow) { (e, i), d -> Triple(e, i, d) }
+                expensesFlow.combine(dailyFlow) { e, d -> Pair(e, d) }
             }
-            .onEach { (expenses, instSum, dailySpending) ->
+            .onEach { (expenses, dailySpending) ->
                 val dailyMap = dailySpending.associate { it.day to it.amount }
                 val grouped = groupExpensesByDate(expenses, dailyMap)
-                // Filtered item totals: normal items + installment payments
-                val normalItemsSum = expenses.filter { !it.isInstallment }.sumOf { it.amount }
+                // Filtered item totals: normal items + installment payments (already in the list)
+                // We only exclude 'parent' installment plans to avoid double counting with their sub-payments
+                val periodTotal = expenses.filter { !it.isInstallment || it.isInstallmentPayment }.sumOf { it.amount }
                 _state.update {
                     it.copy(
                         expenses = expenses,
                         groupedExpenses = grouped,
-                        totalFilteredAmount = normalItemsSum + instSum,
+                        totalFilteredAmount = periodTotal,
                         dailySpending = dailyMap,
                         isLoading = false
                     )
