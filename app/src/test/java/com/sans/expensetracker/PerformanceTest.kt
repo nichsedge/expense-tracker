@@ -16,7 +16,7 @@ class PerformanceTest {
                 val calendar = java.util.Calendar.getInstance()
                 calendar.timeInMillis = startDate
                 calendar.add(java.util.Calendar.MONTH, i - 1)
-                val dueDate = calendar.timeInMillis
+                calendar.timeInMillis
             }
         }
 
@@ -26,7 +26,7 @@ class PerformanceTest {
             for (i in 1..duration) {
                 calendar.timeInMillis = startDate
                 calendar.add(java.util.Calendar.MONTH, i - 1)
-                val dueDate = calendar.timeInMillis
+                calendar.timeInMillis
             }
         }
 

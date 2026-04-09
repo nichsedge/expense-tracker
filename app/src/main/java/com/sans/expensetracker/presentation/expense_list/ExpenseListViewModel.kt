@@ -201,7 +201,7 @@ class ExpenseListViewModel @Inject constructor(
         expenses: List<Expense>,
         dailySpendingMap: Map<Long, Long> = emptyMap()
     ): Map<String, List<Expense>> {
-        val calendar = java.util.Calendar.getInstance()
+        val calendar = Calendar.getInstance()
         
         return expenses.groupBy { expense ->
             dateFormat.format(java.util.Date(expense.date))
@@ -209,10 +209,10 @@ class ExpenseListViewModel @Inject constructor(
             if (items.isNotEmpty()) {
                 val itemDate = items[0].date
                 calendar.timeInMillis = itemDate
-                calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
-                calendar.set(java.util.Calendar.MINUTE, 0)
-                calendar.set(java.util.Calendar.SECOND, 0)
-                calendar.set(java.util.Calendar.MILLISECOND, 0)
+                calendar.set(Calendar.HOUR_OF_DAY, 0)
+                calendar.set(Calendar.MINUTE, 0)
+                calendar.set(Calendar.SECOND, 0)
+                calendar.set(Calendar.MILLISECOND, 0)
                 val dayStart = calendar.timeInMillis
                 
                 val dayTotal = dailySpendingMap[dayStart] ?: items.sumOf { if (it.isInstallment) it.monthlyPayment else it.amount }
@@ -230,8 +230,8 @@ class ExpenseListViewModel @Inject constructor(
         calendar.set(Calendar.MINUTE, 0)
         calendar.set(Calendar.SECOND, 0)
         calendar.set(Calendar.MILLISECOND, 0)
-        
-        val today = calendar.clone() as Calendar
+
+        calendar.clone() as Calendar
         
         val (start, end) = when (filter) {
             DateRangeFilter.SEVEN_DAYS -> {
@@ -264,9 +264,9 @@ class ExpenseListViewModel @Inject constructor(
 
     private fun loadHistoricalStats() {
         // This Month
-        val calendar = java.util.Calendar.getInstance()
-        calendar.set(java.util.Calendar.DAY_OF_MONTH, 1)
-        calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
+        val calendar = Calendar.getInstance()
+        calendar.set(Calendar.DAY_OF_MONTH, 1)
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
         
         val monthExpensesFlow = repository.getTotalSpentSince(calendar.timeInMillis)
         val monthInstallmentsFlow = installmentRepository.getTotalPaidAmountSince(calendar.timeInMillis)

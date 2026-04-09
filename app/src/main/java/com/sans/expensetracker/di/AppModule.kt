@@ -39,7 +39,7 @@ object AppModule {
     fun provideDatabaseCallback(
         app: Application,
         categoryDao: javax.inject.Provider<com.sans.expensetracker.data.local.dao.CategoryDao>,
-        expenseDao: javax.inject.Provider<com.sans.expensetracker.data.local.dao.ExpenseDao>,
+        expenseDao: javax.inject.Provider<ExpenseDao>,
         installmentDao: javax.inject.Provider<com.sans.expensetracker.data.local.dao.InstallmentDao>
     ): AppDatabase.Callback {
         return AppDatabase.Callback(app, categoryDao, expenseDao, installmentDao)

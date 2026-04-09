@@ -12,19 +12,19 @@ for(i in 1..1000) {
 // Unoptimized
 val unoptimizedTime = measureTimeMillis {
     for (i in 1..duration) {
-        val calendar = java.util.Calendar.getInstance()
+        val calendar = Calendar.getInstance()
         calendar.timeInMillis = startDate
-        calendar.add(java.util.Calendar.MONTH, i - 1)
+        calendar.add(Calendar.MONTH, i - 1)
         val dueDate = calendar.timeInMillis
     }
 }
 
 // Optimized
 val optimizedTime = measureTimeMillis {
-    val calendar = java.util.Calendar.getInstance()
+    val calendar = Calendar.getInstance()
     for (i in 1..duration) {
         calendar.timeInMillis = startDate
-        calendar.add(java.util.Calendar.MONTH, i - 1)
+        calendar.add(Calendar.MONTH, i - 1)
         val dueDate = calendar.timeInMillis
     }
 }

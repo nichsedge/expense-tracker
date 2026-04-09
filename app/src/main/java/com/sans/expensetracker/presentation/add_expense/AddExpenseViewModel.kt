@@ -65,7 +65,7 @@ class AddExpenseViewModel @Inject constructor(
 
     val categories = getCategoriesUseCase().stateIn(
         scope = viewModelScope,
-        started = kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000),
+        started = SharingStarted.WhileSubscribed(5000),
         initialValue = emptyList()
     )
 
