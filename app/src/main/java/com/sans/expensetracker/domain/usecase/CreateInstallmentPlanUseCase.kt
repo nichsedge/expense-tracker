@@ -14,9 +14,9 @@ class CreateInstallmentPlanUseCase @Inject constructor(
         startDate: Long
     ) {
         if (durationMonths <= 0) return
-        
+
         val monthlyPayment = totalAmount / durationMonths
-        
+
         val installment = Installment(
             expenseId = expenseId,
             totalAmount = totalAmount,
@@ -26,9 +26,14 @@ class CreateInstallmentPlanUseCase @Inject constructor(
             nextDueDate = startDate,
             status = "Active"
         )
-        
+
         val installmentId = installmentRepository.createInstallment(installment)
-        
-        installmentRepository.createInstallmentItems(installmentId, durationMonths, monthlyPayment, startDate)
+
+        installmentRepository.createInstallmentItems(
+            installmentId,
+            durationMonths,
+            monthlyPayment,
+            startDate
+        )
     }
 }

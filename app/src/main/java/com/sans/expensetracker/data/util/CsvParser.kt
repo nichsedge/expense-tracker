@@ -14,14 +14,14 @@ object CsvParser {
     fun parse(context: Context): List<ExpenseEntity> {
         val expenses = mutableListOf<ExpenseEntity>()
         val assetManager = context.assets
-        
+
         try {
             val inputStream = assetManager.open("seed_transactions.csv")
             val reader = BufferedReader(InputStreamReader(inputStream))
-            
+
             // Skip header
             reader.readLine()
-            
+
             reader.forEachLine { line ->
                 if (line.isBlank()) return@forEachLine
                 val row = parseCsvLine(line)
@@ -36,7 +36,7 @@ object CsvParser {
         } catch (e: Exception) {
             e.printStackTrace()
         }
-        
+
         return expenses
     }
 
@@ -45,7 +45,7 @@ object CsvParser {
         val result = mutableListOf<String>()
         var current = StringBuilder()
         var inQuotes = false
-        
+
         for (char in line) {
             when (char) {
                 '\"' -> inQuotes = !inQuotes
@@ -57,6 +57,7 @@ object CsvParser {
                         current = StringBuilder()
                     }
                 }
+
                 else -> current.append(char)
             }
         }
@@ -68,22 +69,26 @@ object CsvParser {
         return try {
             // date,source,store,item_name,qty,item_price,order_total,status
             val dateStr = row.getOrNull(0) ?: return null
-            val date = try { dateFormat.parse(dateStr)?.time } catch (e: Exception) { null } ?: System.currentTimeMillis()
-            
+            val date = try {
+                dateFormat.parse(dateStr)?.time
+            } catch (e: Exception) {
+                null
+            } ?: System.currentTimeMillis()
+
             val platform = row.getOrNull(1)?.ifEmpty { null }
             val merchant = row.getOrNull(2)?.ifEmpty { null }
             val itemName = row.getOrNull(3)
             if (itemName.isNullOrEmpty()) return null
-            
+
             val qty = row.getOrNull(4)?.toIntOrNull() ?: 1
-            
+
             val originalPrice = parsePriceToCents(row.getOrNull(5) ?: "")
             val finalPrice = parsePriceToCents(row.getOrNull(6) ?: "")
             val status = row.getOrNull(7)?.ifEmpty { "Completed" } ?: "Completed"
             val isInstallment = row.getOrNull(8) == "1"
-            
+
             val categoryId = getCategoryIdForPrompt(itemName, merchant)
-            
+
             ExpenseEntity(
                 date = date,
                 platform = platform,
@@ -110,7 +115,7 @@ object CsvParser {
             .replace("\"", "")
             .replace(".", "") // Some might have . instead of ,
             .trim()
-            
+
         return clean.toLongOrNull()?.let { it * 100 } ?: 0L
     }
 
@@ -118,19 +123,208 @@ object CsvParser {
         val text = (itemName + " " + (merchant ?: "")).lowercase()
         return when {
             // Health & Personal Care (Category 2)
-            containsAny(text, "sehat", "vitamin", "madu", "kesehatan", "obat", "creatine", "haid", "perut", "kemiri", "emina", "skincare", "masker", "whey", "fitness", "gym", "hospital", "doctor", "apotek", "suplemen") -> 2
+            containsAny(
+                text,
+                "sehat",
+                "vitamin",
+                "madu",
+                "kesehatan",
+                "obat",
+                "creatine",
+                "haid",
+                "perut",
+                "kemiri",
+                "emina",
+                "skincare",
+                "masker",
+                "whey",
+                "fitness",
+                "gym",
+                "hospital",
+                "doctor",
+                "apotek",
+                "suplemen"
+            ) -> 2
 
             // Transport (Category 4)
-            containsAny(text, "bensin", "grab", "gojek", "transport", "parkir", "commute", "toll", "go-jek", "perjalanan", "maxim", "fuel", "pertamina", "bus", "train", "kereta", "plane", "pesawat", "tiket", "travel") -> 4
+            containsAny(
+                text,
+                "bensin",
+                "grab",
+                "gojek",
+                "transport",
+                "parkir",
+                "commute",
+                "toll",
+                "go-jek",
+                "perjalanan",
+                "maxim",
+                "fuel",
+                "pertamina",
+                "bus",
+                "train",
+                "kereta",
+                "plane",
+                "pesawat",
+                "tiket",
+                "travel"
+            ) -> 4
 
             // Food & Drinks (Category 1)
-            containsAny(text, "makan", "teh", "coffee", "kopi", "nasi", "bakso", "oat", "gandum", "susu", "dancow", "kacang", "chickpea", "strawberry", "restaurant", "warung", "ayam", "lele", "burger", "pizza", "snack", "camilan", "chips", "milk", "drink", "minum", "cola", "fanta", "sprite", "jus", "juice", "buah", "fruit", "cake", "bakery", "roti") -> 1
+            containsAny(
+                text,
+                "makan",
+                "teh",
+                "coffee",
+                "kopi",
+                "nasi",
+                "bakso",
+                "oat",
+                "gandum",
+                "susu",
+                "dancow",
+                "kacang",
+                "chickpea",
+                "strawberry",
+                "restaurant",
+                "warung",
+                "ayam",
+                "lele",
+                "burger",
+                "pizza",
+                "snack",
+                "camilan",
+                "chips",
+                "milk",
+                "drink",
+                "minum",
+                "cola",
+                "fanta",
+                "sprite",
+                "jus",
+                "juice",
+                "buah",
+                "fruit",
+                "cake",
+                "bakery",
+                "roti"
+            ) -> 1
 
             // Shopping & Electronics & Home (Category 3)
-            containsAny(text, "belanja", "shopee", "tokopedia", "tiktok", "baju", "celana", "sepatu", "kacamata", "helm", "case", "mouse", "keyboard", "meja", "strap", "jaket", "hanger", "spatula", "wajan", "tas", "buku", "pen", "powerbank", "xiaomi", "redmi", "tcl", "tv", "air fryer", "panci", "lampu", "kursi", "sofa", "bantal", "sprei", "tws", "headphone", "koper", "obeng", "sandal", "ikat pinggang", "sabuk", "belt", "kaos", "shirt", "jersey", "polos", "ram", "laptop", "ryzen", "hdd", "ssd", "memory", "monitor", "cpu", "gpu", "fan", "soft start", "stop kontak", "colokan", "kabel", "jack", "pria", "wanita", "unisex", "cotton", "combed", "bamboo", "fashion", "hp", "phone", "baterai", "battery", "handgrip", "parfum", "jam tangan", "watch", "gelang", "anting", "elektronik", "gadget", "accessories", "aksesoris") -> 3
+            containsAny(
+                text,
+                "belanja",
+                "shopee",
+                "tokopedia",
+                "tiktok",
+                "baju",
+                "celana",
+                "sepatu",
+                "kacamata",
+                "helm",
+                "case",
+                "mouse",
+                "keyboard",
+                "meja",
+                "strap",
+                "jaket",
+                "hanger",
+                "spatula",
+                "wajan",
+                "tas",
+                "buku",
+                "pen",
+                "powerbank",
+                "xiaomi",
+                "redmi",
+                "tcl",
+                "tv",
+                "air fryer",
+                "panci",
+                "lampu",
+                "kursi",
+                "sofa",
+                "bantal",
+                "sprei",
+                "tws",
+                "headphone",
+                "koper",
+                "obeng",
+                "sandal",
+                "ikat pinggang",
+                "sabuk",
+                "belt",
+                "kaos",
+                "shirt",
+                "jersey",
+                "polos",
+                "ram",
+                "laptop",
+                "ryzen",
+                "hdd",
+                "ssd",
+                "memory",
+                "monitor",
+                "cpu",
+                "gpu",
+                "fan",
+                "soft start",
+                "stop kontak",
+                "colokan",
+                "kabel",
+                "jack",
+                "pria",
+                "wanita",
+                "unisex",
+                "cotton",
+                "combed",
+                "bamboo",
+                "fashion",
+                "hp",
+                "phone",
+                "baterai",
+                "battery",
+                "handgrip",
+                "parfum",
+                "jam tangan",
+                "watch",
+                "gelang",
+                "anting",
+                "elektronik",
+                "gadget",
+                "accessories",
+                "aksesoris"
+            ) -> 3
 
             // Subscriptions & Bills (Category 5)
-            containsAny(text, "pulsa", "kuota", "data", "inject", "tri", "xl", "indosat", "smartfren", "wifi", "modem", "spotify", "netflix", "youtube", "bill", "invoice", "internet", "hosting", "software", "license", "activation", "visio", "office", "streaming", "subscription", "berlangganan") -> 5
+            containsAny(
+                text,
+                "pulsa",
+                "kuota",
+                "data",
+                "inject",
+                "tri",
+                "xl",
+                "indosat",
+                "smartfren",
+                "wifi",
+                "modem",
+                "spotify",
+                "netflix",
+                "youtube",
+                "bill",
+                "invoice",
+                "internet",
+                "hosting",
+                "software",
+                "license",
+                "activation",
+                "visio",
+                "office",
+                "streaming",
+                "subscription",
+                "berlangganan"
+            ) -> 5
 
             else -> 6 // Others
         }

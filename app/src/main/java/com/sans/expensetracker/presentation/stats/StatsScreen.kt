@@ -118,7 +118,7 @@ fun StatsScreen(
                     selectedPeriod = state.selectedTrendPeriod,
                     onPeriodSelected = viewModel::onTrendPeriodSelected
                 )
-                
+
                 SpendingTrendChart(state.trendSpending, state.selectedTrendPeriod)
 
                 // Categories Breakdown
@@ -126,9 +126,15 @@ fun StatsScreen(
 
                 // Comparison Cards
                 // Comparison Cards
-                SectionTitle(stringResource(R.string.yearly_summary), icon = Icons.Default.CalendarMonth)
-                
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                SectionTitle(
+                    stringResource(R.string.yearly_summary),
+                    icon = Icons.Default.CalendarMonth
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                     StatsSimpleCard(
                         modifier = Modifier.weight(1.0f),
                         title = stringResource(R.string.this_year),
@@ -142,7 +148,7 @@ fun StatsScreen(
                         color = MaterialTheme.colorScheme.secondaryContainer
                     )
                 }
-                
+
                 Spacer(modifier = Modifier.height(16.dp))
             }
         }
@@ -157,16 +163,20 @@ fun HeaderPart(
 ) {
     val diff = amount - lastMonthAmount
     val percent = if (lastMonthAmount > 0) (diff.toDouble() / lastMonthAmount * 100).toInt() else 0
-    
+
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-        Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.secondary)
+        Text(
+            title,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.secondary
+        )
         Text(
             CurrencyFormatter.formatAmount(amount),
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.Black,
             color = MaterialTheme.colorScheme.primary
         )
-        
+
         if (lastMonthAmount > 0) {
             Surface(
                 color = if (diff > 0) MaterialTheme.colorScheme.errorContainer else Color(0xFFC8E6C9),
@@ -198,7 +208,7 @@ fun TrendPeriodSelector(
         stringResource(R.string.quarterly),
         stringResource(R.string.yearly)
     )
-    
+
     SingleChoiceSegmentedButtonRow(
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -207,12 +217,12 @@ fun TrendPeriodSelector(
                 shape = SegmentedButtonDefaults.itemShape(index = index, count = periods.size),
                 onClick = { onPeriodSelected(period) },
                 selected = selectedPeriod == period,
-                label = { 
+                label = {
                     Text(
-                        options[index], 
+                        options[index],
                         style = MaterialTheme.typography.labelSmall,
                         maxLines = 1
-                    ) 
+                    )
                 }
             )
         }
@@ -220,15 +230,25 @@ fun TrendPeriodSelector(
 }
 
 @Composable
-fun SpendingTrendChart(spending: List<com.sans.expensetracker.data.local.entity.DaySpent>, period: TrendPeriod) {
+fun SpendingTrendChart(
+    spending: List<com.sans.expensetracker.data.local.entity.DaySpent>,
+    period: TrendPeriod
+) {
     SectionTitle(stringResource(R.string.spending_trend), icon = Icons.Default.Insights)
-    
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(
+                alpha = 0.3f
+            )
+        )
     ) {
-        Box(modifier = Modifier.padding(16.dp).fillMaxWidth().height(220.dp)) {
+        Box(modifier = Modifier
+            .padding(16.dp)
+            .fillMaxWidth()
+            .height(220.dp)) {
             if (spending.isEmpty()) {
                 Text("No data for this period", modifier = Modifier.align(Alignment.Center))
             } else {
@@ -245,12 +265,28 @@ fun SpendingTrendChart(spending: List<com.sans.expensetracker.data.local.entity.
                 }
                 val dateLabelFormatter = remember(sortedSpending, period) {
                     val dateFormat = when (period) {
-                        TrendPeriod.DAILY -> java.text.SimpleDateFormat("d MMM", Locale.getDefault())
-                        TrendPeriod.WEEKLY -> java.text.SimpleDateFormat("d MMM", Locale.getDefault())
-                        TrendPeriod.MONTHLY -> java.text.SimpleDateFormat("MMM yy", Locale.getDefault())
+                        TrendPeriod.DAILY -> java.text.SimpleDateFormat(
+                            "d MMM",
+                            Locale.getDefault()
+                        )
+
+                        TrendPeriod.WEEKLY -> java.text.SimpleDateFormat(
+                            "d MMM",
+                            Locale.getDefault()
+                        )
+
+                        TrendPeriod.MONTHLY -> java.text.SimpleDateFormat(
+                            "MMM yy",
+                            Locale.getDefault()
+                        )
+
                         TrendPeriod.QUARTERLY -> {
                             object : java.text.Format() {
-                                override fun format(obj: Any?, toAppendTo: StringBuffer, pos: java.text.FieldPosition): StringBuffer {
+                                override fun format(
+                                    obj: Any?,
+                                    toAppendTo: StringBuffer,
+                                    pos: java.text.FieldPosition
+                                ): StringBuffer {
                                     val date = obj as Date
                                     val cal = Calendar.getInstance().apply { time = date }
                                     val year = cal.get(Calendar.YEAR) % 100
@@ -258,10 +294,18 @@ fun SpendingTrendChart(spending: List<com.sans.expensetracker.data.local.entity.
                                     toAppendTo.append("Q$quarter '$year")
                                     return toAppendTo
                                 }
-                                override fun parseObject(source: String?, pos: java.text.ParsePosition?): Any? = null
+
+                                override fun parseObject(
+                                    source: String?,
+                                    pos: java.text.ParsePosition?
+                                ): Any? = null
                             }
                         }
-                        TrendPeriod.YEARLY -> java.text.SimpleDateFormat("yyyy", Locale.getDefault())
+
+                        TrendPeriod.YEARLY -> java.text.SimpleDateFormat(
+                            "yyyy",
+                            Locale.getDefault()
+                        )
                     }
                     CartesianValueFormatter { _, value, _ ->
                         val index = value.toInt()
@@ -277,12 +321,12 @@ fun SpendingTrendChart(spending: List<com.sans.expensetracker.data.local.entity.
                         CurrencyFormatter.formatAmount((value * 100).roundToLong())
                     }
                 }
-                
+
                 val markerLabel = rememberTextComponent(
                     style = TextStyle(color = MaterialTheme.colorScheme.onSurface),
                     lineCount = 1
                 )
-                
+
                 val marker = rememberDefaultCartesianMarker(label = markerLabel)
                 val primaryColor = MaterialTheme.colorScheme.primary
 
@@ -326,9 +370,9 @@ fun CategoryBreakdown(
     categories: List<com.sans.expensetracker.data.local.entity.CategorySpent>
 ) {
     SectionTitle(stringResource(R.string.by_category), icon = Icons.Default.PieChart)
-    
+
     val totalInCategories = categories.sumOf { it.totalAmount }
-    
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(28.dp),
@@ -336,7 +380,8 @@ fun CategoryBreakdown(
     ) {
         Column(modifier = Modifier.padding(8.dp)) {
             categories.sortedByDescending { it.totalAmount }.forEach { category ->
-                val percent = if (totalInCategories > 0) category.totalAmount.toFloat() / totalInCategories else 0f
+                val percent =
+                    if (totalInCategories > 0) category.totalAmount.toFloat() / totalInCategories else 0f
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -352,21 +397,24 @@ fun CategoryBreakdown(
                     ) {
                         CategoryIcon(category.categoryIcon, fontSize = 24.sp)
                     }
-                    
+
                     Spacer(modifier = Modifier.width(16.dp))
-                    
+
                     Column(modifier = Modifier.weight(1f)) {
                         Text(category.categoryName, fontWeight = FontWeight.Bold)
                         LinearProgressIndicator(
                             progress = { percent },
-                            modifier = Modifier.fillMaxWidth().height(4.dp).clip(CircleShape),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(4.dp)
+                                .clip(CircleShape),
                             color = MaterialTheme.colorScheme.primary,
                             trackColor = MaterialTheme.colorScheme.surfaceVariant
                         )
                     }
-                    
+
                     Spacer(modifier = Modifier.width(16.dp))
-                    
+
                     Text(
                         CurrencyFormatter.formatAmount(category.totalAmount),
                         fontWeight = FontWeight.ExtraBold
@@ -390,7 +438,11 @@ fun StatsSimpleCard(
         shape = RoundedCornerShape(24.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(title, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                title,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             Text(
                 CurrencyFormatter.formatAmount(amount),
                 style = MaterialTheme.typography.titleMedium,

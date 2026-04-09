@@ -139,12 +139,12 @@ fun ExpenseListScreen(
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     trailingIcon = {
                         IconButton(onClick = { showFilterSheet = true }) {
-                            val isFiltered = state.selectedCategoryIds.isNotEmpty() || 
-                                           state.minAmount != null || 
-                                           state.maxAmount != null || 
-                                           state.selectedTags.isNotEmpty()
+                            val isFiltered = state.selectedCategoryIds.isNotEmpty() ||
+                                    state.minAmount != null ||
+                                    state.maxAmount != null ||
+                                    state.selectedTags.isNotEmpty()
                             Icon(
-                                Icons.Default.Tune, 
+                                Icons.Default.Tune,
                                 contentDescription = "Filters",
                                 tint = if (isFiltered) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -165,7 +165,7 @@ fun ExpenseListScreen(
                 periodTotal = state.totalFilteredAmount,
                 budget = state.monthlyBudget
             )
-            
+
             Text(
                 stringResource(R.string.recent_transactions),
                 style = MaterialTheme.typography.titleMedium,
@@ -179,7 +179,7 @@ fun ExpenseListScreen(
                     viewModel.updateDateRange(filter)
                 }
             )
-            
+
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(16.dp),
@@ -188,7 +188,9 @@ fun ExpenseListScreen(
                 state.groupedExpenses.forEach { (date, expenses) ->
                     item(key = "header-$date") {
                         Surface(
-                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp),
                             color = Color.Transparent
                         ) {
                             Text(
@@ -200,7 +202,7 @@ fun ExpenseListScreen(
                             )
                         }
                     }
-                    
+
                     items(
                         items = expenses,
                         key = { it.id },
@@ -221,7 +223,7 @@ fun ExpenseListScreen(
             }
         }
     }
-    
+
     if (showDeleteDialog && expenseToDelete != null) {
         AlertDialog(
             onDismissRequest = {
@@ -260,7 +262,7 @@ fun ExpenseListScreen(
             onCategoryToggle = { viewModel.toggleCategoryFilter(it) },
             onAmountFilterChanged = { min, max -> viewModel.updateAmountFilter(min, max) },
             onTagToggle = { viewModel.toggleTagFilter(it) },
-            onClearFilters = { 
+            onClearFilters = {
                 viewModel.clearFilters()
                 showFilterSheet = false
             }
@@ -279,8 +281,16 @@ fun AdvancedFilterSheet(
     onClearFilters: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState()
-    var minAmountStr by remember { mutableStateOf(state.minAmount?.let { kotlin.math.ceil(it / 100.0).toLong().toString() } ?: "") }
-    var maxAmountStr by remember { mutableStateOf(state.maxAmount?.let { kotlin.math.ceil(it / 100.0).toLong().toString() } ?: "") }
+    var minAmountStr by remember {
+        mutableStateOf(state.minAmount?.let {
+            kotlin.math.ceil(it / 100.0).toLong().toString()
+        } ?: "")
+    }
+    var maxAmountStr by remember {
+        mutableStateOf(state.maxAmount?.let {
+            kotlin.math.ceil(it / 100.0).toLong().toString()
+        } ?: "")
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -315,9 +325,11 @@ fun AdvancedFilterSheet(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
             )
-            
+
             FlowRow(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 state.categories.forEach { category ->
@@ -343,7 +355,9 @@ fun AdvancedFilterSheet(
                 )
 
                 FlowRow(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     state.availableTags.forEach { tag ->
@@ -366,14 +380,18 @@ fun AdvancedFilterSheet(
             )
 
             Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 OutlinedTextField(
                     value = minAmountStr,
-                    onValueChange = { 
+                    onValueChange = {
                         minAmountStr = it
-                        onAmountFilterChanged(it.toLongOrNull()?.let { v -> v * 100 }, maxAmountStr.toLongOrNull()?.let { v -> v * 100 })
+                        onAmountFilterChanged(
+                            it.toLongOrNull()?.let { v -> v * 100 },
+                            maxAmountStr.toLongOrNull()?.let { v -> v * 100 })
                     },
                     modifier = Modifier.weight(1f),
                     label = { Text(stringResource(R.string.min_amount)) },
@@ -382,9 +400,11 @@ fun AdvancedFilterSheet(
                 )
                 OutlinedTextField(
                     value = maxAmountStr,
-                    onValueChange = { 
+                    onValueChange = {
                         maxAmountStr = it
-                        onAmountFilterChanged(minAmountStr.toLongOrNull()?.let { v -> v * 100 }, it.toLongOrNull()?.let { v -> v * 100 })
+                        onAmountFilterChanged(
+                            minAmountStr.toLongOrNull()?.let { v -> v * 100 },
+                            it.toLongOrNull()?.let { v -> v * 100 })
                     },
                     modifier = Modifier.weight(1f),
                     label = { Text(stringResource(R.string.max_amount)) },
@@ -440,7 +460,7 @@ fun SummaryCard(thisMonth: Long, periodTotal: Long, budget: Long = 0L) {
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 }
-                
+
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         stringResource(R.string.total_filtered),
@@ -460,7 +480,8 @@ fun SummaryCard(thisMonth: Long, periodTotal: Long, budget: Long = 0L) {
                 Spacer(modifier = Modifier.height(16.dp))
                 val progress = (thisMonth.toFloat() / budget.toFloat()).coerceIn(0f, 1f)
                 val isOverBudget = thisMonth > budget
-                val progressColor = if (isOverBudget) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                val progressColor =
+                    if (isOverBudget) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
 
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Row(
@@ -491,7 +512,15 @@ fun SummaryCard(thisMonth: Long, periodTotal: Long, budget: Long = 0L) {
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        "${com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(thisMonth)} of ${com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(budget)}",
+                        "${
+                            com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(
+                                thisMonth
+                            )
+                        } of ${
+                            com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(
+                                budget
+                            )
+                        }",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
                         modifier = Modifier.align(Alignment.End)
@@ -505,7 +534,7 @@ fun SummaryCard(thisMonth: Long, periodTotal: Long, budget: Long = 0L) {
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ExpenseItem(
-    expense: Expense, 
+    expense: Expense,
     category: com.sans.expensetracker.data.local.entity.CategoryEntity?,
     onClick: () -> Unit,
     onLongClick: () -> Unit
@@ -561,8 +590,10 @@ fun ExpenseItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 if (expense.isInstallment && expense.monthlyPayment > 0) {
-                    val totalPaid = com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(expense.totalPaid)
-                    val totalAmount = com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(expense.amount)
+                    val totalPaid =
+                        com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(expense.totalPaid)
+                    val totalAmount =
+                        com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(expense.amount)
                     Text(
                         "Paid: $totalPaid / $totalAmount",
                         style = MaterialTheme.typography.labelSmall,
@@ -573,7 +604,8 @@ fun ExpenseItem(
             }
 
             Column(horizontalAlignment = Alignment.End) {
-                val displayAmount = if (expense.isInstallment && expense.monthlyPayment > 0) expense.monthlyPayment else expense.amount
+                val displayAmount =
+                    if (expense.isInstallment && expense.monthlyPayment > 0) expense.monthlyPayment else expense.amount
                 Text(
                     com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(displayAmount),
                     style = MaterialTheme.typography.titleMedium,

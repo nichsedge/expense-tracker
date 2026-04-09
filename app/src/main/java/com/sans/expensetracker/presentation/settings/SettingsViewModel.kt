@@ -102,7 +102,7 @@ class SettingsViewModel @Inject constructor(
                 db.checkpoint()
                 val dbName = "expense_tracker_db"
                 val dbFile = context.getDatabasePath(dbName)
-                
+
                 if (!dbFile.exists()) {
                     _error.value = "Database not found"
                     _isLoading.value = false
@@ -112,10 +112,14 @@ class SettingsViewModel @Inject constructor(
                 val snapshotName = "expense_tracker_db_snapshot.sqlite"
                 val resolver = context.contentResolver
                 val relativePath = "${android.os.Environment.DIRECTORY_DOWNLOADS}/"
-                
+
                 val selection = "${android.provider.MediaStore.MediaColumns.DISPLAY_NAME} = ?"
                 val selectionArgs = arrayOf(snapshotName)
-                resolver.delete(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, selection, selectionArgs)
+                resolver.delete(
+                    android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                    selection,
+                    selectionArgs
+                )
 
                 val contentValues = android.content.ContentValues().apply {
                     put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, snapshotName)
@@ -125,8 +129,11 @@ class SettingsViewModel @Inject constructor(
                         put(android.provider.MediaStore.MediaColumns.IS_PENDING, 1)
                     }
                 }
-                
-                val uri = resolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+
+                val uri = resolver.insert(
+                    android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                    contentValues
+                )
                 uri?.let {
                     resolver.openOutputStream(it, "wt")?.use { outputStream ->
                         java.io.FileInputStream(dbFile).use { inputStream ->

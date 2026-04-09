@@ -34,7 +34,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract val tagDao: TagDao
 
     fun checkpoint() {
-        val cursor = query(androidx.sqlite.db.SimpleSQLiteQuery("PRAGMA wal_checkpoint(TRUNCATE)"), null)
+        val cursor =
+            query(androidx.sqlite.db.SimpleSQLiteQuery("PRAGMA wal_checkpoint(TRUNCATE)"), null)
         if (cursor.moveToFirst()) {
             cursor.getInt(0) // Forces evaluation
         }
@@ -84,9 +85,10 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
                 // Create tags table
                 db.execSQL("CREATE TABLE IF NOT EXISTS `tags` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL)")
-                
+
                 // Create expense_tag_ref table
-                db.execSQL("""
+                db.execSQL(
+                    """
                     CREATE TABLE IF NOT EXISTS `expense_tag_ref` (
                         `expenseId` INTEGER NOT NULL, 
                         `tagId` INTEGER NOT NULL, 
@@ -94,27 +96,32 @@ abstract class AppDatabase : RoomDatabase() {
                         FOREIGN KEY(`expenseId`) REFERENCES `expenses`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE, 
                         FOREIGN KEY(`tagId`) REFERENCES `tags`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
                     )
-                """.trimIndent())
-                
+                """.trimIndent()
+                )
+
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_expense_tag_ref_expenseId` ON `expense_tag_ref` (`expenseId`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_expense_tag_ref_tagId` ON `expense_tag_ref` (`tagId`)")
 
                 // Pre-insert distinct platforms into tags
-                db.execSQL("""
+                db.execSQL(
+                    """
                     INSERT OR IGNORE INTO tags (name)
                     SELECT DISTINCT platform
                     FROM expenses
                     WHERE platform IS NOT NULL AND platform != ''
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 // Link expenses to these tags
-                db.execSQL("""
+                db.execSQL(
+                    """
                     INSERT INTO expense_tag_ref (expenseId, tagId)
                     SELECT e.id, t.id
                     FROM expenses e
                     JOIN tags t ON e.platform = t.name
                     WHERE e.platform IS NOT NULL AND e.platform != ''
-                """.trimIndent())
+                """.trimIndent()
+                )
             }
         }
     }

@@ -64,10 +64,33 @@ class StatsViewModel @Inject constructor(
     private fun updateTrendData(period: TrendPeriod) {
         val now = Calendar.getInstance()
         val since = when (period) {
-            TrendPeriod.DAILY -> (now.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, -30) }.timeInMillis
-            TrendPeriod.WEEKLY -> (now.clone() as Calendar).apply { add(Calendar.WEEK_OF_YEAR, -12); set(Calendar.DAY_OF_WEEK, firstDayOfWeek) }.timeInMillis
-            TrendPeriod.MONTHLY -> (now.clone() as Calendar).apply { add(Calendar.MONTH, -12); set(Calendar.DAY_OF_MONTH, 1) }.timeInMillis
-            TrendPeriod.QUARTERLY -> (now.clone() as Calendar).apply { add(Calendar.MONTH, -24); set(Calendar.DAY_OF_MONTH, 1) }.timeInMillis // 2 years = 8 quarters
+            TrendPeriod.DAILY -> (now.clone() as Calendar).apply {
+                add(
+                    Calendar.DAY_OF_YEAR,
+                    -30
+                )
+            }.timeInMillis
+
+            TrendPeriod.WEEKLY -> (now.clone() as Calendar).apply {
+                add(
+                    Calendar.WEEK_OF_YEAR,
+                    -12
+                ); set(Calendar.DAY_OF_WEEK, firstDayOfWeek)
+            }.timeInMillis
+
+            TrendPeriod.MONTHLY -> (now.clone() as Calendar).apply {
+                add(Calendar.MONTH, -12); set(
+                Calendar.DAY_OF_MONTH,
+                1
+            )
+            }.timeInMillis
+
+            TrendPeriod.QUARTERLY -> (now.clone() as Calendar).apply {
+                add(
+                    Calendar.MONTH,
+                    -24
+                ); set(Calendar.DAY_OF_MONTH, 1)
+            }.timeInMillis // 2 years = 8 quarters
             TrendPeriod.YEARLY -> 0L // All time
         }
 
@@ -88,7 +111,7 @@ class StatsViewModel @Inject constructor(
         if (period == TrendPeriod.DAILY) return daily
 
         val calendar = Calendar.getInstance()
-        
+
         // 1. Group by the start of the period
         val groupedByPeriod = daily.groupBy { item ->
             calendar.timeInMillis = item.day
@@ -99,6 +122,7 @@ class StatsViewModel @Inject constructor(
                     calendar.set(Calendar.DAY_OF_MONTH, 1)
                     calendar.set(Calendar.MONTH, (calendar.get(Calendar.MONTH) / 3) * 3)
                 }
+
                 TrendPeriod.YEARLY -> calendar.set(Calendar.DAY_OF_YEAR, 1)
                 TrendPeriod.DAILY -> {}
             }
@@ -110,14 +134,14 @@ class StatsViewModel @Inject constructor(
         }
 
         // 2. Sum the amounts for each period
-        val summedMap = groupedByPeriod.mapValues { entry -> 
-            entry.value.sumOf { it.amount } 
+        val summedMap = groupedByPeriod.mapValues { entry ->
+            entry.value.sumOf { it.amount }
         }
 
         val result = mutableListOf<com.sans.expensetracker.data.local.entity.DaySpent>()
-        
+
         // 3. Fill gaps and generate result
-        val startCal = Calendar.getInstance().apply { 
+        val startCal = Calendar.getInstance().apply {
             val firstItem = daily.minByOrNull { it.day }?.day ?: System.currentTimeMillis()
             timeInMillis = firstItem
             // Normalize start based on period
@@ -128,6 +152,7 @@ class StatsViewModel @Inject constructor(
                     set(Calendar.DAY_OF_MONTH, 1)
                     set(Calendar.MONTH, (get(Calendar.MONTH) / 3) * 3)
                 }
+
                 TrendPeriod.YEARLY -> set(Calendar.DAY_OF_YEAR, 1)
                 TrendPeriod.DAILY -> {}
             }
@@ -136,8 +161,8 @@ class StatsViewModel @Inject constructor(
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
         }
-        
-        val endCal = Calendar.getInstance().apply { 
+
+        val endCal = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0)
             set(Calendar.MINUTE, 0)
             set(Calendar.SECOND, 0)
@@ -152,7 +177,7 @@ class StatsViewModel @Inject constructor(
                     summedMap[periodStart] ?: 0L
                 )
             )
-            
+
             // Increment based on period
             when (period) {
                 TrendPeriod.DAILY -> startCal.add(Calendar.DAY_OF_YEAR, 1)
@@ -168,35 +193,64 @@ class StatsViewModel @Inject constructor(
 
     private fun loadStats() {
         val now = Calendar.getInstance()
-        
+
         // This Month
         val thisMonthStart = getStartOfMonth(now)
-        
+
         // Last Month
         val lastMonthStart = (thisMonthStart.clone() as Calendar).apply { add(Calendar.MONTH, -1) }
         val lastMonthEnd = thisMonthStart
-        
+
         // This Year
-        val thisYearStart = (thisMonthStart.clone() as Calendar).apply { set(Calendar.MONTH, 0); set(Calendar.DAY_OF_YEAR, 1) }
-        
+        val thisYearStart = (thisMonthStart.clone() as Calendar).apply {
+            set(
+                Calendar.MONTH,
+                0
+            ); set(Calendar.DAY_OF_YEAR, 1)
+        }
+
         // Last Year
         val lastYearStart = (thisYearStart.clone() as Calendar).apply { add(Calendar.YEAR, -1) }
         val lastYearEnd = thisYearStart
 
-        val thisMonthExpFlow = expenseRepository.getTotalSpentBetween(thisMonthStart.timeInMillis, Long.MAX_VALUE)
-        val thisMonthInstFlow = installmentRepository.getTotalPaidAmountBetween(thisMonthStart.timeInMillis, Long.MAX_VALUE)
+        val thisMonthExpFlow =
+            expenseRepository.getTotalSpentBetween(thisMonthStart.timeInMillis, Long.MAX_VALUE)
+        val thisMonthInstFlow = installmentRepository.getTotalPaidAmountBetween(
+            thisMonthStart.timeInMillis,
+            Long.MAX_VALUE
+        )
 
-        val lastMonthExpFlow = expenseRepository.getTotalSpentBetween(lastMonthStart.timeInMillis, lastMonthEnd.timeInMillis)
-        val lastMonthInstFlow = installmentRepository.getTotalPaidAmountBetween(lastMonthStart.timeInMillis, lastMonthEnd.timeInMillis)
+        val lastMonthExpFlow = expenseRepository.getTotalSpentBetween(
+            lastMonthStart.timeInMillis,
+            lastMonthEnd.timeInMillis
+        )
+        val lastMonthInstFlow = installmentRepository.getTotalPaidAmountBetween(
+            lastMonthStart.timeInMillis,
+            lastMonthEnd.timeInMillis
+        )
 
-        val thisYearExpFlow = expenseRepository.getTotalSpentBetween(thisYearStart.timeInMillis, Long.MAX_VALUE)
-        val thisYearInstFlow = installmentRepository.getTotalPaidAmountBetween(thisYearStart.timeInMillis, Long.MAX_VALUE)
+        val thisYearExpFlow =
+            expenseRepository.getTotalSpentBetween(thisYearStart.timeInMillis, Long.MAX_VALUE)
+        val thisYearInstFlow = installmentRepository.getTotalPaidAmountBetween(
+            thisYearStart.timeInMillis,
+            Long.MAX_VALUE
+        )
 
-        val lastYearExpFlow = expenseRepository.getTotalSpentBetween(lastYearStart.timeInMillis, lastYearEnd.timeInMillis)
-        val lastYearInstFlow = installmentRepository.getTotalPaidAmountBetween(lastYearStart.timeInMillis, lastYearEnd.timeInMillis)
+        val lastYearExpFlow = expenseRepository.getTotalSpentBetween(
+            lastYearStart.timeInMillis,
+            lastYearEnd.timeInMillis
+        )
+        val lastYearInstFlow = installmentRepository.getTotalPaidAmountBetween(
+            lastYearStart.timeInMillis,
+            lastYearEnd.timeInMillis
+        )
 
-        val spendingByCategoryFlow = expenseRepository.getSpendingByCategoryBetween(thisMonthStart.timeInMillis, Long.MAX_VALUE)
-        val dailySpendingFlow = expenseRepository.getDailySpendingBetween(thisMonthStart.timeInMillis, Long.MAX_VALUE)
+        val spendingByCategoryFlow = expenseRepository.getSpendingByCategoryBetween(
+            thisMonthStart.timeInMillis,
+            Long.MAX_VALUE
+        )
+        val dailySpendingFlow =
+            expenseRepository.getDailySpendingBetween(thisMonthStart.timeInMillis, Long.MAX_VALUE)
 
         combine(
             combine(thisMonthExpFlow, thisMonthInstFlow) { e, i -> (e ?: 0L) + (i ?: 0L) },
@@ -210,8 +264,10 @@ class StatsViewModel @Inject constructor(
             val lm = values[1] as Long
             val ty = values[2] as Long
             val ly = values[3] as Long
+
             @Suppress("UNCHECKED_CAST")
             val sbc = values[4] as List<com.sans.expensetracker.data.local.entity.CategorySpent>
+
             @Suppress("UNCHECKED_CAST")
             val ds = values[5] as List<com.sans.expensetracker.data.local.entity.DaySpent>
 

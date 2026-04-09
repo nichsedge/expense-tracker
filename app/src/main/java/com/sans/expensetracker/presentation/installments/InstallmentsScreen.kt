@@ -58,7 +58,12 @@ fun InstallmentsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.active_installments), fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        stringResource(R.string.active_installments),
+                        fontWeight = FontWeight.Bold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -92,18 +97,27 @@ fun InstallmentsScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        stringResource(R.string.total_remaining_balance) + ": " + com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(state.totalRemainingBalance),
+                        stringResource(R.string.total_remaining_balance) + ": " + com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(
+                            state.totalRemainingBalance
+                        ),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
                     )
                 }
             }
 
-            Text(stringResource(R.string.your_plans), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                stringResource(R.string.your_plans),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
 
             if (state.activeInstallments.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(stringResource(R.string.no_active_installments), style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        stringResource(R.string.no_active_installments),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
                 }
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -122,7 +136,8 @@ fun ExpandableInstallment(
     viewModel: InstallmentsViewModel
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val items by viewModel.getItemsForInstallment(installment.id).collectAsState(initial = emptyList())
+    val items by viewModel.getItemsForInstallment(installment.id)
+        .collectAsState(initial = emptyList())
     val dateFormatter = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()) }
 
     Surface(
@@ -151,7 +166,7 @@ fun ExpandableInstallment(
                         )
                     }
                 }
-                
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(installment.monthlyPayment) + "/mo",
@@ -165,14 +180,14 @@ fun ExpandableInstallment(
                     )
                 }
             }
-            
+
             if (expanded) {
                 Column(
                     modifier = Modifier.padding(top = 16.dp)
                 ) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f))
                     Spacer(modifier = Modifier.height(12.dp))
-                    
+
                     items.forEach { monthlyItem ->
                         Row(
                             modifier = Modifier
@@ -193,17 +208,24 @@ fun ExpandableInstallment(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            
+
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    if (monthlyItem.status == "Paid") stringResource(R.string.paid) else stringResource(R.string.pending),
+                                    if (monthlyItem.status == "Paid") stringResource(R.string.paid) else stringResource(
+                                        R.string.pending
+                                    ),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = if (monthlyItem.status == "Paid") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                                     fontWeight = FontWeight.Black
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 IconButton(
-                                    onClick = { viewModel.onToggleStatus(monthlyItem.id, monthlyItem.status) }
+                                    onClick = {
+                                        viewModel.onToggleStatus(
+                                            monthlyItem.id,
+                                            monthlyItem.status
+                                        )
+                                    }
                                 ) {
                                     Icon(
                                         if (monthlyItem.status == "Paid") Icons.Default.CheckCircle else Icons.Outlined.Circle,

@@ -350,9 +350,9 @@ Tasks:
 
 * Index:
 
-  * date
-  * category_id
-  * installment_id
+    * date
+    * category_id
+    * installment_id
 
 * Pagination for expense list
 
