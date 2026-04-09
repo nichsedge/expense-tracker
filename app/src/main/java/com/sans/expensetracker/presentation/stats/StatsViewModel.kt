@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
+import com.sans.expensetracker.core.util.CalendarUtils
 import java.util.Calendar
 import javax.inject.Inject
 
@@ -62,7 +63,7 @@ class StatsViewModel @Inject constructor(
     }
 
     private fun updateTrendData(period: TrendPeriod) {
-        val now = Calendar.getInstance()
+        val now = CalendarUtils.getInstance()
         val since = when (period) {
             TrendPeriod.DAILY -> (now.clone() as Calendar).apply {
                 add(
@@ -110,7 +111,7 @@ class StatsViewModel @Inject constructor(
     ): List<com.sans.expensetracker.data.local.entity.DaySpent> {
         if (period == TrendPeriod.DAILY) return daily
 
-        val calendar = Calendar.getInstance()
+        val calendar = CalendarUtils.getInstance()
 
         // 1. Group by the start of the period
         val groupedByPeriod = daily.groupBy { item ->
@@ -141,7 +142,7 @@ class StatsViewModel @Inject constructor(
         val result = mutableListOf<com.sans.expensetracker.data.local.entity.DaySpent>()
 
         // 3. Fill gaps and generate result
-        val startCal = Calendar.getInstance().apply {
+        val startCal = CalendarUtils.getInstance().apply {
             val firstItem = daily.minByOrNull { it.day }?.day ?: System.currentTimeMillis()
             timeInMillis = firstItem
             // Normalize start based on period
@@ -162,7 +163,7 @@ class StatsViewModel @Inject constructor(
             set(Calendar.MILLISECOND, 0)
         }
 
-        val endCal = Calendar.getInstance().apply {
+        val endCal = CalendarUtils.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0)
             set(Calendar.MINUTE, 0)
             set(Calendar.SECOND, 0)
@@ -192,7 +193,7 @@ class StatsViewModel @Inject constructor(
     }
 
     private fun loadStats() {
-        val now = Calendar.getInstance()
+        val now = CalendarUtils.getInstance()
 
         // This Month
         val thisMonthStart = getStartOfMonth(now)

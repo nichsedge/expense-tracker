@@ -53,7 +53,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.sans.expensetracker.R
 import com.sans.expensetracker.presentation.components.CategoryIcon
-import java.text.SimpleDateFormat
+import com.sans.expensetracker.core.util.DateFormatterUtils
 import java.util.Date
 import java.util.Locale
 
@@ -67,7 +67,7 @@ fun AddExpenseScreen(
     val datePickerState =
         rememberDatePickerState(initialSelectedDateMillis = viewModel.selectedDate)
     var showDatePicker by androidx.compose.runtime.mutableStateOf(false)
-    val dateFormatter = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+    val dateFormatter = DateFormatterUtils.getStandardFormatter()
     val focusManager = LocalFocusManager.current
 
     Scaffold(
