@@ -1,12 +1,19 @@
 package com.sans.expensetracker.data.local
 
-import androidx.room.*
-import com.sans.expensetracker.data.local.dao.*
-import com.sans.expensetracker.data.local.entity.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import androidx.room.Database
+import androidx.room.RoomDatabase
+import com.sans.expensetracker.data.local.dao.CategoryDao
+import com.sans.expensetracker.data.local.dao.ExpenseDao
+import com.sans.expensetracker.data.local.dao.InstallmentDao
+import com.sans.expensetracker.data.local.dao.TagDao
+import com.sans.expensetracker.data.local.entity.CategoryEntity
+import com.sans.expensetracker.data.local.entity.ExpenseEntity
+import com.sans.expensetracker.data.local.entity.ExpenseTagCrossRef
+import com.sans.expensetracker.data.local.entity.InstallmentEntity
+import com.sans.expensetracker.data.local.entity.InstallmentItemEntity
+import com.sans.expensetracker.data.local.entity.TagEntity
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
 
 @Database(
     entities = [

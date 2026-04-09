@@ -1,7 +1,5 @@
 package com.sans.expensetracker.data.repository
 
-import com.sans.expensetracker.data.local.dao.ExpenseDao
-import com.sans.expensetracker.data.local.entity.ExpenseEntity
 import com.sans.expensetracker.domain.model.Expense
 import com.sans.expensetracker.domain.repository.ExpenseRepository
 import kotlinx.coroutines.flow.Flow

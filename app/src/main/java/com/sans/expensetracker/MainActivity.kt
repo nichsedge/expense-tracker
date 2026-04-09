@@ -4,16 +4,16 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
 import com.sans.expensetracker.presentation.add_expense.AddExpenseScreen
 import com.sans.expensetracker.presentation.expense_list.ExpenseListScreen
-import com.sans.expensetracker.presentation.settings.SettingsScreen
 import com.sans.expensetracker.presentation.navigation.Screen
+import com.sans.expensetracker.presentation.settings.SettingsScreen
 import com.sans.expensetracker.ui.theme.ExpenseTrackerTheme
 import dagger.hilt.android.AndroidEntryPoint
 

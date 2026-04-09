@@ -4,10 +4,10 @@ import android.app.Application
 import androidx.room.Room
 import com.sans.expensetracker.data.local.AppDatabase
 import com.sans.expensetracker.data.local.dao.ExpenseDao
-import com.sans.expensetracker.data.repository.ExpenseRepositoryImpl
-import com.sans.expensetracker.domain.repository.ExpenseRepository
-import com.sans.expensetracker.domain.preferences.BudgetPreferences
 import com.sans.expensetracker.data.preferences.BudgetPreferencesImpl
+import com.sans.expensetracker.data.repository.ExpenseRepositoryImpl
+import com.sans.expensetracker.domain.preferences.BudgetPreferences
+import com.sans.expensetracker.domain.repository.ExpenseRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

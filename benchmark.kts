@@ -1,5 +1,5 @@
-import kotlin.system.measureTimeMillis
 import java.util.Calendar
+import kotlin.system.measureTimeMillis
 
 val duration = 10000
 val startDate = System.currentTimeMillis()
