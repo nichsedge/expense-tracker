@@ -68,8 +68,9 @@ object AppModule {
     fun provideExpenseRepository(
         dao: ExpenseDao,
         tagDao: com.sans.expensetracker.data.local.dao.TagDao,
-        categoryDao: com.sans.expensetracker.data.local.dao.CategoryDao
-    ): ExpenseRepository = ExpenseRepositoryImpl(dao, tagDao, categoryDao)
+        categoryDao: com.sans.expensetracker.data.local.dao.CategoryDao,
+        installmentDao: com.sans.expensetracker.data.local.dao.InstallmentDao
+    ): ExpenseRepository = ExpenseRepositoryImpl(dao, tagDao, categoryDao, installmentDao)
 
     @Provides
     @Singleton

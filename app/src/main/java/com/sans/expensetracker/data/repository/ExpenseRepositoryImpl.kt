@@ -3,23 +3,35 @@ package com.sans.expensetracker.data.repository
 import com.sans.expensetracker.domain.model.Expense
 import com.sans.expensetracker.domain.repository.ExpenseRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 
 class ExpenseRepositoryImpl(
     private val dao: com.sans.expensetracker.data.local.dao.ExpenseDao,
     private val tagDao: com.sans.expensetracker.data.local.dao.TagDao,
-    private val categoryDao: com.sans.expensetracker.data.local.dao.CategoryDao
+    private val categoryDao: com.sans.expensetracker.data.local.dao.CategoryDao,
+    private val installmentDao: com.sans.expensetracker.data.local.dao.InstallmentDao
 ) : ExpenseRepository {
 
     override fun getAllExpenses(): Flow<List<Expense>> {
-        return dao.getAllExpenses().map { entities ->
-            entities.map { it.toDomain() }
+        return combine(
+            dao.getAllExpenses(),
+            installmentDao.getPaidInstallmentPaymentsBetween(0, Long.MAX_VALUE)
+        ) { expenseEntities, installmentRows ->
+            val expenses = expenseEntities.map { it.toDomain() }
+            val installmentPayments = installmentRows.map { it.toDomain() }
+            (expenses + installmentPayments).sortedByDescending { it.date }
         }
     }
 
     override fun getExpensesBetween(since: Long, until: Long): Flow<List<Expense>> {
-        return dao.getExpensesBetween(since, until).map { entities ->
-            entities.map { it.toDomain() }
+        return combine(
+            dao.getExpensesBetween(since, until),
+            installmentDao.getPaidInstallmentPaymentsBetween(since, until)
+        ) { expenseEntities, installmentRows ->
+            val expenses = expenseEntities.map { it.toDomain() }
+            val installmentPayments = installmentRows.map { it.toDomain() }
+            (expenses + installmentPayments).sortedByDescending { it.date }
         }
     }
 
@@ -33,7 +45,8 @@ class ExpenseRepositoryImpl(
         tags: List<String>
     ): Flow<List<Expense>> {
         val searchQuery = if (query.isNullOrBlank()) null else query
-        return dao.getFilteredExpenses(
+        
+        val expensesFlow = dao.getFilteredExpenses(
             searchQuery,
             categoryIds,
             categoryIds.size,
@@ -43,8 +56,25 @@ class ExpenseRepositoryImpl(
             maxAmount,
             tags,
             tags.size
-        ).map { entities ->
-            entities.map { it.toDomain() }
+        )
+
+        // For filtered installments, we use a simpler filter logic in Kotlin for now
+        // since mapping complex filters to SQL join is non-trivial for this dynamic use case
+        val installmentsFlow = installmentDao.getPaidInstallmentPaymentsBetween(since, until)
+
+        return combine(expensesFlow, installmentsFlow) { expenseEntities, installmentRows ->
+            val expenses = expenseEntities.map { it.toDomain() }
+            val installmentPayments = installmentRows.map { it.toDomain() }
+                .filter { payment ->
+                    val matchesQuery = searchQuery == null || payment.itemName.contains(searchQuery, ignoreCase = true)
+                    val matchesCategory = categoryIds.isEmpty() || categoryIds.contains(payment.categoryId)
+                    val matchesMinAmount = minAmount == null || payment.amount >= minAmount
+                    val matchesMaxAmount = maxAmount == null || payment.amount <= maxAmount
+                    // Tags are skipped for installments as they are sub-transactions of the parent
+                    matchesQuery && matchesCategory && matchesMinAmount && matchesMaxAmount
+                }
+            
+            (expenses + installmentPayments).sortedByDescending { it.date }
         }
     }
 
@@ -174,6 +204,18 @@ class ExpenseRepositoryImpl(
             platform = tags.firstOrNull(), // Keep for legacy if needed, or null
             quantity = quantity,
             status = "completed"
+        )
+    }
+
+    private fun com.sans.expensetracker.data.local.entity.InstallmentPaymentRow.toDomain(): Expense {
+        return Expense(
+            id = id + 100_000_000L, // Offset to avoid conflict with ExpenseEntity IDs
+            date = date,
+            itemName = itemName,
+            amount = amount,
+            categoryId = categoryId,
+            isInstallmentPayment = true,
+            merchant = merchant
         )
     }
 }
