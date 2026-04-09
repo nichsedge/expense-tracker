@@ -282,13 +282,14 @@ fun SpendingTrendChart(
 
                         TrendPeriod.QUARTERLY -> {
                             object : java.text.Format() {
+                                private val cal = Calendar.getInstance()
                                 override fun format(
                                     obj: Any?,
                                     toAppendTo: StringBuffer,
                                     pos: java.text.FieldPosition
                                 ): StringBuffer {
                                     val date = obj as Date
-                                    val cal = Calendar.getInstance().apply { time = date }
+                                    cal.time = date
                                     val year = cal.get(Calendar.YEAR) % 100
                                     val quarter = (cal.get(Calendar.MONTH) / 3) + 1
                                     toAppendTo.append("Q$quarter '$year")
@@ -316,7 +317,7 @@ fun SpendingTrendChart(
                         }
                     }
                 }
-                val currencyLabelFormatter = remember {
+                val currencyLabelFormatter = remember(period) {
                     CartesianValueFormatter { _, value, _ ->
                         CurrencyFormatter.formatAmount((value * 100).roundToLong())
                     }

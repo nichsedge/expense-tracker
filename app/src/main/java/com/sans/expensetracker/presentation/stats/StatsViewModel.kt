@@ -271,17 +271,17 @@ class StatsViewModel @Inject constructor(
             @Suppress("UNCHECKED_CAST")
             val ds = values[5] as List<com.sans.expensetracker.data.local.entity.DaySpent>
 
-            _state.value.copy(
-                thisMonthSpent = tm,
-                lastMonthSpent = lm,
-                thisYearSpent = ty,
-                lastYearSpent = ly,
-                spendingByCategory = sbc,
-                dailySpending = ds,
-                isLoading = false
-            )
-        }.onEach { newState ->
-            _state.value = newState
+            _state.update {
+                it.copy(
+                    thisMonthSpent = tm,
+                    lastMonthSpent = lm,
+                    thisYearSpent = ty,
+                    lastYearSpent = ly,
+                    spendingByCategory = sbc,
+                    dailySpending = ds,
+                    isLoading = false
+                )
+            }
         }.launchIn(viewModelScope)
     }
 

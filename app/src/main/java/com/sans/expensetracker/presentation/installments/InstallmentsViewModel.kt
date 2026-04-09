@@ -7,6 +7,7 @@ import com.sans.expensetracker.domain.repository.InstallmentRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -27,11 +28,13 @@ class InstallmentsViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             installmentRepository.getActiveInstallments().collect { installments ->
-                _state.value = InstallmentsState(
-                    activeInstallments = installments,
-                    totalMonthlyDue = installments.sumOf { it.monthlyPayment },
-                    totalRemainingBalance = installments.sumOf { it.remainingBalance }
-                )
+                _state.update {
+                    it.copy(
+                        activeInstallments = installments,
+                        totalMonthlyDue = installments.sumOf { it.monthlyPayment },
+                        totalRemainingBalance = installments.sumOf { it.remainingBalance }
+                    )
+                }
             }
         }
     }

@@ -41,6 +41,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
@@ -67,7 +68,7 @@ fun AddExpenseScreen(
     val datePickerState =
         rememberDatePickerState(initialSelectedDateMillis = viewModel.selectedDate)
     var showDatePicker by androidx.compose.runtime.mutableStateOf(false)
-    val dateFormatter = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+    val dateFormatter = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()) }
     val focusManager = LocalFocusManager.current
 
     Scaffold(

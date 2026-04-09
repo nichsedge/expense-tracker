@@ -11,14 +11,20 @@ object CurrencyFormatter {
      * Formats the amount in cents (Long) into a display string.
      * Rounds up to the nearest whole number and removes thousands separators.
      */
+    private val formatter = object : ThreadLocal<NumberFormat>() {
+        override fun initialValue(): NumberFormat {
+            return NumberFormat.getCurrencyInstance(locale).apply {
+                isGroupingUsed = true
+                maximumFractionDigits = 0
+            }
+        }
+    }
+
     fun formatAmount(amountInCents: Long): String {
         val amount = ceil(amountInCents / 100.0).toLong()
-        val formatter = NumberFormat.getCurrencyInstance(locale)
-        formatter.isGroupingUsed = true
-        formatter.maximumFractionDigits = 0
 
         // This will include the currency symbol and thousands separator but NO decimal part.
-        return formatter.format(amount)
+        return formatter.get()?.format(amount) ?: ""
     }
 
     /**
