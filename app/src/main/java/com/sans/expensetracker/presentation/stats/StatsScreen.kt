@@ -161,7 +161,7 @@ fun HeaderPart(
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
         Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.secondary)
         Text(
-            com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(amount),
+            CurrencyFormatter.formatAmount(amount),
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.Black,
             color = MaterialTheme.colorScheme.primary
@@ -368,7 +368,7 @@ fun CategoryBreakdown(
                     Spacer(modifier = Modifier.width(16.dp))
                     
                     Text(
-                        com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(category.totalAmount),
+                        CurrencyFormatter.formatAmount(category.totalAmount),
                         fontWeight = FontWeight.ExtraBold
                     )
                 }
@@ -392,7 +392,7 @@ fun StatsSimpleCard(
         Column(modifier = Modifier.padding(16.dp)) {
             Text(title, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(
-                com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(amount),
+                CurrencyFormatter.formatAmount(amount),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.ExtraBold
             )

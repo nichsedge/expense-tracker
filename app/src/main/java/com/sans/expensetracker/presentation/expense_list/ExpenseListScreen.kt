@@ -84,7 +84,7 @@ fun ExpenseListScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val haptic = LocalHapticFeedback.current
-    val focusManager = LocalFocusManager.current
+    LocalFocusManager.current
     val snackbarHostState = remember { SnackbarHostState() }
     var expenseToDelete by remember { mutableStateOf<Expense?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
