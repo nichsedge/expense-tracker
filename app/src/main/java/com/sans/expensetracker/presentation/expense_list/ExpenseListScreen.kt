@@ -70,6 +70,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.sans.expensetracker.R
 import com.sans.expensetracker.domain.model.Expense
+import com.sans.expensetracker.presentation.expense_list.DateRangeFilter
 import com.sans.expensetracker.presentation.components.CategoryIcon
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -161,7 +162,6 @@ fun ExpenseListScreen(
             }
 
             SummaryCard(
-                thisMonth = state.thisMonthSpent,
                 periodTotal = state.totalFilteredAmount,
                 budget = state.monthlyBudget
             )
@@ -428,7 +428,7 @@ fun AdvancedFilterSheet(
 }
 
 @Composable
-fun SummaryCard(thisMonth: Long, periodTotal: Long, budget: Long = 0L) {
+fun SummaryCard(periodTotal: Long, budget: Long = 0L) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -442,44 +442,22 @@ fun SummaryCard(thisMonth: Long, periodTotal: Long, budget: Long = 0L) {
         Column(
             modifier = Modifier.padding(24.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        stringResource(R.string.this_month),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(thisMonth),
-                        style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
-
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        stringResource(R.string.total_filtered),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.secondary,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(periodTotal),
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                    )
-                }
-            }
+            Text(
+                stringResource(R.string.total_filtered),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(periodTotal),
+                style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Black),
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
 
             if (budget > 0L) {
                 Spacer(modifier = Modifier.height(16.dp))
-                val progress = (thisMonth.toFloat() / budget.toFloat()).coerceIn(0f, 1f)
-                val isOverBudget = thisMonth > budget
+                val progress = (periodTotal.toFloat() / budget.toFloat()).coerceIn(0f, 1f)
+                val isOverBudget = periodTotal > budget
                 val progressColor =
                     if (isOverBudget) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
 
@@ -514,7 +492,7 @@ fun SummaryCard(thisMonth: Long, periodTotal: Long, budget: Long = 0L) {
                     Text(
                         "${
                             com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(
-                                thisMonth
+                                periodTotal
                             )
                         } of ${
                             com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(
@@ -545,11 +523,12 @@ fun ExpenseItem(
         modifier = Modifier
             .fillMaxWidth()
             .combinedClickable(
+                enabled = !expense.isInstallmentPayment,
                 onClick = onClick,
                 onLongClick = onLongClick
             ),
         shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface,
+        color = if (expense.isInstallmentPayment) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surface,
         tonalElevation = 1.dp
     ) {
         Row(
@@ -562,7 +541,7 @@ fun ExpenseItem(
             Surface(
                 modifier = Modifier.size(48.dp),
                 shape = androidx.compose.foundation.shape.CircleShape,
-                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+                color = if (expense.isInstallmentPayment) MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     CategoryIcon(
@@ -577,11 +556,12 @@ fun ExpenseItem(
                     expense.itemName,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    maxLines = 1
+                    maxLines = 1,
+                    color = if (expense.isInstallmentPayment) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurface
                 )
                 val merchantDisplay = when {
                     !expense.merchant.isNullOrBlank() -> "${expense.merchant} • "
-                    expense.tags.isNotEmpty() -> "${expense.tags.joinToString(", ")} • "
+                    expense.tags.isNotEmpty() && !expense.isInstallmentPayment -> "${expense.tags.joinToString(", ")} • "
                     else -> ""
                 }
                 Text(
@@ -589,7 +569,14 @@ fun ExpenseItem(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                if (expense.isInstallment && expense.monthlyPayment > 0) {
+                if (expense.isInstallmentPayment) {
+                    Text(
+                        "Monthly Installment",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.secondary,
+                        fontWeight = FontWeight.Bold
+                    )
+                } else if (expense.isInstallment && expense.monthlyPayment > 0) {
                     val totalPaid =
                         com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(expense.totalPaid)
                     val totalAmount =
