@@ -43,7 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.sans.expensetracker.R
 import com.sans.expensetracker.domain.model.Installment
-import java.text.SimpleDateFormat
+import com.sans.expensetracker.core.util.DateFormatterUtils
 import java.util.Date
 import java.util.Locale
 
@@ -138,7 +138,7 @@ fun ExpandableInstallment(
     var expanded by remember { mutableStateOf(false) }
     val items by viewModel.getItemsForInstallment(installment.id)
         .collectAsState(initial = emptyList())
-    val dateFormatter = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()) }
+    val dateFormatter = DateFormatterUtils.getStandardFormatter()
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
