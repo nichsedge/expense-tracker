@@ -6,7 +6,7 @@ import kotlin.math.ceil
 
 object CurrencyFormatter {
     private val locale = Locale("id", "ID")
-    
+
     /**
      * Formats the amount in cents (Long) into a display string.
      * Rounds up to the nearest whole number and removes thousands separators.
@@ -16,7 +16,7 @@ object CurrencyFormatter {
         val formatter = NumberFormat.getCurrencyInstance(locale)
         formatter.isGroupingUsed = true
         formatter.maximumFractionDigits = 0
-        
+
         // This will include the currency symbol and thousands separator but NO decimal part.
         return formatter.format(amount)
     }

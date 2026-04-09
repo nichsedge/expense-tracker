@@ -26,7 +26,12 @@ class InstallmentRepositoryImpl(
         return dao.insertInstallment(installment.toEntity())
     }
 
-    override suspend fun createInstallmentItems(installmentId: Long, duration: Int, monthlyAmount: Long, startDate: Long) {
+    override suspend fun createInstallmentItems(
+        installmentId: Long,
+        duration: Int,
+        monthlyAmount: Long,
+        startDate: Long
+    ) {
 
         val items = mutableListOf<com.sans.expensetracker.data.local.entity.InstallmentItemEntity>()
 
@@ -35,7 +40,7 @@ class InstallmentRepositoryImpl(
         for (i in 1..duration) {
             calendar.timeInMillis = startDate
             calendar.add(java.util.Calendar.MONTH, i - 1)
-            
+
             val item = com.sans.expensetracker.data.local.entity.InstallmentItemEntity(
                 installmentId = installmentId,
                 amount = monthlyAmount,
@@ -60,7 +65,7 @@ class InstallmentRepositoryImpl(
 
     override suspend fun updateInstallmentItemStatus(itemId: Long, status: String) {
         dao.updateInstallmentItemStatus(itemId, status)
-        
+
         // Recalculate parent installment remaining balance
         val item = dao.getInstallmentItemById(itemId)
         if (item != null) {
@@ -86,7 +91,10 @@ class InstallmentRepositoryImpl(
         dao.deleteInstallmentByExpenseId(expenseId)
     }
 
-    override fun getPaidItemsInDateRange(since: Long, until: Long): Flow<List<com.sans.expensetracker.domain.model.InstallmentItem>> {
+    override fun getPaidItemsInDateRange(
+        since: Long,
+        until: Long
+    ): Flow<List<com.sans.expensetracker.domain.model.InstallmentItem>> {
         return dao.getPaidItemsInDateRange(since, until).map { list -> list.map { it.toDomain() } }
     }
 

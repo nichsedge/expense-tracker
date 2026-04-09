@@ -50,7 +50,10 @@ interface InstallmentDao {
     fun getTotalPaidAmountBetween(since: Long, until: Long): Flow<Long?>
 
     @Query("SELECT * FROM installment_items WHERE status = 'Paid' AND due_date >= :since AND due_date < :until")
-    fun getPaidItemsInDateRange(since: Long, until: Long): Flow<List<com.sans.expensetracker.data.local.entity.InstallmentItemEntity>>
+    fun getPaidItemsInDateRange(
+        since: Long,
+        until: Long
+    ): Flow<List<com.sans.expensetracker.data.local.entity.InstallmentItemEntity>>
 
     @Update
     suspend fun updateInstallment(installment: InstallmentEntity)

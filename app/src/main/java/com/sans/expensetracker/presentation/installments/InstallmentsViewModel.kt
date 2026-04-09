@@ -43,6 +43,6 @@ class InstallmentsViewModel @Inject constructor(
         }
     }
 
-    fun getItemsForInstallment(installmentId: Long) = 
+    fun getItemsForInstallment(installmentId: Long) =
         installmentRepository.getInstallmentItems(installmentId)
 }

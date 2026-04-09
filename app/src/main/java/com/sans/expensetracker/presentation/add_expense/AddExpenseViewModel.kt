@@ -52,7 +52,7 @@ class AddExpenseViewModel @Inject constructor(
                     isInstallment = expense.isInstallment
                     selectedDate = expense.date
                     selectedTags = expense.tags
-                    
+
                     if (expense.isInstallment) {
                         installmentRepository.getInstallmentByExpenseId(id)?.let { installment ->
                             durationMonths = installment.durationMonths.toString()
@@ -103,7 +103,7 @@ class AddExpenseViewModel @Inject constructor(
 
     fun onSaveClick(onSuccess: () -> Unit) {
         val amountInCents = amount.toSafeLongCents() ?: 0L
-        
+
         viewModelScope.launch {
             val expense = Expense(
                 id = editExpenseId ?: 0,
@@ -116,7 +116,7 @@ class AddExpenseViewModel @Inject constructor(
                 tags = selectedTags,
                 quantity = 1
             )
-            
+
             if (editExpenseId == null) {
                 val expenseId = addExpenseUseCase(expense)
                 if (isInstallment && durationMonths.isNotBlank()) {

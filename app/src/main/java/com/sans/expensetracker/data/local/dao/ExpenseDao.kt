@@ -18,10 +18,14 @@ interface ExpenseDao {
 
     @Transaction
     @Query("SELECT * FROM expenses WHERE date >= :since AND date < :until ORDER BY date DESC")
-    fun getExpensesBetween(since: Long, until: Long): Flow<List<com.sans.expensetracker.data.local.entity.ExpenseWithTags>>
+    fun getExpensesBetween(
+        since: Long,
+        until: Long
+    ): Flow<List<com.sans.expensetracker.data.local.entity.ExpenseWithTags>>
 
     @Transaction
-    @Query("""
+    @Query(
+        """
         SELECT DISTINCT e.* FROM expenses e
         LEFT JOIN expense_tag_ref etr ON e.id = etr.expenseId
         LEFT JOIN tags t ON etr.tagId = t.id
@@ -32,7 +36,8 @@ interface ExpenseDao {
         AND (:maxAmount IS NULL OR e.final_price <= :maxAmount)
         AND (:tagCount = 0 OR t.name IN (:tags))
         ORDER BY e.date DESC
-    """)
+    """
+    )
     fun getFilteredExpenses(
         query: String?,
         categoryIds: List<Long>,
@@ -79,7 +84,8 @@ interface ExpenseDao {
     @Query("SELECT SUM(final_price) FROM expenses WHERE is_installment = 0")
     fun getAllTimeSpent(): Flow<Long?>
 
-    @Query("""
+    @Query(
+        """
         SELECT categoryId, categoryName, categoryIcon, SUM(amount) as totalAmount
         FROM (
             SELECT c.id as categoryId, c.name as categoryName, c.icon as categoryIcon, SUM(e.final_price) as amount
@@ -97,10 +103,15 @@ interface ExpenseDao {
             GROUP BY c.id
         ) sub
         GROUP BY categoryId
-    """)
-    fun getSpendingByCategoryBetween(since: Long, until: Long): Flow<List<com.sans.expensetracker.data.local.entity.CategorySpent>>
+    """
+    )
+    fun getSpendingByCategoryBetween(
+        since: Long,
+        until: Long
+    ): Flow<List<com.sans.expensetracker.data.local.entity.CategorySpent>>
 
-    @Query("""
+    @Query(
+        """
         SELECT day, SUM(amount) as amount
         FROM (
             SELECT (date / 86400000) * 86400000 as day, SUM(final_price) as amount
@@ -115,7 +126,11 @@ interface ExpenseDao {
         ) sub
         GROUP BY day
         ORDER BY day ASC
-    """)
-    fun getDailySpendingBetween(since: Long, until: Long): Flow<List<com.sans.expensetracker.data.local.entity.DaySpent>>
+    """
+    )
+    fun getDailySpendingBetween(
+        since: Long,
+        until: Long
+    ): Flow<List<com.sans.expensetracker.data.local.entity.DaySpent>>
 }
 

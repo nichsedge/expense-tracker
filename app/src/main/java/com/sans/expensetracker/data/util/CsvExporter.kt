@@ -18,7 +18,7 @@ object CsvExporter {
             val store = escapeCsv(expense.merchant ?: "")
             val itemName = escapeCsv(expense.itemName)
             val qty = expense.quantity.toString()
-            
+
             // Re-calculate simple prices for export consistency with seeds
             val itemPrice = (expense.amount / 100.0).toString()
             val orderTotal = (expense.amount / 100.0).toString()

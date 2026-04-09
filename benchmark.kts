@@ -5,7 +5,7 @@ val duration = 10000
 val startDate = System.currentTimeMillis()
 
 // Warmup
-for(i in 1..1000) {
+for (i in 1..1000) {
     val c = Calendar.getInstance()
 }
 

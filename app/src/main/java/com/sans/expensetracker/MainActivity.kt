@@ -19,7 +19,8 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-    @javax.inject.Inject lateinit var localeManager: com.sans.expensetracker.data.util.LocaleManager
+    @javax.inject.Inject
+    lateinit var localeManager: com.sans.expensetracker.data.util.LocaleManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

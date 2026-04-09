@@ -69,7 +69,7 @@ class ExpenseListViewModel @Inject constructor(
 
     init {
         updateDateRange(DateRangeFilter.THIS_MONTH)
-        
+
         loadExpenses()
         loadHistoricalStats()
         loadCategories()
@@ -104,16 +104,16 @@ class ExpenseListViewModel @Inject constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun loadExpenses() {
         _state
-            .map { 
+            .map {
                 listOf(
-                    it.startDate, 
-                    it.endDate, 
-                    it.searchQuery, 
-                    it.selectedCategoryIds, 
-                    it.minAmount, 
+                    it.startDate,
+                    it.endDate,
+                    it.searchQuery,
+                    it.selectedCategoryIds,
+                    it.minAmount,
                     it.maxAmount,
                     it.selectedTags
-                ) 
+                )
             }
             .distinctUntilChanged()
             .flatMapLatest { _ ->
@@ -127,15 +127,16 @@ class ExpenseListViewModel @Inject constructor(
                     maxAmount = s.maxAmount,
                     tags = s.selectedTags.toList()
                 )
-                
+
                 // Only if no specific amount filter is active (or we could try to filter installment payments too)
                 // For simplicity, we combine if not searching/filtering specific categories that might exclude them
-                val instFlow = if (s.searchQuery.isBlank() && s.minAmount == null && s.maxAmount == null) {
-                    installmentRepository.getTotalPaidAmountBetween(s.startDate, s.endDate)
-                } else {
-                    flowOf(0L)
-                }
-                
+                val instFlow =
+                    if (s.searchQuery.isBlank() && s.minAmount == null && s.maxAmount == null) {
+                        installmentRepository.getTotalPaidAmountBetween(s.startDate, s.endDate)
+                    } else {
+                        flowOf(0L)
+                    }
+
                 val dailyFlow = repository.getDailySpendingBetween(s.startDate, s.endDate)
 
                 expensesFlow.combine(instFlow) { e, i -> Pair(e, i ?: 0L) }
@@ -146,13 +147,15 @@ class ExpenseListViewModel @Inject constructor(
                 val grouped = groupExpensesByDate(expenses, dailyMap)
                 // Filtered item totals: normal items + installment payments
                 val normalItemsSum = expenses.filter { !it.isInstallment }.sumOf { it.amount }
-                _state.update { it.copy(
-                    expenses = expenses, 
-                    groupedExpenses = grouped,
-                    totalFilteredAmount = normalItemsSum + instSum,
-                    dailySpending = dailyMap,
-                    isLoading = false
-                ) }
+                _state.update {
+                    it.copy(
+                        expenses = expenses,
+                        groupedExpenses = grouped,
+                        totalFilteredAmount = normalItemsSum + instSum,
+                        dailySpending = dailyMap,
+                        isLoading = false
+                    )
+                }
             }
             .launchIn(viewModelScope)
     }
@@ -163,11 +166,12 @@ class ExpenseListViewModel @Inject constructor(
 
     fun toggleCategoryFilter(categoryId: Long) {
         _state.update { currentState ->
-            val newSelectedCategoryIds = if (currentState.selectedCategoryIds.contains(categoryId)) {
-                currentState.selectedCategoryIds - categoryId
-            } else {
-                currentState.selectedCategoryIds + categoryId
-            }
+            val newSelectedCategoryIds =
+                if (currentState.selectedCategoryIds.contains(categoryId)) {
+                    currentState.selectedCategoryIds - categoryId
+                } else {
+                    currentState.selectedCategoryIds + categoryId
+                }
             currentState.copy(selectedCategoryIds = newSelectedCategoryIds)
         }
     }
@@ -177,13 +181,15 @@ class ExpenseListViewModel @Inject constructor(
     }
 
     fun clearFilters() {
-        _state.update { it.copy(
-            searchQuery = "",
-            selectedCategoryIds = emptySet(),
-            minAmount = null,
-            maxAmount = null,
-            selectedTags = emptySet()
-        ) }
+        _state.update {
+            it.copy(
+                searchQuery = "",
+                selectedCategoryIds = emptySet(),
+                minAmount = null,
+                maxAmount = null,
+                selectedTags = emptySet()
+            )
+        }
     }
 
     fun toggleTagFilter(tag: String) {
@@ -202,7 +208,7 @@ class ExpenseListViewModel @Inject constructor(
         dailySpendingMap: Map<Long, Long> = emptyMap()
     ): Map<String, List<Expense>> {
         val calendar = Calendar.getInstance()
-        
+
         return expenses.groupBy { expense ->
             dateFormat.format(java.util.Date(expense.date))
         }.mapKeys { (dateStr, items) ->
@@ -214,9 +220,11 @@ class ExpenseListViewModel @Inject constructor(
                 calendar.set(Calendar.SECOND, 0)
                 calendar.set(Calendar.MILLISECOND, 0)
                 val dayStart = calendar.timeInMillis
-                
-                val dayTotal = dailySpendingMap[dayStart] ?: items.sumOf { if (it.isInstallment) it.monthlyPayment else it.amount }
-                val totalStr = com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(dayTotal)
+
+                val dayTotal = dailySpendingMap[dayStart]
+                    ?: items.sumOf { if (it.isInstallment) it.monthlyPayment else it.amount }
+                val totalStr =
+                    com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(dayTotal)
                 "$dateStr • Total: $totalStr"
             } else {
                 dateStr
@@ -232,34 +240,40 @@ class ExpenseListViewModel @Inject constructor(
         calendar.set(Calendar.MILLISECOND, 0)
 
         calendar.clone() as Calendar
-        
+
         val (start, end) = when (filter) {
             DateRangeFilter.SEVEN_DAYS -> {
                 calendar.add(Calendar.DAY_OF_YEAR, -7)
                 Pair(calendar.timeInMillis, Long.MAX_VALUE)
             }
+
             DateRangeFilter.THIRTY_DAYS -> {
                 calendar.add(Calendar.DAY_OF_YEAR, -30)
                 Pair(calendar.timeInMillis, Long.MAX_VALUE)
             }
+
             DateRangeFilter.THIS_MONTH -> {
                 calendar.set(Calendar.DAY_OF_MONTH, 1)
                 Pair(calendar.timeInMillis, Long.MAX_VALUE)
             }
+
             DateRangeFilter.ALL_TIME -> {
                 Pair(0L, Long.MAX_VALUE)
             }
+
             DateRangeFilter.CUSTOM -> {
                 Pair(_state.value.startDate, _state.value.endDate)
             }
         }
-        
-        _state.update { it.copy(
-            startDate = start, 
-            endDate = end, 
-            activeDateFilter = filter,
-            isLoading = true
-        ) }
+
+        _state.update {
+            it.copy(
+                startDate = start,
+                endDate = end,
+                activeDateFilter = filter,
+                isLoading = true
+            )
+        }
     }
 
     private fun loadHistoricalStats() {
@@ -267,9 +281,10 @@ class ExpenseListViewModel @Inject constructor(
         val calendar = Calendar.getInstance()
         calendar.set(Calendar.DAY_OF_MONTH, 1)
         calendar.set(Calendar.HOUR_OF_DAY, 0)
-        
+
         val monthExpensesFlow = repository.getTotalSpentSince(calendar.timeInMillis)
-        val monthInstallmentsFlow = installmentRepository.getTotalPaidAmountSince(calendar.timeInMillis)
+        val monthInstallmentsFlow =
+            installmentRepository.getTotalPaidAmountSince(calendar.timeInMillis)
 
         monthExpensesFlow.combine(monthInstallmentsFlow) { exp, inst ->
             (exp ?: 0L) + (inst ?: 0L)

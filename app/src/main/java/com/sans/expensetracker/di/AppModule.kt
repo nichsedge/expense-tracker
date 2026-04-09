@@ -29,9 +29,9 @@ object AppModule {
             AppDatabase::class.java,
             "expense_tracker_db"
         )
-        .addMigrations(AppDatabase.MIGRATION_5_6)
-        .addCallback(callback)
-        .build()
+            .addMigrations(AppDatabase.MIGRATION_5_6)
+            .addCallback(callback)
+            .build()
     }
 
     @Provides
@@ -51,11 +51,13 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideCategoryDao(db: AppDatabase): com.sans.expensetracker.data.local.dao.CategoryDao = db.categoryDao
+    fun provideCategoryDao(db: AppDatabase): com.sans.expensetracker.data.local.dao.CategoryDao =
+        db.categoryDao
 
     @Provides
     @Singleton
-    fun provideInstallmentDao(db: AppDatabase): com.sans.expensetracker.data.local.dao.InstallmentDao = db.installmentDao
+    fun provideInstallmentDao(db: AppDatabase): com.sans.expensetracker.data.local.dao.InstallmentDao =
+        db.installmentDao
 
     @Provides
     @Singleton
@@ -71,11 +73,13 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideInstallmentRepository(dao: com.sans.expensetracker.data.local.dao.InstallmentDao): com.sans.expensetracker.domain.repository.InstallmentRepository = com.sans.expensetracker.data.repository.InstallmentRepositoryImpl(dao)
+    fun provideInstallmentRepository(dao: com.sans.expensetracker.data.local.dao.InstallmentDao): com.sans.expensetracker.domain.repository.InstallmentRepository =
+        com.sans.expensetracker.data.repository.InstallmentRepositoryImpl(dao)
 
     @Provides
     @Singleton
-    fun provideLocaleManager(app: Application): com.sans.expensetracker.data.util.LocaleManager = com.sans.expensetracker.data.util.LocaleManager(app)
+    fun provideLocaleManager(app: Application): com.sans.expensetracker.data.util.LocaleManager =
+        com.sans.expensetracker.data.util.LocaleManager(app)
 
     @Provides
     @Singleton

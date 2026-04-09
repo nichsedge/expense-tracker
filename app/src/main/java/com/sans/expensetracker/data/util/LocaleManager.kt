@@ -10,7 +10,8 @@ import javax.inject.Singleton
 class LocaleManager @Inject constructor(
     private val context: Context
 ) {
-    private val prefs: SharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+    private val prefs: SharedPreferences =
+        context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
 
     fun setLocale(language: String) {
         prefs.edit().putString("language", language).apply()

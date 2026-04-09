@@ -13,7 +13,7 @@ class UpdateExpenseUseCase @Inject constructor(
     suspend operator fun invoke(expense: Expense, durationMonths: Int? = null) {
         val oldExpense = repository.getExpenseById(expense.id)
         repository.updateExpense(expense)
-        
+
         // Handle installment transitions
         if (oldExpense?.isInstallment == true && !expense.isInstallment) {
             // Case: Installment -> Regular

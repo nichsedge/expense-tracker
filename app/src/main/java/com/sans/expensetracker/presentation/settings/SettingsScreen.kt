@@ -125,19 +125,30 @@ fun SettingsScreen(
             item {
                 SettingsSectionTitle(stringResource(R.string.data_management))
                 Card(
-                    modifier = Modifier.fillMaxWidth().clickable { viewModel.exportFullBackup(context) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { viewModel.exportFullBackup(context) },
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)
                 ) {
                     Row(
-                        modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (viewModel.isLoading.value) {
-                                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    strokeWidth = 2.dp
+                                )
                             } else {
-                                Icon(Icons.Default.Sync, contentDescription = null, tint = MaterialTheme.colorScheme.onTertiaryContainer)
+                                Icon(
+                                    Icons.Default.Sync,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onTertiaryContainer
+                                )
                             }
                             Spacer(Modifier.width(16.dp))
                             Column {
@@ -154,7 +165,11 @@ fun SettingsScreen(
                                 )
                             }
                         }
-                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onTertiaryContainer)
+                        Icon(
+                            Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
                     }
                 }
             }
@@ -163,18 +178,25 @@ fun SettingsScreen(
             item {
                 SettingsSectionTitle(stringResource(R.string.language))
                 Card(
-                    modifier = Modifier.fillMaxWidth().clickable { onLanguageToggle() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onLanguageToggle() },
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                 ) {
                     Row(
-                        modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Translate, contentDescription = null)
                             Spacer(Modifier.width(16.dp))
-                            Text(if (currentLanguage == "en") "English" else "Indonesia", style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                if (currentLanguage == "en") "English" else "Indonesia",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
                         }
                         Icon(Icons.Default.ChevronRight, contentDescription = null)
                     }
@@ -186,38 +208,59 @@ fun SettingsScreen(
                 SettingsSectionTitle("Features")
                 Surface(
                     onClick = onNavigateToRecurring,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
                     shape = MaterialTheme.shapes.medium,
                     color = MaterialTheme.colorScheme.surface,
                     tonalElevation = 1.dp
                 ) {
                     Row(
-                        modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.Refresh, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Icon(
+                            Icons.Default.Refresh,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                         Spacer(Modifier.width(16.dp))
-                        Text(stringResource(R.string.recurring_expenses), modifier = Modifier.weight(1f))
+                        Text(
+                            stringResource(R.string.recurring_expenses),
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
 
                 Surface(
                     onClick = { showBudgetDialog = true },
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
                     shape = MaterialTheme.shapes.medium,
                     color = MaterialTheme.colorScheme.surface,
                     tonalElevation = 1.dp
                 ) {
                     Row(
-                        modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.ShoppingCart, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Icon(
+                            Icons.Default.ShoppingCart,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                         Spacer(Modifier.width(16.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Monthly Budget")
                             Text(
-                                if (currentBudget > 0L) com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(currentBudget) else "Not Set",
+                                if (currentBudget > 0L) com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(
+                                    currentBudget
+                                ) else "Not Set",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -415,13 +458,17 @@ fun SettingsItem(
     onDelete: () -> Unit
 ) {
     Surface(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 1.dp
     ) {
         Row(
-            modifier = Modifier.padding(12.dp).fillMaxWidth(),
+            modifier = Modifier
+                .padding(12.dp)
+                .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             CategoryIcon(
@@ -431,10 +478,19 @@ fun SettingsItem(
             Spacer(Modifier.width(16.dp))
             Text(title, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
             IconButton(onClick = onEdit) {
-                Icon(Icons.Default.Edit, contentDescription = "Edit", modifier = Modifier.size(20.dp))
+                Icon(
+                    Icons.Default.Edit,
+                    contentDescription = "Edit",
+                    modifier = Modifier.size(20.dp)
+                )
             }
             IconButton(onClick = onDelete) {
-                Icon(Icons.Default.Delete, contentDescription = "Delete", modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.error)
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = "Delete",
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.error
+                )
             }
         }
     }
@@ -462,12 +518,13 @@ fun CategoryEditDialog(
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.medium
                 )
-                
+
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Select Icon", style = MaterialTheme.typography.labelMedium)
-                    
-                    val presets = listOf("🍔", "💊", "🛍️", "🚗", "🌐", "📁", "🏠", "🎮", "🎁", "💡", "💰", "🔧")
-                    
+
+                    val presets =
+                        listOf("🍔", "💊", "🛍️", "🚗", "🌐", "📁", "🏠", "🎮", "🎁", "💡", "💰", "🔧")
+
                     @OptIn(ExperimentalLayoutApi::class)
                     FlowRow(
                         modifier = Modifier.fillMaxWidth(),
@@ -488,7 +545,7 @@ fun CategoryEditDialog(
                             }
                         }
                     }
-                    
+
                     OutlinedTextField(
                         value = icon,
                         onValueChange = { if (it.length <= 2) icon = it },

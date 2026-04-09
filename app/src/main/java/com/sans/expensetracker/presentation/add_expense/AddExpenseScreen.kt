@@ -64,7 +64,8 @@ fun AddExpenseScreen(
     viewModel: AddExpenseViewModel = hiltViewModel()
 ) {
     val categories by viewModel.categories.collectAsState()
-    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = viewModel.selectedDate)
+    val datePickerState =
+        rememberDatePickerState(initialSelectedDateMillis = viewModel.selectedDate)
     var showDatePicker by androidx.compose.runtime.mutableStateOf(false)
     val dateFormatter = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
     val focusManager = LocalFocusManager.current
@@ -72,7 +73,13 @@ fun AddExpenseScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (viewModel.isEditMode) stringResource(R.string.edit_transaction) else stringResource(R.string.add_expense), fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        if (viewModel.isEditMode) stringResource(R.string.edit_transaction) else stringResource(
+                            R.string.add_expense
+                        ), fontWeight = FontWeight.Bold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -146,8 +153,12 @@ fun AddExpenseScreen(
                 }
             }
 
-            Text(stringResource(R.string.category), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            
+            Text(
+                stringResource(R.string.category),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
@@ -155,7 +166,7 @@ fun AddExpenseScreen(
                     FilterChip(
                         selected = viewModel.categoryId == category.id,
                         onClick = { viewModel.categoryId = category.id },
-                        label = { 
+                        label = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 CategoryIcon(category.icon, fontSize = 16.sp)
                                 Spacer(Modifier.width(8.dp))
@@ -236,8 +247,8 @@ fun AddExpenseScreen(
                 ),
                 keyboardActions = KeyboardActions(
                     onNext = { if (viewModel.isInstallment) focusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Down) else focusManager.clearFocus() },
-                    onDone = { 
-                        focusManager.clearFocus() 
+                    onDone = {
+                        focusManager.clearFocus()
                         if (!viewModel.isInstallment) viewModel.onSaveClick(onBack)
                     }
                 ),
@@ -279,8 +290,8 @@ fun AddExpenseScreen(
                         imeAction = ImeAction.Done
                     ),
                     keyboardActions = KeyboardActions(
-                        onDone = { 
-                            focusManager.clearFocus() 
+                        onDone = {
+                            focusManager.clearFocus()
                             viewModel.onSaveClick(onBack)
                         }
                     ),
@@ -297,7 +308,11 @@ fun AddExpenseScreen(
                     .height(56.dp),
                 shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
             ) {
-                Text(if (viewModel.isEditMode) stringResource(R.string.update_transaction) else stringResource(R.string.confirm_transaction), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text(
+                    if (viewModel.isEditMode) stringResource(R.string.update_transaction) else stringResource(
+                        R.string.confirm_transaction
+                    ), fontWeight = FontWeight.Bold, fontSize = 16.sp
+                )
             }
         }
     }
