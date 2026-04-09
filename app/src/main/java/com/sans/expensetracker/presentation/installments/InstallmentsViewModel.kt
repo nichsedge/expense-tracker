@@ -7,13 +7,17 @@ import com.sans.expensetracker.domain.repository.InstallmentRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class InstallmentsState(
     val activeInstallments: List<Installment> = emptyList(),
+    val historyInstallments: List<Installment> = emptyList(),
     val totalMonthlyDue: Long = 0L,
-    val totalRemainingBalance: Long = 0L
+    val totalRemainingBalance: Long = 0L,
+    val selectedTab: Int = 0 // 0 for Active, 1 for History
 )
 
 @HiltViewModel
@@ -26,14 +30,26 @@ class InstallmentsViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            installmentRepository.getActiveInstallments().collect { installments ->
-                _state.value = InstallmentsState(
-                    activeInstallments = installments,
-                    totalMonthlyDue = installments.sumOf { it.monthlyPayment },
-                    totalRemainingBalance = installments.sumOf { it.remainingBalance }
-                )
+            combine(
+                installmentRepository.getActiveInstallments(),
+                installmentRepository.getCompletedInstallments()
+            ) { active, history ->
+                Pair(active, history)
+            }.collect { (active, history) ->
+                _state.update { currentState ->
+                    currentState.copy(
+                        activeInstallments = active,
+                        historyInstallments = history,
+                        totalMonthlyDue = active.sumOf { it.monthlyPayment },
+                        totalRemainingBalance = active.sumOf { it.remainingBalance }
+                    )
+                }
             }
         }
+    }
+
+    fun onTabSelected(index: Int) {
+        _state.update { it.copy(selectedTab = index) }
     }
 
     fun onToggleStatus(itemId: Long, currentStatus: String) {
