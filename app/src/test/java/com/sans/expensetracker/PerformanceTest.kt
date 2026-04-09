@@ -2,7 +2,6 @@ package com.sans.expensetracker
 
 import org.junit.Test
 import kotlin.system.measureTimeMillis
-import java.util.Calendar
 
 class PerformanceTest {
 
