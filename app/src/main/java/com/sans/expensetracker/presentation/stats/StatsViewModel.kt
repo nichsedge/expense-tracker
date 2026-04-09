@@ -214,11 +214,13 @@ class StatsViewModel @Inject constructor(
         val lastYearStart = (thisYearStart.clone() as Calendar).apply { add(Calendar.YEAR, -1) }
         val lastYearEnd = thisYearStart
 
+        val thisMonthEnd = (thisMonthStart.clone() as Calendar).apply { add(Calendar.MONTH, 1) }
+
         val thisMonthExpFlow =
-            expenseRepository.getTotalSpentBetween(thisMonthStart.timeInMillis, Long.MAX_VALUE)
+            expenseRepository.getTotalSpentBetween(thisMonthStart.timeInMillis, thisMonthEnd.timeInMillis)
         val thisMonthInstFlow = installmentRepository.getTotalPaidAmountBetween(
             thisMonthStart.timeInMillis,
-            Long.MAX_VALUE
+            thisMonthEnd.timeInMillis
         )
 
         val lastMonthExpFlow = expenseRepository.getTotalSpentBetween(
@@ -230,11 +232,12 @@ class StatsViewModel @Inject constructor(
             lastMonthEnd.timeInMillis
         )
 
+        val thisYearEnd = (thisYearStart.clone() as Calendar).apply { add(Calendar.YEAR, 1) }
         val thisYearExpFlow =
-            expenseRepository.getTotalSpentBetween(thisYearStart.timeInMillis, Long.MAX_VALUE)
+            expenseRepository.getTotalSpentBetween(thisYearStart.timeInMillis, thisYearEnd.timeInMillis)
         val thisYearInstFlow = installmentRepository.getTotalPaidAmountBetween(
             thisYearStart.timeInMillis,
-            Long.MAX_VALUE
+            thisYearEnd.timeInMillis
         )
 
         val lastYearExpFlow = expenseRepository.getTotalSpentBetween(
@@ -248,10 +251,10 @@ class StatsViewModel @Inject constructor(
 
         val spendingByCategoryFlow = expenseRepository.getSpendingByCategoryBetween(
             thisMonthStart.timeInMillis,
-            Long.MAX_VALUE
+            thisMonthEnd.timeInMillis
         )
         val dailySpendingFlow =
-            expenseRepository.getDailySpendingBetween(thisMonthStart.timeInMillis, Long.MAX_VALUE)
+            expenseRepository.getDailySpendingBetween(thisMonthStart.timeInMillis, thisMonthEnd.timeInMillis)
 
         combine(
             combine(thisMonthExpFlow, thisMonthInstFlow) { e, i -> (e ?: 0L) + (i ?: 0L) },

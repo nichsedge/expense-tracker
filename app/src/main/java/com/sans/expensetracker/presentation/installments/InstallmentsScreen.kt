@@ -27,6 +27,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -106,22 +108,31 @@ fun InstallmentsScreen(
                 }
             }
 
-            Text(
-                stringResource(R.string.your_plans),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+            TabRow(selectedTabIndex = state.selectedTab) {
+                Tab(
+                    selected = state.selectedTab == 0,
+                    onClick = { viewModel.onTabSelected(0) },
+                    text = { Text("Active") }
+                )
+                Tab(
+                    selected = state.selectedTab == 1,
+                    onClick = { viewModel.onTabSelected(1) },
+                    text = { Text("History") }
+                )
+            }
 
-            if (state.activeInstallments.isEmpty()) {
+            val currentList = if (state.selectedTab == 0) state.activeInstallments else state.historyInstallments
+
+            if (currentList.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        stringResource(R.string.no_active_installments),
+                        if (state.selectedTab == 0) stringResource(R.string.no_active_installments) else "No history",
                         style = MaterialTheme.typography.bodyLarge
                     )
                 }
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    items(state.activeInstallments) { item ->
+                    items(currentList) { item ->
                         ExpandableInstallment(item, viewModel)
                     }
                 }

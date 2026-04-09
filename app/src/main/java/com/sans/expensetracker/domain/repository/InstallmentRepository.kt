@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.Flow
 interface InstallmentRepository {
     fun getAllInstallments(): Flow<List<Installment>>
     fun getActiveInstallments(): Flow<List<Installment>>
+    fun getCompletedInstallments(): Flow<List<Installment>>
     suspend fun getInstallmentByExpenseId(expenseId: Long): Installment?
     suspend fun createInstallment(installment: Installment): Long
     suspend fun createInstallmentItems(

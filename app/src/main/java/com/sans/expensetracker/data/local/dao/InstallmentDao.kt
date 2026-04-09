@@ -19,6 +19,10 @@ interface InstallmentDao {
     @Query("SELECT * FROM installments WHERE status = 'Active' ORDER BY next_due_date ASC")
     fun getActiveInstallments(): Flow<List<InstallmentWithExpense>>
 
+    @androidx.room.Transaction
+    @Query("SELECT * FROM installments WHERE status = 'Completed' ORDER BY next_due_date ASC")
+    fun getCompletedInstallments(): Flow<List<InstallmentWithExpense>>
+
     @Query("SELECT * FROM installments WHERE expense_id = :expenseId")
     suspend fun getInstallmentByExpenseId(expenseId: Long): InstallmentEntity?
 
