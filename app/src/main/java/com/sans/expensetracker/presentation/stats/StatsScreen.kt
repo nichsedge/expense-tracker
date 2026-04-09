@@ -51,20 +51,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
-import com.patrykandpatrick.vico.compose.cartesian.axis.HorizontalAxis
-import com.patrykandpatrick.vico.compose.cartesian.axis.VerticalAxis
-import com.patrykandpatrick.vico.compose.cartesian.data.CartesianChartModel
-import com.patrykandpatrick.vico.compose.cartesian.data.CartesianValueFormatter
-import com.patrykandpatrick.vico.compose.cartesian.data.LineCartesianLayerModel
-import com.patrykandpatrick.vico.compose.cartesian.layer.LineCartesianLayer
-import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLine
-import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
-import com.patrykandpatrick.vico.compose.cartesian.marker.rememberDefaultCartesianMarker
-import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
-import com.patrykandpatrick.vico.compose.common.ProvideVicoTheme
-import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
-import com.patrykandpatrick.vico.compose.m3.common.rememberM3VicoTheme
 import com.sans.expensetracker.R
 import com.sans.expensetracker.core.util.CurrencyFormatter
 import com.sans.expensetracker.presentation.components.CategoryIcon
@@ -72,6 +58,12 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import kotlin.math.roundToLong
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -253,40 +245,15 @@ fun SpendingTrendChart(
                 Text("No data for this period", modifier = Modifier.align(Alignment.Center))
             } else {
                 val sortedSpending = remember(spending) { spending.sortedBy { it.day } }
-                val model = remember(sortedSpending) {
-                    CartesianChartModel(
-                        LineCartesianLayerModel.build {
-                            series(
-                                sortedSpending.indices.map { it.toDouble() },
-                                sortedSpending.map { it.amount / 100.0 }
-                            )
-                        }
-                    )
-                }
-                val dateLabelFormatter = remember(sortedSpending, period) {
-                    val dateFormat = when (period) {
-                        TrendPeriod.DAILY -> java.text.SimpleDateFormat(
-                            "d MMM",
-                            Locale.getDefault()
-                        )
 
-                        TrendPeriod.WEEKLY -> java.text.SimpleDateFormat(
-                            "d MMM",
-                            Locale.getDefault()
-                        )
-
-                        TrendPeriod.MONTHLY -> java.text.SimpleDateFormat(
-                            "MMM yy",
-                            Locale.getDefault()
-                        )
-
+                val dateFormat = remember(period) {
+                    when (period) {
+                        TrendPeriod.DAILY -> java.text.SimpleDateFormat("d MMM", Locale.getDefault())
+                        TrendPeriod.WEEKLY -> java.text.SimpleDateFormat("d MMM", Locale.getDefault())
+                        TrendPeriod.MONTHLY -> java.text.SimpleDateFormat("MMM yy", Locale.getDefault())
                         TrendPeriod.QUARTERLY -> {
                             object : java.text.Format() {
-                                override fun format(
-                                    obj: Any?,
-                                    toAppendTo: StringBuffer,
-                                    pos: java.text.FieldPosition
-                                ): StringBuffer {
+                                override fun format(obj: Any?, toAppendTo: StringBuffer, pos: java.text.FieldPosition): StringBuffer {
                                     val date = obj as Date
                                     val cal = Calendar.getInstance().apply { time = date }
                                     val year = cal.get(Calendar.YEAR) % 100
@@ -294,71 +261,139 @@ fun SpendingTrendChart(
                                     toAppendTo.append("Q$quarter '$year")
                                     return toAppendTo
                                 }
-
-                                override fun parseObject(
-                                    source: String?,
-                                    pos: java.text.ParsePosition?
-                                ): Any? = null
+                                override fun parseObject(source: String?, pos: java.text.ParsePosition?): Any? = null
                             }
                         }
-
-                        TrendPeriod.YEARLY -> java.text.SimpleDateFormat(
-                            "yyyy",
-                            Locale.getDefault()
-                        )
-                    }
-                    CartesianValueFormatter { _, value, _ ->
-                        val index = value.toInt()
-                        if (index in sortedSpending.indices) {
-                            dateFormat.format(Date(sortedSpending[index].day))
-                        } else {
-                            ""
-                        }
-                    }
-                }
-                val currencyLabelFormatter = remember {
-                    CartesianValueFormatter { _, value, _ ->
-                        CurrencyFormatter.formatAmount((value * 100).roundToLong())
+                        TrendPeriod.YEARLY -> java.text.SimpleDateFormat("yyyy", Locale.getDefault())
                     }
                 }
 
-                val markerLabel = rememberTextComponent(
-                    style = TextStyle(color = MaterialTheme.colorScheme.onSurface),
-                    lineCount = 1
-                )
-
-                val marker = rememberDefaultCartesianMarker(label = markerLabel)
                 val primaryColor = MaterialTheme.colorScheme.primary
+                val onSurfaceColor = MaterialTheme.colorScheme.onSurface
+                val gridColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                val textMeasurer = rememberTextMeasurer()
+                val labelStyle = MaterialTheme.typography.labelSmall.copy(color = onSurfaceColor)
 
-                val lineLayer = rememberLineCartesianLayer(
-                    lineProvider = LineCartesianLayer.LineProvider.series(
-                        LineCartesianLayer.rememberLine(
-                            interpolator = remember { LineCartesianLayer.Interpolator.cubic() }
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val maxAmount = sortedSpending.maxOfOrNull { it.amount } ?: 1L
+                    val minAmount = 0L // Start y-axis at 0
+                    val amountRange = (maxAmount - minAmount).coerceAtLeast(1L)
+
+                    val textLayoutResults = sortedSpending.map {
+                        textMeasurer.measure(dateFormat.format(Date(it.day)), style = labelStyle)
+                    }
+                    val bottomPadding = textLayoutResults.maxOfOrNull { it.size.height }?.toFloat() ?: 40f
+                    val yAxisLabels = 5
+                    val yAxisLabelWidth = textMeasurer.measure(
+                        CurrencyFormatter.formatAmount(maxAmount), style = labelStyle
+                    ).size.width.toFloat() + 16f
+
+                    val chartLeft = yAxisLabelWidth
+                    val chartRight = size.width
+                    val chartTop = 16f
+                    val chartBottom = size.height - bottomPadding - 16f
+
+                    val chartWidth = chartRight - chartLeft
+                    val chartHeight = chartBottom - chartTop
+
+                    // Draw horizontal grid lines and y-axis labels
+                    for (i in 0 until yAxisLabels) {
+                        val fraction = i.toFloat() / (yAxisLabels - 1)
+                        val y = chartBottom - (fraction * chartHeight)
+                        val value = minAmount + (amountRange * fraction).toLong()
+
+                        drawLine(
+                            color = gridColor,
+                            start = Offset(chartLeft, y),
+                            end = Offset(chartRight, y),
+                            strokeWidth = 1f
                         )
-                    )
-                )
 
-                ProvideVicoTheme(
-                    rememberM3VicoTheme(
-                        lineCartesianLayerColors = listOf(primaryColor)
-                    )
-                ) {
-                    CartesianChartHost(
-                        chart = rememberCartesianChart(
-                            lineLayer,
-                            startAxis = VerticalAxis.rememberStart(
-                                valueFormatter = currencyLabelFormatter,
-                                itemPlacer = remember { VerticalAxis.ItemPlacer.count(count = { 5 }) }
-                            ),
-                            bottomAxis = HorizontalAxis.rememberBottom(
-                                valueFormatter = dateLabelFormatter,
-                                itemPlacer = remember { HorizontalAxis.ItemPlacer.segmented() }
-                            ),
-                            marker = marker
-                        ),
-                        model = model,
-                        modifier = Modifier.fillMaxSize()
-                    )
+                        val textLayoutResult = textMeasurer.measure(
+                            CurrencyFormatter.formatAmount(value), style = labelStyle
+                        )
+                        drawText(
+                            textLayoutResult = textLayoutResult,
+                            topLeft = Offset(chartLeft - textLayoutResult.size.width - 8f, y - textLayoutResult.size.height / 2f)
+                        )
+                    }
+
+                    // Points and Path
+                    if (sortedSpending.size > 1) {
+                        val path = Path()
+                        val points = mutableListOf<Offset>()
+                        val stepX = chartWidth / (sortedSpending.size - 1).coerceAtLeast(1)
+
+                        sortedSpending.forEachIndexed { index, data ->
+                            val x = chartLeft + index * stepX
+                            val fractionY = (data.amount - minAmount).toFloat() / amountRange
+                            val y = chartBottom - (fractionY * chartHeight)
+                            points.add(Offset(x, y))
+                        }
+
+                        path.moveTo(points.first().x, points.first().y)
+                        for (i in 0 until points.size - 1) {
+                            val p1 = points[i]
+                            val p2 = points[i + 1]
+
+                            // Cubic bezier interpolation for smooth curve
+                            val controlPoint1 = Offset(p1.x + (p2.x - p1.x) / 2f, p1.y)
+                            val controlPoint2 = Offset(p1.x + (p2.x - p1.x) / 2f, p2.y)
+
+                            path.cubicTo(
+                                controlPoint1.x, controlPoint1.y,
+                                controlPoint2.x, controlPoint2.y,
+                                p2.x, p2.y
+                            )
+                        }
+
+                        drawPath(
+                            path = path,
+                            color = primaryColor,
+                            style = Stroke(width = 6f)
+                        )
+
+                        // Draw x-axis labels
+                        val labelsToDraw = Math.min(sortedSpending.size, 5) // Draw max 5 labels to avoid overlapping
+                        if (labelsToDraw > 0) {
+                            val step = Math.max(1, (sortedSpending.size - 1) / (labelsToDraw - 1).coerceAtLeast(1))
+                            for (i in sortedSpending.indices step step) {
+                                val x = chartLeft + i * stepX
+                                val textLayoutResult = textLayoutResults[i]
+                                drawText(
+                                    textLayoutResult = textLayoutResult,
+                                    topLeft = Offset(x - textLayoutResult.size.width / 2f, chartBottom + 8f)
+                                )
+                            }
+                            // ensure last item is always drawn if not included in steps
+                            if ((sortedSpending.size - 1) % step != 0) {
+                                val lastIndex = sortedSpending.size - 1
+                                val x = chartLeft + lastIndex * stepX
+                                val textLayoutResult = textLayoutResults[lastIndex]
+                                drawText(
+                                    textLayoutResult = textLayoutResult,
+                                    topLeft = Offset(x - textLayoutResult.size.width, chartBottom + 8f) // align to right
+                                )
+                            }
+                        }
+                    } else if (sortedSpending.size == 1) {
+                         // single point
+                         val x = chartLeft + chartWidth / 2f
+                         val fractionY = (sortedSpending.first().amount - minAmount).toFloat() / amountRange
+                         val y = chartBottom - (fractionY * chartHeight)
+
+                         drawCircle(
+                             color = primaryColor,
+                             radius = 6f,
+                             center = Offset(x, y)
+                         )
+
+                         val textLayoutResult = textLayoutResults.first()
+                         drawText(
+                            textLayoutResult = textLayoutResult,
+                            topLeft = Offset(x - textLayoutResult.size.width / 2f, chartBottom + 8f)
+                        )
+                    }
                 }
             }
         }
