@@ -4,8 +4,10 @@ import android.app.Application
 import androidx.room.Room
 import com.sans.expensetracker.data.local.AppDatabase
 import com.sans.expensetracker.data.local.dao.ExpenseDao
+import com.sans.expensetracker.data.preferences.AiPreferencesImpl
 import com.sans.expensetracker.data.preferences.BudgetPreferencesImpl
 import com.sans.expensetracker.data.repository.ExpenseRepositoryImpl
+import com.sans.expensetracker.domain.preferences.AiPreferences
 import com.sans.expensetracker.domain.preferences.BudgetPreferences
 import com.sans.expensetracker.domain.repository.ExpenseRepository
 import dagger.Module
@@ -85,4 +87,8 @@ object AppModule {
     @Provides
     @Singleton
     fun provideBudgetPreferences(app: Application): BudgetPreferences = BudgetPreferencesImpl(app)
+
+    @Provides
+    @Singleton
+    fun provideAiPreferences(app: Application): AiPreferences = AiPreferencesImpl(app)
 }

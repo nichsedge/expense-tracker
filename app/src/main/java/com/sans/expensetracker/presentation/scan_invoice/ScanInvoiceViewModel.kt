@@ -25,6 +25,7 @@ import com.google.ai.edge.litertlm.ConversationConfig
 import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.Contents
 import com.google.ai.edge.litertlm.Content
+import com.sans.expensetracker.domain.preferences.AiPreferences
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -48,19 +49,29 @@ data class ScanInvoiceState(
 sealed class ScanInvoiceEvent {
     data class ModelSelected(val uri: Uri) : ScanInvoiceEvent()
     data class CacheModelFile(val context: Context, val uri: Uri) : ScanInvoiceEvent()
-    data class ImageSelected(val uri: Uri) : ScanInvoiceEvent()
-    data class ProcessDemoInvoice(val context: Context) : ScanInvoiceEvent()
+    data class ImageSelected(val context: Context, val uri: Uri) : ScanInvoiceEvent()
     data class ToggleTransactionAcceptance(val id: String) : ScanInvoiceEvent()
     object SaveAcceptedTransactions : ScanInvoiceEvent()
 }
 
 @HiltViewModel
 class ScanInvoiceViewModel @Inject constructor(
-    private val expenseRepository: com.sans.expensetracker.domain.repository.ExpenseRepository
+    private val expenseRepository: com.sans.expensetracker.domain.repository.ExpenseRepository,
+    private val aiPreferences: AiPreferences
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ScanInvoiceState())
     val state: StateFlow<ScanInvoiceState> = _state.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            aiPreferences.getAiModelPath().collect { path ->
+                if (path != null && File(path).exists()) {
+                    _state.update { it.copy(cachedModelPath = path) }
+                }
+            }
+        }
+    }
 
     fun onEvent(event: ScanInvoiceEvent) {
         when (event) {
@@ -70,29 +81,15 @@ class ScanInvoiceViewModel @Inject constructor(
             is ScanInvoiceEvent.CacheModelFile -> {
                 viewModelScope.launch {
                     val path = cacheFile(event.context, event.uri, "model.litertlm")
+                    aiPreferences.setAiModelPath(path)
                     _state.update { it.copy(cachedModelPath = path) }
                 }
             }
             is ScanInvoiceEvent.ImageSelected -> {
                 _state.update { it.copy(imageUri = event.uri, isProcessing = true) }
-                // Try caching image if context was available. Since it's not in the event we will rely on
-                // processing demo invoice to actually pass an absolute file path.
-                // A future iteration would pass Context in ImageSelected event.
-                processInference("")
-            }
-            is ScanInvoiceEvent.ProcessDemoInvoice -> {
-                _state.update { it.copy(isProcessing = true) }
                 viewModelScope.launch {
-                    // Copy demo invoice from assets to cache
-                    val demoFile = File(event.context.cacheDir, "sample_invoice.jpg")
-                    withContext(Dispatchers.IO) {
-                        event.context.assets.open("sample_invoice.jpg").use { input ->
-                            FileOutputStream(demoFile).use { output ->
-                                input.copyTo(output)
-                            }
-                        }
-                    }
-                    processInference(demoFile.absolutePath)
+                    val path = cacheFile(event.context, event.uri, "input_invoice.jpg")
+                    processInference(path)
                 }
             }
             is ScanInvoiceEvent.ToggleTransactionAcceptance -> {
@@ -209,14 +206,7 @@ class ScanInvoiceViewModel @Inject constructor(
                             }
                         } catch (e: Exception) {
                             e.printStackTrace()
-                            // Fallback to mock data if JSON parsing fails due to bad model output
-                            suggestions.addAll(
-                                listOf(
-                                    SuggestedTransaction(title = "TELUR AYAM NEGERI (Mock)", amount = 52655, category = "Groceries", dateString = "2026-02-15"),
-                                    SuggestedTransaction(title = "RTE CHICK.ROAST ROSE (Mock)", amount = 39900, category = "Groceries", dateString = "2026-02-15"),
-                                    SuggestedTransaction(title = "NUTRISARI JRK/P5X14 (Mock)", amount = 10090, category = "Groceries", dateString = "2026-02-15")
-                                )
-                            )
+                            // No more mock data fallback
                         }
 
                         withContext(Dispatchers.Main) {

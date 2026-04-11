@@ -36,7 +36,7 @@ fun ScanInvoiceScreen(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
-            viewModel.onEvent(ScanInvoiceEvent.ImageSelected(uri))
+            viewModel.onEvent(ScanInvoiceEvent.ImageSelected(context, uri))
         }
     }
 
@@ -113,7 +113,7 @@ fun ScanInvoiceScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                if (state.modelUri == null) {
+                if (state.modelUri == null && state.cachedModelPath == null) {
                     Text(
                         "Step 1: Select AI Model",
                         style = MaterialTheme.typography.titleLarge
@@ -129,7 +129,7 @@ fun ScanInvoiceScreen(
                     Button(onClick = { modelPickerLauncher.launch("*/*") }) {
                         Text("Select Model")
                     }
-                } else if (state.cachedModelPath == null) {
+                } else if (state.modelUri != null && state.cachedModelPath == null) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(64.dp),
                         strokeWidth = 6.dp
@@ -147,20 +147,13 @@ fun ScanInvoiceScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "Model Selected: ${state.modelUri?.lastPathSegment ?: "Unknown"}",
+                        "Model Ready: ${state.cachedModelPath?.substringAfterLast("/") ?: "Ready"}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(24.dp))
                     Button(onClick = { imagePickerLauncher.launch("image/*") }) {
                         Text("Select Image")
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Button(
-                        onClick = { viewModel.onEvent(ScanInvoiceEvent.ProcessDemoInvoice(context)) },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
-                    ) {
-                        Text("Use Demo Invoice (SuperIndo)")
                     }
                 } else if (state.isProcessing) {
                     CircularProgressIndicator(

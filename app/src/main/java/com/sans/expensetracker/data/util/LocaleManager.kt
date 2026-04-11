@@ -23,10 +23,9 @@ class LocaleManager @Inject constructor(
     }
 
     fun updateResources(language: String) {
-        val locale = Locale(language)
+        val locale = Locale.of(language)
         Locale.setDefault(locale)
-        val config = context.resources.configuration
-        config.setLocale(locale)
-        context.resources.updateConfiguration(config, context.resources.displayMetrics)
+        val localeManager = context.getSystemService(android.app.LocaleManager::class.java)
+        localeManager.applicationLocales = android.os.LocaleList(locale)
     }
 }

@@ -5,7 +5,7 @@ import java.util.Locale
 import kotlin.math.ceil
 
 object CurrencyFormatter {
-    private val locale = Locale("id", "ID")
+    private val locale = Locale.of("id", "ID")
 
     private val threadLocalFormatter = object : ThreadLocal<NumberFormat>() {
         override fun initialValue(): NumberFormat {
