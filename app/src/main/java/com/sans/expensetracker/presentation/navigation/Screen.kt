@@ -27,4 +27,7 @@ sealed class Screen {
 
     @Serializable
     object RecurringExpenses : Screen()
+
+    @Serializable
+    object ScanInvoice : Screen()
 }
