@@ -225,6 +225,17 @@ class ExpenseListViewModel @Inject constructor(
         }
     }
 
+    fun updateCustomDateRange(start: Long, end: Long) {
+        _state.update {
+            it.copy(
+                startDate = start,
+                endDate = end,
+                activeDateFilter = DateRangeFilter.CUSTOM,
+                isLoading = true
+            )
+        }
+    }
+
     fun updateDateRange(filter: DateRangeFilter) {
         val calendar = CalendarUtils.getInstance()
         calendar.set(Calendar.HOUR_OF_DAY, 0)
