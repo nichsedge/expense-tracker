@@ -43,7 +43,8 @@ data class ScanInvoiceState(
     val cachedModelPath: String? = null,
     val imageUri: Uri? = null,
     val isProcessing: Boolean = false,
-    val suggestedTransactions: List<SuggestedTransaction> = emptyList()
+    val suggestedTransactions: List<SuggestedTransaction> = emptyList(),
+    val aiThinking: String? = null
 )
 
 sealed class ScanInvoiceEvent {
@@ -86,7 +87,7 @@ class ScanInvoiceViewModel @Inject constructor(
                 }
             }
             is ScanInvoiceEvent.ImageSelected -> {
-                _state.update { it.copy(imageUri = event.uri, isProcessing = true) }
+                _state.update { it.copy(imageUri = event.uri, isProcessing = true, suggestedTransactions = emptyList(), aiThinking = null) }
                 viewModelScope.launch {
                     val path = cacheFile(event.context, event.uri, "input_invoice.jpg")
                     processInference(path)
@@ -170,7 +171,7 @@ class ScanInvoiceViewModel @Inject constructor(
                     )
 
                     engine.createConversation(conversationConfig).use { conversation ->
-                        val prompt = "Extract all purchased items from this invoice. Respond ONLY with a valid JSON array. Each object in the array should have these properties: 'title' (string), 'amount' (integer representing cents, so 50.00 becomes 5000), 'category' (string, e.g., 'Groceries', 'Food', 'Misc'), and 'dateString' (string, format YYYY-MM-DD if available, else null)."
+                        val prompt = "Extract all purchased items from this invoice. First, analyze the invoice step by step, identifying items, amounts, categories, and dates. Enclose this reasoning strictly inside <think>...</think> tags. Then, respond with a valid JSON array of the extracted items. Each object in the array must have these properties: 'title' (string), 'amount' (integer representing cents, so 50.00 becomes 5000), 'category' (string, e.g., 'Groceries', 'Food', 'Misc'), and 'dateString' (string, format YYYY-MM-DD if available, else null)."
 
                         val messageResponse = if (imagePath.isNotEmpty() && File(imagePath).exists()) {
                             conversation.sendMessage(
@@ -187,8 +188,22 @@ class ScanInvoiceViewModel @Inject constructor(
                         // Using toString() on the contents to extract the string result from the model safely
                         val resultText = messageResponse.contents.contents.filterIsInstance<Content.Text>().joinToString("\n") { it.text }
 
+                        // Extract thinking block
+                        var thinking: String? = null
+                        var jsonText = resultText
+                        val thinkStart = resultText.indexOf("<think>")
+                        val thinkEnd = resultText.indexOf("</think>")
+                        if (thinkStart != -1 && thinkEnd != -1 && thinkEnd > thinkStart) {
+                            thinking = resultText.substring(thinkStart + 7, thinkEnd).trim()
+                            jsonText = resultText.substring(thinkEnd + 8).trim()
+                        } else if (thinkStart != -1) {
+                            // Unclosed think block, shouldn't normally happen but just in case
+                            thinking = resultText.substring(thinkStart + 7).trim()
+                            jsonText = ""
+                        }
+
                         // Basic cleanup for markdown json blocks if the model wrapped it
-                        val cleanJson = resultText.replace("```json", "").replace("```", "").trim()
+                        val cleanJson = jsonText.replace("```json", "").replace("```", "").trim()
 
                         val suggestions = mutableListOf<SuggestedTransaction>()
                         try {
@@ -213,7 +228,8 @@ class ScanInvoiceViewModel @Inject constructor(
                             _state.update {
                                 it.copy(
                                     isProcessing = false,
-                                    suggestedTransactions = suggestions
+                                    suggestedTransactions = suggestions,
+                                    aiThinking = thinking
                                 )
                             }
                         }
