@@ -174,13 +174,28 @@ class ExpenseListViewModel @Inject constructor(
     }
 
     fun clearFilters() {
-        _state.update {
-            it.copy(
+        _state.update { currentState ->
+            val calendar = CalendarUtils.getInstance()
+            calendar.set(Calendar.HOUR_OF_DAY, 0)
+            calendar.set(Calendar.MINUTE, 0)
+            calendar.set(Calendar.SECOND, 0)
+            calendar.set(Calendar.MILLISECOND, 0)
+
+            calendar.set(Calendar.DAY_OF_MONTH, 1)
+            val start = calendar.timeInMillis
+            val endCal = calendar.clone() as Calendar
+            endCal.add(Calendar.MONTH, 1)
+            val end = endCal.timeInMillis
+
+            currentState.copy(
                 searchQuery = "",
                 selectedCategoryIds = emptySet(),
                 minAmount = null,
                 maxAmount = null,
-                selectedTags = emptySet()
+                selectedTags = emptySet(),
+                startDate = start,
+                endDate = end,
+                activeDateFilter = DateRangeFilter.THIS_MONTH
             )
         }
     }
@@ -226,10 +241,32 @@ class ExpenseListViewModel @Inject constructor(
     }
 
     fun updateCustomDateRange(start: Long, end: Long) {
+        val utcCalendar = Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
+
+        utcCalendar.timeInMillis = start
+        val sYear = utcCalendar.get(Calendar.YEAR)
+        val sMonth = utcCalendar.get(Calendar.MONTH)
+        val sDay = utcCalendar.get(Calendar.DAY_OF_MONTH)
+
+        val localCalendar = CalendarUtils.getInstance()
+        localCalendar.set(sYear, sMonth, sDay, 0, 0, 0)
+        localCalendar.set(Calendar.MILLISECOND, 0)
+        val localStart = localCalendar.timeInMillis
+
+        utcCalendar.timeInMillis = end
+        val eYear = utcCalendar.get(Calendar.YEAR)
+        val eMonth = utcCalendar.get(Calendar.MONTH)
+        val eDay = utcCalendar.get(Calendar.DAY_OF_MONTH)
+
+        localCalendar.set(eYear, eMonth, eDay, 0, 0, 0)
+        localCalendar.set(Calendar.MILLISECOND, 0)
+        localCalendar.add(Calendar.DAY_OF_MONTH, 1)
+        val localEnd = localCalendar.timeInMillis
+
         _state.update {
             it.copy(
-                startDate = start,
-                endDate = end,
+                startDate = localStart,
+                endDate = localEnd,
                 activeDateFilter = DateRangeFilter.CUSTOM,
                 isLoading = true
             )
@@ -243,7 +280,6 @@ class ExpenseListViewModel @Inject constructor(
         calendar.set(Calendar.SECOND, 0)
         calendar.set(Calendar.MILLISECOND, 0)
 
-        calendar.clone() as Calendar
 
         val (start, end) = when (filter) {
             DateRangeFilter.SEVEN_DAYS -> {

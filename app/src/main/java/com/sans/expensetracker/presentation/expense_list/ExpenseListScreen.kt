@@ -356,7 +356,7 @@ fun AdvancedFilterSheet(
             ) {
                 val dateText = if (state.activeDateFilter == DateRangeFilter.CUSTOM) {
                     val startStr = com.sans.expensetracker.core.util.DateFormatterUtils.getStandardFormatter().format(java.util.Date(state.startDate))
-                    val endStr = com.sans.expensetracker.core.util.DateFormatterUtils.getStandardFormatter().format(java.util.Date(state.endDate))
+                    val endStr = com.sans.expensetracker.core.util.DateFormatterUtils.getStandardFormatter().format(java.util.Date(state.endDate - 1))
                     "$startStr - $endStr"
                 } else {
                     "Select Date Range"
@@ -500,7 +500,7 @@ fun AdvancedFilterSheet(
     if (showDatePicker) {
         val datePickerState = rememberDateRangePickerState(
             initialSelectedStartDateMillis = if (state.activeDateFilter == DateRangeFilter.CUSTOM) state.startDate else null,
-            initialSelectedEndDateMillis = if (state.activeDateFilter == DateRangeFilter.CUSTOM) state.endDate else null
+            initialSelectedEndDateMillis = if (state.activeDateFilter == DateRangeFilter.CUSTOM) state.endDate - 1 else null
         )
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
