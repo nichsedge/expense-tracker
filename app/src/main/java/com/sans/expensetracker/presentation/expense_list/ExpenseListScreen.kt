@@ -31,6 +31,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DateRangePicker
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
@@ -49,6 +51,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -262,6 +265,7 @@ fun ExpenseListScreen(
             onCategoryToggle = { viewModel.toggleCategoryFilter(it) },
             onAmountFilterChanged = { min, max -> viewModel.updateAmountFilter(min, max) },
             onTagToggle = { viewModel.toggleTagFilter(it) },
+            onDateRangeSelected = { start, end -> viewModel.updateCustomDateRange(start, end) },
             onClearFilters = {
                 viewModel.clearFilters()
                 showFilterSheet = false
@@ -278,6 +282,7 @@ fun AdvancedFilterSheet(
     onCategoryToggle: (Long) -> Unit,
     onAmountFilterChanged: (Long?, Long?) -> Unit,
     onTagToggle: (String) -> Unit,
+    onDateRangeSelected: (Long, Long) -> Unit,
     onClearFilters: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState()
@@ -291,6 +296,8 @@ fun AdvancedFilterSheet(
             kotlin.math.ceil(it / 100.0).toLong().toString()
         } ?: "")
     }
+
+    var showDatePicker by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -314,6 +321,55 @@ fun AdvancedFilterSheet(
                 )
                 TextButton(onClick = onClearFilters) {
                     Text(stringResource(R.string.clear_filters))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                "Date Range",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val dateText = if (state.activeDateFilter == DateRangeFilter.CUSTOM) {
+                    val startStr = com.sans.expensetracker.core.util.DateFormatterUtils.getStandardFormatter().format(java.util.Date(state.startDate))
+                    val endStr = com.sans.expensetracker.core.util.DateFormatterUtils.getStandardFormatter().format(java.util.Date(state.endDate))
+                    "$startStr - $endStr"
+                } else {
+                    "Select Date Range"
+                }
+
+                OutlinedTextField(
+                    value = dateText,
+                    onValueChange = {},
+                    modifier = Modifier.weight(1f),
+                    readOnly = true,
+                    singleLine = true,
+                    enabled = false,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                        disabledBorderColor = MaterialTheme.colorScheme.outline,
+                        disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        disabledPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        disabledSupportingTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                )
+
+                TextButton(
+                    onClick = { showDatePicker = true },
+                    modifier = Modifier.padding(start = 8.dp)
+                ) {
+                    Text("Select")
                 }
             }
 
@@ -423,6 +479,40 @@ fun AdvancedFilterSheet(
                 Text(stringResource(R.string.apply_filters))
             }
             Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+
+    if (showDatePicker) {
+        val datePickerState = rememberDateRangePickerState(
+            initialSelectedStartDateMillis = if (state.activeDateFilter == DateRangeFilter.CUSTOM) state.startDate else null,
+            initialSelectedEndDateMillis = if (state.activeDateFilter == DateRangeFilter.CUSTOM) state.endDate else null
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val start = datePickerState.selectedStartDateMillis
+                        val end = datePickerState.selectedEndDateMillis
+                        if (start != null && end != null) {
+                            onDateRangeSelected(start, end)
+                        }
+                        showDatePicker = false
+                    }
+                ) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        ) {
+            DateRangePicker(
+                state = datePickerState,
+                modifier = Modifier.weight(1f)
+            )
         }
     }
 }
