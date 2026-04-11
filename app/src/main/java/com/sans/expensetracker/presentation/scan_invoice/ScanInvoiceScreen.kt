@@ -64,6 +64,15 @@ fun ScanInvoiceScreen(
             }
         }
     ) { paddingValues ->
+        // Trigger copying the file to cache if a model was selected but not yet cached
+        LaunchedEffect(state.modelUri) {
+            state.modelUri?.let { uri ->
+                if (state.cachedModelPath == null) {
+                    viewModel.onEvent(ScanInvoiceEvent.CacheModelFile(context, uri))
+                }
+            }
+        }
+
         if (state.suggestedTransactions.isNotEmpty()) {
             // SUGGESTED TRANSACTIONS LIST UI
             androidx.compose.foundation.lazy.LazyColumn(
@@ -120,6 +129,17 @@ fun ScanInvoiceScreen(
                     Button(onClick = { modelPickerLauncher.launch("*/*") }) {
                         Text("Select Model")
                     }
+                } else if (state.cachedModelPath == null) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(64.dp),
+                        strokeWidth = 6.dp
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text(
+                        "Caching model to storage...",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 } else if (state.imageUri == null) {
                     Text(
                         "Step 2: Select Invoice Image",
@@ -134,6 +154,13 @@ fun ScanInvoiceScreen(
                     Spacer(modifier = Modifier.height(24.dp))
                     Button(onClick = { imagePickerLauncher.launch("image/*") }) {
                         Text("Select Image")
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = { viewModel.onEvent(ScanInvoiceEvent.ProcessDemoInvoice(context)) },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                    ) {
+                        Text("Use Demo Invoice (SuperIndo)")
                     }
                 } else if (state.isProcessing) {
                     CircularProgressIndicator(
