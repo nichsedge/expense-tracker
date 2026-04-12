@@ -16,20 +16,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.filled.DragHandle
-import androidx.compose.ui.composed
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.ui.zIndex
-import androidx.compose.runtime.toMutableStateList
-
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -74,6 +67,7 @@ import com.sans.expensetracker.R
 import com.sans.expensetracker.data.local.entity.CategoryEntity
 import com.sans.expensetracker.data.local.entity.TagEntity
 import com.sans.expensetracker.presentation.components.CategoryIcon
+import androidx.compose.foundation.ExperimentalFoundationApi
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,8 +80,9 @@ fun SettingsScreen(
     val categories by viewModel.categories.collectAsState()
     val tags by viewModel.tags.collectAsState()
     val currentLanguage = viewModel.currentLanguage.value
-    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val currentBudget by viewModel.monthlyBudget.collectAsState()
+    val isLoading by viewModel.isLoading
 
     var showAddCategoryDialog by remember { mutableStateOf(false) }
     var categoryToEdit by remember { mutableStateOf<CategoryEntity?>(null) }
@@ -95,18 +90,8 @@ fun SettingsScreen(
     var categoryToDelete by remember { mutableStateOf<CategoryEntity?>(null) }
     var tagToDelete by remember { mutableStateOf<TagEntity?>(null) }
     var showBudgetDialog by remember { mutableStateOf(false) }
-    val currentBudget by viewModel.monthlyBudget.collectAsState()
-
 
     val listState = rememberLazyListState()
-
-    val mutableCategories = remember(categories) { categories.toMutableStateList() }
-    var draggedCategoryIndex by remember { mutableStateOf<Int?>(null) }
-    var draggedCategoryOffset by remember { mutableStateOf(0f) }
-
-    val mutableTags = remember(tags) { tags.toMutableStateList() }
-    var draggedTagIndex by remember { mutableStateOf<Int?>(null) }
-    var draggedTagOffset by remember { mutableStateOf(0f) }
 
     LaunchedEffect(viewModel.syncMessage.value) {
         viewModel.syncMessage.value?.let {
@@ -135,260 +120,25 @@ fun SettingsScreen(
             )
         }
     ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            // Data Management Section
-            item {
-                SettingsSectionTitle(stringResource(R.string.data_management))
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { viewModel.exportFullBackup(context) },
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (viewModel.isLoading.value) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    strokeWidth = 2.dp
-                                )
-                            } else {
-                                Icon(
-                                    Icons.Default.Sync,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onTertiaryContainer
-                                )
-                            }
-                            Spacer(Modifier.width(16.dp))
-                            Column {
-                                Text(
-                                    stringResource(R.string.full_backup),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onTertiaryContainer,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    stringResource(R.string.backup_to_downloads),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
-                                )
-                            }
-                        }
-                        Icon(
-                            Icons.Default.ChevronRight,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onTertiaryContainer
-                        )
-                    }
-                }
-            }
-
-            // Language Section
-            item {
-                SettingsSectionTitle(stringResource(R.string.language))
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onLanguageToggle() },
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Translate, contentDescription = null)
-                            Spacer(Modifier.width(16.dp))
-                            Text(
-                                if (currentLanguage == "en") "English" else "Indonesia",
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                        }
-                        Icon(Icons.Default.ChevronRight, contentDescription = null)
-                    }
-                }
-            }
-
-            item {
-                Spacer(Modifier.height(16.dp))
-                SettingsSectionTitle("Features")
-                Surface(
-                    onClick = onNavigateToRecurring,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    shape = MaterialTheme.shapes.medium,
-                    color = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 1.dp
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.Refresh,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(Modifier.width(16.dp))
-                        Text(
-                            stringResource(R.string.recurring_expenses),
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-
-                Surface(
-                    onClick = { showBudgetDialog = true },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    shape = MaterialTheme.shapes.medium,
-                    color = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 1.dp
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.ShoppingCart,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(Modifier.width(16.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Monthly Budget")
-                            Text(
-                                if (currentBudget > 0L) com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(
-                                    currentBudget
-                                ) else "Not Set",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Categories Section
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    SettingsSectionTitle(stringResource(R.string.categories))
-                    TextButton(onClick = { showAddCategoryDialog = true }) {
-                        Icon(Icons.Default.Add, contentDescription = null)
-                        Spacer(Modifier.width(4.dp))
-                        Text(stringResource(R.string.add_category))
-                    }
-                }
-            }
-
-            itemsIndexed(mutableCategories, key = { _, item -> "cat_${item.id}" }) { index, category ->
-                val modifier = Modifier.reorderableModifier(
-                    itemKey = "cat_${category.id}",
-                    dragOffset = if (draggedCategoryIndex == index) draggedCategoryOffset else 0f,
-                    isDragged = draggedCategoryIndex == index,
-                    listState = listState,
-                    onDragStart = { draggedCategoryIndex = index },
-                    onDrag = { offset, targetKey ->
-                        draggedCategoryOffset += offset
-                        if (targetKey != null && targetKey is String && targetKey.startsWith("cat_")) {
-                            val targetIndex = mutableCategories.indexOfFirst { "cat_${it.id}" == targetKey }
-                            if (targetIndex != -1 && targetIndex != draggedCategoryIndex) {
-                                val item = mutableCategories.removeAt(draggedCategoryIndex!!)
-                                mutableCategories.add(targetIndex, item)
-                                draggedCategoryIndex = targetIndex
-                            }
-                        }
-                    },
-                    onDragEnd = {
-                        draggedCategoryIndex = null
-                        draggedCategoryOffset = 0f
-                        viewModel.onCategoriesReordered(mutableCategories.toList())
-                    }
-                )
-                SettingsItem(
-                    title = category.name,
-                    icon = category.icon,
-                    onEdit = { categoryToEdit = category },
-                    onDelete = { categoryToDelete = category },
-                    modifier = modifier
-                )
-            }
-
-            // Tags Section
-            item {
-                SettingsSectionTitle(stringResource(R.string.tags))
-            }
-
-            if (tags.isEmpty()) {
-                item {
-                    Text(
-                        "No tags found. Tags are created when you add them to expenses.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 8.dp)
-                    )
-                }
-            }
-
-            itemsIndexed(mutableTags, key = { _, item -> "tag_${item.id}" }) { index, tag ->
-                val modifier = Modifier.reorderableModifier(
-                    itemKey = "tag_${tag.id}",
-                    dragOffset = if (draggedTagIndex == index) draggedTagOffset else 0f,
-                    isDragged = draggedTagIndex == index,
-                    listState = listState,
-                    onDragStart = { draggedTagIndex = index },
-                    onDrag = { offset, targetKey ->
-                        draggedTagOffset += offset
-                        if (targetKey != null && targetKey is String && targetKey.startsWith("tag_")) {
-                            val targetIndex = mutableTags.indexOfFirst { "tag_${it.id}" == targetKey }
-                            if (targetIndex != -1 && targetIndex != draggedTagIndex) {
-                                val item = mutableTags.removeAt(draggedTagIndex!!)
-                                mutableTags.add(targetIndex, item)
-                                draggedTagIndex = targetIndex
-                            }
-                        }
-                    },
-                    onDragEnd = {
-                        draggedTagIndex = null
-                        draggedTagOffset = 0f
-                        viewModel.onTagsReordered(mutableTags.toList())
-                    }
-                )
-                SettingsItem(
-                    title = tag.name,
-                    icon = "🏷️",
-                    onEdit = { tagToEdit = tag },
-                    onDelete = { tagToDelete = tag },
-                    modifier = modifier
-                )
-            }
-
-        }
+        SettingsContent(
+            paddingValues = paddingValues,
+            listState = listState,
+            categories = categories,
+            tags = tags,
+            viewModel = viewModel,
+            onCategoryEdit = { categoryToEdit = it },
+            onCategoryDelete = { categoryToDelete = it },
+            onTagEdit = { tagToEdit = it },
+            onTagDelete = { tagToDelete = it },
+            onAddCategory = { showAddCategoryDialog = true },
+            onRecurring = onNavigateToRecurring,
+            onBudget = { showBudgetDialog = true },
+            exportBackup = { viewModel.exportFullBackup(it) },
+            onLanguageToggle = onLanguageToggle,
+            currentLanguage = currentLanguage,
+            currentBudget = currentBudget,
+            isLoading = isLoading
+        )
     }
 
     // Dialogs
@@ -508,6 +258,271 @@ fun SettingsScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun SettingsContent(
+    paddingValues: PaddingValues,
+    listState: androidx.compose.foundation.lazy.LazyListState,
+    categories: List<CategoryEntity>,
+    tags: List<TagEntity>,
+    viewModel: SettingsViewModel,
+    onCategoryEdit: (CategoryEntity) -> Unit,
+    onCategoryDelete: (CategoryEntity) -> Unit,
+    onTagEdit: (TagEntity) -> Unit,
+    onTagDelete: (TagEntity) -> Unit,
+    onAddCategory: () -> Unit,
+    onRecurring: () -> Unit,
+    onBudget: () -> Unit,
+    exportBackup: (android.content.Context) -> Unit,
+    onLanguageToggle: () -> Unit,
+    currentLanguage: String,
+    currentBudget: Long,
+    isLoading: Boolean
+) {
+    val context = LocalContext.current
+    
+    LazyColumn(
+        state = listState,
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
+    ) {
+        // Data Management Section
+        item {
+            SettingsSectionTitle(stringResource(R.string.data_management))
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { exportBackup(context) },
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(
+                                Icons.Default.Sync,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                        }
+                        Spacer(Modifier.width(16.dp))
+                        Column {
+                            Text(
+                                stringResource(R.string.full_backup),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                stringResource(R.string.backup_to_downloads),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
+                    Icon(
+                        Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                }
+            }
+        }
+
+        // Language Section
+        item {
+            SettingsSectionTitle(stringResource(R.string.language))
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onLanguageToggle() },
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Translate, contentDescription = null)
+                        Spacer(Modifier.width(16.dp))
+                        Text(
+                            if (currentLanguage == "en") "English" else "Indonesia",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                    Icon(Icons.Default.ChevronRight, contentDescription = null)
+                }
+            }
+        }
+
+        item {
+            Spacer(Modifier.height(16.dp))
+            SettingsSectionTitle("Features")
+            Surface(
+                onClick = onRecurring,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 1.dp
+            ) {
+                Row(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Refresh,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.width(16.dp))
+                    Text(
+                        stringResource(R.string.recurring_expenses),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            Surface(
+                onClick = onBudget,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 1.dp
+            ) {
+                Row(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.ShoppingCart,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Monthly Budget")
+                        Text(
+                            if (currentBudget > 0L) com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(
+                                currentBudget
+                            ) else "Not Set",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+
+        // Categories Section
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                SettingsSectionTitle(stringResource(R.string.categories))
+                TextButton(onClick = onAddCategory) {
+                    Icon(Icons.Default.Add, contentDescription = null)
+                    Spacer(Modifier.width(4.dp))
+                    Text(stringResource(R.string.add_category))
+                }
+            }
+        }
+
+        itemsIndexed(categories, key = { _, item -> "cat_${item.id}" }) { index, category ->
+            SettingsItem(
+                title = category.name,
+                icon = category.icon,
+                onEdit = { onCategoryEdit(category) },
+                onDelete = { onCategoryDelete(category) },
+                onMoveUp = if (index > 0) {
+                    {
+                        val mutable = categories.toMutableList()
+                        val item = mutable.removeAt(index)
+                        mutable.add(index - 1, item)
+                        viewModel.onCategoriesReordered(mutable)
+                    }
+                } else null,
+                onMoveDown = if (index < categories.size - 1) {
+                    {
+                        val mutable = categories.toMutableList()
+                        val item = mutable.removeAt(index)
+                        mutable.add(index + 1, item)
+                        viewModel.onCategoriesReordered(mutable)
+                    }
+                } else null,
+                modifier = Modifier.animateItem()
+            )
+        }
+
+        // Tags Section
+        item {
+            SettingsSectionTitle(stringResource(R.string.tags))
+        }
+
+        if (tags.isEmpty()) {
+            item {
+                Text(
+                    "No tags found. Tags are created when you add them to expenses.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                )
+            }
+        }
+
+        itemsIndexed(tags, key = { _, item -> "tag_${item.id}" }) { index, tag ->
+            SettingsItem(
+                title = tag.name,
+                icon = "🏷️",
+                onEdit = { onTagEdit(tag) },
+                onDelete = { onTagDelete(tag) },
+                onMoveUp = if (index > 0) {
+                    {
+                        val mutable = tags.toMutableList()
+                        val item = mutable.removeAt(index)
+                        mutable.add(index - 1, item)
+                        viewModel.onTagsReordered(mutable)
+                    }
+                } else null,
+                onMoveDown = if (index < tags.size - 1) {
+                    {
+                        val mutable = tags.toMutableList()
+                        val item = mutable.removeAt(index)
+                        mutable.add(index + 1, item)
+                        viewModel.onTagsReordered(mutable)
+                    }
+                } else null,
+                modifier = Modifier.animateItem()
+            )
+        }
+    }
+}
+
 @Composable
 fun SettingsSectionTitle(title: String) {
     Text(
@@ -525,6 +540,8 @@ fun SettingsItem(
     icon: String,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onMoveUp: (() -> Unit)? = null,
+    onMoveDown: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -547,6 +564,29 @@ fun SettingsItem(
             )
             Spacer(Modifier.width(16.dp))
             Text(title, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+            
+            if (onMoveUp != null) {
+                IconButton(onClick = onMoveUp) {
+                    Icon(
+                        Icons.Default.ArrowUpward,
+                        contentDescription = "Move Up",
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+            
+            if (onMoveDown != null) {
+                IconButton(onClick = onMoveDown) {
+                    Icon(
+                        Icons.Default.ArrowDownward,
+                        contentDescription = "Move Down",
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
             IconButton(onClick = onEdit) {
                 Icon(
                     Icons.Default.Edit,
@@ -562,12 +602,6 @@ fun SettingsItem(
                     tint = MaterialTheme.colorScheme.error
                 )
             }
-            Icon(
-                Icons.Default.DragHandle,
-                contentDescription = "Reorder",
-                modifier = Modifier.size(24.dp).padding(start = 8.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }
@@ -677,50 +711,4 @@ fun TagEditDialog(
             }
         }
     )
-}
-
-
-fun Modifier.reorderableModifier(
-    itemKey: Any,
-    dragOffset: Float,
-    isDragged: Boolean,
-    listState: androidx.compose.foundation.lazy.LazyListState,
-    onDragStart: () -> Unit,
-    onDrag: (Float, Any?) -> Unit,
-    onDragEnd: () -> Unit
-): Modifier = composed {
-    val zIndexValue = if (isDragged) 1f else 0f
-    val translationY = if (isDragged) dragOffset else 0f
-
-    this
-        .zIndex(zIndexValue)
-        .graphicsLayer {
-            this.translationY = translationY
-            this.shadowElevation = if (isDragged) 8f else 0f
-        }
-        .pointerInput(Unit) {
-            detectDragGesturesAfterLongPress(
-                onDragStart = { offset ->
-                    onDragStart()
-                },
-                onDrag = { change, dragAmount ->
-                    change.consume()
-                    val currentOffset = dragOffset + dragAmount.y
-                    var targetKey: Any? = null
-
-                    val currentItemInfo = listState.layoutInfo.visibleItemsInfo.find { it.key == itemKey }
-                    currentItemInfo?.let { info ->
-                        val middleY = info.offset + currentOffset + info.size / 2f
-                        val targetItem = listState.layoutInfo.visibleItemsInfo.find {
-                            middleY >= it.offset && middleY <= (it.offset + it.size)
-                        }
-                        targetKey = targetItem?.key
-                    }
-
-                    onDrag(dragAmount.y, targetKey)
-                },
-                onDragEnd = onDragEnd,
-                onDragCancel = onDragEnd
-            )
-        }
 }
