@@ -1,33 +1,31 @@
 package com.sans.expensetracker.presentation.scan_invoice
 
+import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.ai.edge.litertlm.Backend
+import com.google.ai.edge.litertlm.Content
+import com.google.ai.edge.litertlm.Contents
+import com.google.ai.edge.litertlm.ConversationConfig
+import com.google.ai.edge.litertlm.Engine
+import com.google.ai.edge.litertlm.EngineConfig
 import com.sans.expensetracker.domain.model.Expense
+import com.sans.expensetracker.domain.preferences.AiPreferences
+import com.sans.expensetracker.domain.repository.ExpenseRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.firstOrNull
-import android.content.Context
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import java.io.File
 import java.io.FileOutputStream
 import javax.inject.Inject
-import com.google.ai.edge.litertlm.Backend
-import com.google.ai.edge.litertlm.Engine
-import com.google.ai.edge.litertlm.EngineConfig
-import com.google.ai.edge.litertlm.ConversationConfig
-import com.google.ai.edge.litertlm.Message
-import com.google.ai.edge.litertlm.Contents
-import com.google.ai.edge.litertlm.Content
-import com.sans.expensetracker.domain.preferences.AiPreferences
-import org.json.JSONArray
-import org.json.JSONObject
 
 data class SuggestedTransaction(
     val id: String = java.util.UUID.randomUUID().toString(),
@@ -44,7 +42,8 @@ data class ScanInvoiceState(
     val imageUri: Uri? = null,
     val isProcessing: Boolean = false,
     val suggestedTransactions: List<SuggestedTransaction> = emptyList(),
-    val aiThinking: String? = null
+    val aiThinking: String? = null,
+    val errorMessage: String? = null
 )
 
 sealed class ScanInvoiceEvent {
@@ -57,7 +56,7 @@ sealed class ScanInvoiceEvent {
 
 @HiltViewModel
 class ScanInvoiceViewModel @Inject constructor(
-    private val expenseRepository: com.sans.expensetracker.domain.repository.ExpenseRepository,
+    private val expenseRepository: ExpenseRepository,
     private val aiPreferences: AiPreferences
 ) : ViewModel() {
 
@@ -87,8 +86,8 @@ class ScanInvoiceViewModel @Inject constructor(
                 }
             }
             is ScanInvoiceEvent.ImageSelected -> {
-                _state.update { it.copy(imageUri = event.uri, isProcessing = true, suggestedTransactions = emptyList(), aiThinking = null) }
-                viewModelScope.launch {
+                _state.update { it.copy(imageUri = event.uri, isProcessing = true, suggestedTransactions = emptyList(), aiThinking = null, errorMessage = null) }
+                viewModelScope.launch(Dispatchers.IO) {
                     val path = cacheFile(event.context, event.uri, "input_invoice.jpg")
                     processInference(event.context, path)
                 }
@@ -152,98 +151,116 @@ class ScanInvoiceViewModel @Inject constructor(
         }
     }
 
-    private fun processInference(context: Context, imagePath: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val modelPath = _state.value.cachedModelPath ?: return@launch
+    private suspend fun processInference(context: Context, imagePath: String) {
+        try {
+            val modelPath = _state.value.cachedModelPath ?: run {
+                withContext(Dispatchers.Main) {
+                    _state.update { it.copy(isProcessing = false, errorMessage = "No model loaded. Please select a model file.") }
+                }
+                return
+            }
 
-                val engineConfig = EngineConfig(
-                    modelPath = modelPath,
-                    backend = Backend.NPU(nativeLibraryDir = context.applicationInfo.nativeLibraryDir), // Utilizing user's Dimensity 9300+ NPU
-                    visionBackend = Backend.NPU(nativeLibraryDir = context.applicationInfo.nativeLibraryDir)
+            // Use GPU backend for Dimensity 9300+ (supports OpenCL).
+            // GPU backend requires libvndksupport.so and libOpenCL.so declared in the manifest.
+            // NPU backend requires a special NPU-compiled .litertlm file per SoC model (not a generic model).
+            val gpuBackend = Backend.GPU()
+            val engineConfig = EngineConfig(
+                modelPath = modelPath,
+                backend = gpuBackend,
+                visionBackend = gpuBackend,
+                // Caching compiled model artifacts speeds up loading after the first run
+                cacheDir = context.cacheDir.absolutePath
+            )
+
+            Engine(engineConfig).use { engine ->
+                engine.initialize()
+
+                val categoriesList = expenseRepository.getAllCategories().firstOrNull() ?: emptyList()
+                val categoryNames = categoriesList.joinToString(", ") { it.name }
+                val todayDate = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+
+                val conversationConfig = ConversationConfig(
+                    systemInstruction = Contents.of("You are a helpful assistant that acts as a JSON API. Only output valid JSON, no extra text outside the JSON array unless inside <think> tags.")
                 )
 
-                Engine(engineConfig).use { engine ->
-                    engine.initialize()
+                engine.createConversation(conversationConfig).use { conversation ->
+                    val prompt = "Extract all purchased items from this invoice. First, analyze the invoice step by step, identifying items, amounts, categories, and dates. Enclose this reasoning strictly inside <think>...</think> tags. Then, respond with ONLY a valid JSON array of the extracted items. Each object in the array must have these properties: 'title' (string), 'amount' (integer representing the value multiplied by 100, e.g., 529,000 IDR becomes 52900000, 50.00 becomes 5000), 'category' (string, choose the closest match from: [${categoryNames}], else use 'Misc'), and 'dateString' (string, format YYYY-MM-DD. If the invoice date is missing, use today's date: ${todayDate})."
 
-                    val categoriesList = expenseRepository.getAllCategories().firstOrNull() ?: emptyList()
-                    val categoryNames = categoriesList.joinToString(", ") { it.name }
-                    val todayDate = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+                    val messageResponse = if (imagePath.isNotEmpty() && File(imagePath).exists()) {
+                        conversation.sendMessage(
+                            Contents.of(
+                                Content.ImageFile(imagePath),
+                                Content.Text(prompt)
+                            )
+                        )
+                    } else {
+                        withContext(Dispatchers.Main) {
+                            _state.update { it.copy(isProcessing = false, errorMessage = "Image file not found. Please select the invoice image again.") }
+                        }
+                        return
+                    }
 
-                    val conversationConfig = ConversationConfig(
-                        systemInstruction = Contents.of("You are a helpful assistant that acts as a JSON API.")
-                    )
+                    // Extract the text content from the model response
+                    val resultText = messageResponse.contents.contents
+                        .filterIsInstance<Content.Text>()
+                        .joinToString("\n") { it.text }
 
-                    engine.createConversation(conversationConfig).use { conversation ->
-                        val prompt = "Extract all purchased items from this invoice. First, analyze the invoice step by step, identifying items, amounts, categories, and dates. Enclose this reasoning strictly inside <think>...</think> tags. Then, respond with a valid JSON array of the extracted items. Each object in the array must have these properties: 'title' (string), 'amount' (integer representing cents, multiply the displayed exact value by 100, e.g., if it says 529.000 or 529,000 the amount should be 52900000. If 50.00 it becomes 5000), 'category' (string, choose the closest match from these existing categories if possible: [${categoryNames}], else use 'Misc'), and 'dateString' (string, format YYYY-MM-DD. If the invoice date is missing or missing the year, use today's date: ${todayDate})."
+                    // Extract thinking block
+                    var thinking: String? = null
+                    var jsonText = resultText
+                    val thinkStart = resultText.indexOf("<think>")
+                    val thinkEnd = resultText.indexOf("</think>")
+                    if (thinkStart != -1 && thinkEnd != -1 && thinkEnd > thinkStart) {
+                        thinking = resultText.substring(thinkStart + 7, thinkEnd).trim()
+                        jsonText = resultText.substring(thinkEnd + 8).trim()
+                    } else if (thinkStart != -1) {
+                        thinking = resultText.substring(thinkStart + 7).trim()
+                        jsonText = ""
+                    }
 
-                        val messageResponse = if (imagePath.isNotEmpty() && File(imagePath).exists()) {
-                            conversation.sendMessage(
-                                Contents.of(
-                                    Content.ImageFile(imagePath),
-                                    Content.Text(prompt)
+                    // Strip markdown code fences if the model wrapped the JSON
+                    val cleanJson = jsonText
+                        .replace(Regex("```json\\s*"), "")
+                        .replace(Regex("```\\s*"), "")
+                        .trim()
+
+                    val suggestions = mutableListOf<SuggestedTransaction>()
+                    var parseError: String? = null
+                    try {
+                        val jsonArray = JSONArray(cleanJson)
+                        for (i in 0 until jsonArray.length()) {
+                            val obj = jsonArray.getJSONObject(i)
+                            suggestions.add(
+                                SuggestedTransaction(
+                                    title = obj.optString("title", "Unknown Item"),
+                                    amount = obj.optLong("amount", 0L),
+                                    category = obj.optString("category", "Uncategorized"),
+                                    dateString = if (obj.has("dateString") && !obj.isNull("dateString")) obj.getString("dateString") else null
                                 )
                             )
-                        } else {
-                            // Fallback if image doesn't exist
-                            conversation.sendMessage(prompt)
                         }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        parseError = "Could not parse AI response. Raw: ${cleanJson.take(200)}"
+                    }
 
-                        // Using toString() on the contents to extract the string result from the model safely
-                        val resultText = messageResponse.contents.contents.filterIsInstance<Content.Text>().joinToString("\n") { it.text }
-
-                        // Extract thinking block
-                        var thinking: String? = null
-                        var jsonText = resultText
-                        val thinkStart = resultText.indexOf("<think>")
-                        val thinkEnd = resultText.indexOf("</think>")
-                        if (thinkStart != -1 && thinkEnd != -1 && thinkEnd > thinkStart) {
-                            thinking = resultText.substring(thinkStart + 7, thinkEnd).trim()
-                            jsonText = resultText.substring(thinkEnd + 8).trim()
-                        } else if (thinkStart != -1) {
-                            // Unclosed think block, shouldn't normally happen but just in case
-                            thinking = resultText.substring(thinkStart + 7).trim()
-                            jsonText = ""
-                        }
-
-                        // Basic cleanup for markdown json blocks if the model wrapped it
-                        val cleanJson = jsonText.replace("```json", "").replace("```", "").trim()
-
-                        val suggestions = mutableListOf<SuggestedTransaction>()
-                        try {
-                            val jsonArray = JSONArray(cleanJson)
-                            for (i in 0 until jsonArray.length()) {
-                                val obj = jsonArray.getJSONObject(i)
-                                suggestions.add(
-                                    SuggestedTransaction(
-                                        title = obj.optString("title", "Unknown"),
-                                        amount = obj.optLong("amount", 0L),
-                                        category = obj.optString("category", "Uncategorized"),
-                                        dateString = if (obj.has("dateString")) obj.getString("dateString") else null
-                                    )
-                                )
-                            }
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                            // No more mock data fallback
-                        }
-
-                        withContext(Dispatchers.Main) {
-                            _state.update {
-                                it.copy(
-                                    isProcessing = false,
-                                    suggestedTransactions = suggestions,
-                                    aiThinking = thinking
-                                )
-                            }
+                    withContext(Dispatchers.Main) {
+                        _state.update {
+                            it.copy(
+                                isProcessing = false,
+                                suggestedTransactions = suggestions,
+                                aiThinking = thinking,
+                                errorMessage = parseError
+                            )
                         }
                     }
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                withContext(Dispatchers.Main) {
-                    _state.update { it.copy(isProcessing = false) }
-                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            val msg = e.localizedMessage ?: e.javaClass.simpleName
+            withContext(Dispatchers.Main) {
+                _state.update { it.copy(isProcessing = false, errorMessage = "Error during inference: $msg") }
             }
         }
     }

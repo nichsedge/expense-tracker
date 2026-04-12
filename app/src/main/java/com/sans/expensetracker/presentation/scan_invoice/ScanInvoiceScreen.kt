@@ -9,6 +9,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -128,7 +129,7 @@ fun ScanInvoiceScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "Please select the LiteRT model file (.tflite / .litertlm) to use for inference.",
+                        "Please select the LiteRT model file (.litertlm) to use for inference.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -148,21 +149,6 @@ fun ScanInvoiceScreen(
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
-                } else if (state.imageUri == null) {
-                    Text(
-                        "Step 2: Select Invoice Image",
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "Model Ready: ${state.cachedModelPath?.substringAfterLast("/") ?: "Ready"}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Button(onClick = { imagePickerLauncher.launch("image/*") }) {
-                        Text("Select Image")
-                    }
                 } else if (state.isProcessing) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(64.dp),
@@ -170,10 +156,80 @@ fun ScanInvoiceScreen(
                     )
                     Spacer(modifier = Modifier.height(24.dp))
                     Text(
-                        "Analyzing Invoice...",
+                        "Analyzing Invoice with AI...",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        "This may take up to 30 seconds on the first run",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    // Step 2 or error recovery
+                    if (state.errorMessage == null) {
+                        Text(
+                            "Step 2: Select Invoice Image",
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Model Ready: ${state.cachedModelPath?.substringAfterLast("/") ?: "Ready"}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Button(onClick = { imagePickerLauncher.launch("image/*") }) {
+                            Text("Select Image")
+                        }
+                    }
+
+                    // Error message display
+                    state.errorMessage?.let { errorMsg ->
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    text = "Inference Error",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = errorMsg,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            // Retry with same image
+                            if (state.imageUri != null) {
+                                OutlinedButton(
+                                    onClick = {
+                                        state.imageUri?.let { uri ->
+                                            viewModel.onEvent(ScanInvoiceEvent.ImageSelected(context, uri))
+                                        }
+                                    }
+                                ) {
+                                    Icon(Icons.Default.Refresh, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Retry")
+                                }
+                            }
+                            // Pick a different image
+                            Button(onClick = { imagePickerLauncher.launch("image/*") }) {
+                                Text("New Image")
+                            }
+                        }
+                    }
                 }
             }
         }

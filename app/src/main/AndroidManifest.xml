@@ -13,6 +13,12 @@
         android:supportsRtl="true"
         android:localeConfig="@xml/locales_config"
         android:theme="@style/Theme.ExpenseTracker">
+
+        <!-- Required for LiteRT-LM GPU backend (OpenCL acceleration) -->
+        <!-- required=false ensures the app still installs on devices without these libs -->
+        <uses-native-library android:name="libvndksupport.so" android:required="false"/>
+        <uses-native-library android:name="libOpenCL.so" android:required="false"/>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
