@@ -31,7 +31,7 @@ class MainActivity : ComponentActivity() {
             ExpenseTrackerTheme {
                 AppNavigation(onLanguageToggle = {
                     val current = localeManager.getLocale()
-                    val next = if (current == "en") "in" else "en"
+                    val next = if (current == "en") "id" else "en"
                     localeManager.setLocale(next)
                     recreate()
                 })
