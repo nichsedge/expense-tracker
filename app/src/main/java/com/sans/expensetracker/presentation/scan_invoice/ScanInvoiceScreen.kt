@@ -12,6 +12,8 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -58,11 +60,22 @@ fun ScanInvoiceScreen(
             if (state.suggestedTransactions.isNotEmpty()) {
                 ExtendedFloatingActionButton(
                     onClick = {
-                        viewModel.onEvent(ScanInvoiceEvent.SaveAcceptedTransactions)
-                        onBack()
+                        if (!state.isSaving) {
+                            viewModel.onEvent(ScanInvoiceEvent.SaveAcceptedTransactions)
+                        }
                     },
-                    icon = { Icon(Icons.Default.Check, contentDescription = "Save Selected") },
-                    text = { Text("Save Selected") }
+                    icon = {
+                        if (state.isSaving) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        } else {
+                            Icon(Icons.Default.Check, contentDescription = "Save Selected")
+                        }
+                    },
+                    text = { Text(if (state.isSaving) "Saving..." else "Save Selected") }
                 )
             }
         }
@@ -73,6 +86,12 @@ fun ScanInvoiceScreen(
                 if (state.cachedModelPath == null) {
                     viewModel.onEvent(ScanInvoiceEvent.CacheModelFile(context, uri))
                 }
+            }
+        }
+
+        LaunchedEffect(state.isSaved) {
+            if (state.isSaved) {
+                onBack()
             }
         }
 
@@ -160,12 +179,37 @@ fun ScanInvoiceScreen(
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        "This may take up to 30 seconds on the first run",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    if (state.streamingText.isNotEmpty()) {
+                        val scrollState = rememberScrollState()
+                        LaunchedEffect(state.streamingText) {
+                            scrollState.animateScrollTo(scrollState.maxValue)
+                        }
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f, fill = false)
+                                .padding(horizontal = 8.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                        ) {
+                            Text(
+                                text = state.streamingText,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp)
+                                    .verticalScroll(scrollState)
+                            )
+                        }
+                    } else {
+                        Text(
+                            "This may take up to 30 seconds on the first run",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 } else {
                     // Step 2 or error recovery
                     if (state.errorMessage == null) {
@@ -240,41 +284,27 @@ fun ScanInvoiceScreen(
 fun AiThinkingCard(thinkingText: String) {
     var expanded by remember { mutableStateOf(false) }
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        ),
-        onClick = { expanded = !expanded }
-    ) {
-        Column(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth()
+    Column(modifier = Modifier.fillMaxWidth()) {
+        OutlinedButton(
+            onClick = { expanded = !expanded },
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
+            Text(if (expanded) "Hide AI Thinking Process" else "View AI Thinking Process")
+        }
+        
+        if (expanded) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                )
             ) {
-                Text(
-                    text = "AI Reasoning",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Icon(
-                    imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    contentDescription = if (expanded) "Collapse AI reasoning" else "Expand AI reasoning",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            if (expanded) {
-                Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     text = thinkingText,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(16.dp)
                 )
             }
         }
@@ -315,6 +345,13 @@ fun SuggestedTransactionCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                transaction.dateString?.let { dateStr ->
+                    Text(
+                        text = "Date: $dateStr",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
             Text(
                 text = com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(transaction.amount),

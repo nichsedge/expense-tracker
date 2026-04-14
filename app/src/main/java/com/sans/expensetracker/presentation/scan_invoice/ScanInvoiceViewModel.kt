@@ -42,6 +42,9 @@ data class ScanInvoiceState(
     val cachedModelPath: String? = null,
     val imageUri: Uri? = null,
     val isProcessing: Boolean = false,
+    val isSaving: Boolean = false,
+    val isSaved: Boolean = false,
+    val streamingText: String = "",
     val suggestedTransactions: List<SuggestedTransaction> = emptyList(),
     val aiThinking: String? = null,
     val errorMessage: String? = null
@@ -104,6 +107,7 @@ class ScanInvoiceViewModel @Inject constructor(
                 }
             }
             is ScanInvoiceEvent.SaveAcceptedTransactions -> {
+                _state.update { it.copy(isSaving = true) }
                 viewModelScope.launch {
                     val accepted = _state.value.suggestedTransactions.filter { it.isAccepted }
 
@@ -136,6 +140,7 @@ class ScanInvoiceViewModel @Inject constructor(
                             )
                         )
                     }
+                    _state.update { it.copy(isSaving = false, isSaved = true) }
                 }
             }
         }
@@ -210,24 +215,36 @@ class ScanInvoiceViewModel @Inject constructor(
                 engine.createConversation(conversationConfig).use { conversation ->
                     val prompt = "Extract all purchased items from this invoice. First, analyze the invoice step by step, identifying items, amounts, categories, and dates. Enclose this reasoning strictly inside <think>...</think> tags. Then, respond with ONLY a valid JSON array of the extracted items. Each object in the array must have these properties: 'title' (string), 'amount' (integer representing the value multiplied by 100, e.g., 529,000 IDR becomes 52900000, 50.00 becomes 5000), 'category' (string, choose the closest match from: [${categoryNames}], else use 'Misc'), and 'dateString' (string, format YYYY-MM-DD. If the invoice date is missing, use today's date: ${todayDate})."
 
-                    val messageResponse = if (imagePath.isNotEmpty() && File(imagePath).exists()) {
-                        conversation.sendMessage(
-                            Contents.of(
-                                Content.ImageFile(imagePath),
-                                Content.Text(prompt)
-                            )
-                        )
-                    } else {
+                    if (imagePath.isEmpty() || !File(imagePath).exists()) {
                         withContext(Dispatchers.Main) {
                             _state.update { it.copy(isProcessing = false, errorMessage = "Image file not found. Please select the invoice image again.") }
                         }
                         return
                     }
 
+                    val messageFlow = conversation.sendMessageAsync(
+                        Contents.of(
+                            Content.ImageFile(imagePath),
+                            Content.Text(prompt)
+                        )
+                    )
+
+                    val fullTextBuilder = StringBuilder()
+                    
+                    messageFlow.collect { messageResponse ->
+                        val chunk = messageResponse.contents.contents
+                            .filterIsInstance<Content.Text>()
+                            .joinToString("\n") { it.text }
+                        
+                        fullTextBuilder.append(chunk)
+
+                        withContext(Dispatchers.Main) {
+                            _state.update { it.copy(streamingText = fullTextBuilder.toString()) }
+                        }
+                    }
+
                     // Extract the text content from the model response
-                    val resultText = messageResponse.contents.contents
-                        .filterIsInstance<Content.Text>()
-                        .joinToString("\n") { it.text }
+                    val resultText = fullTextBuilder.toString()
 
                     // Extract thinking block
                     var thinking: String? = null
