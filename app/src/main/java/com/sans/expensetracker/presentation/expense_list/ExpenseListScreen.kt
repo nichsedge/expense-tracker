@@ -669,9 +669,10 @@ fun ExpenseItem(
                 )
                 val merchantDisplay = when {
                     !expense.merchant.isNullOrBlank() -> "${expense.merchant} • "
-                    expense.tags.isNotEmpty() && !expense.isInstallmentPayment -> "${expense.tags.joinToString(", ")} • "
+                    expense.tags.isNotEmpty() -> "${expense.tags.joinToString(", ")} • "
                     else -> ""
                 }
+
                 Text(
                     "$merchantDisplay${category?.name ?: stringResource(R.string.uncategorized)}",
                     style = MaterialTheme.typography.bodySmall,

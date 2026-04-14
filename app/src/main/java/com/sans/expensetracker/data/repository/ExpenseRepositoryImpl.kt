@@ -70,8 +70,8 @@ class ExpenseRepositoryImpl(
                     val matchesCategory = categoryIds.isEmpty() || categoryIds.contains(payment.categoryId)
                     val matchesMinAmount = minAmount == null || payment.amount >= minAmount
                     val matchesMaxAmount = maxAmount == null || payment.amount <= maxAmount
-                    // Tags are skipped for installments as they are sub-transactions of the parent
-                    matchesQuery && matchesCategory && matchesMinAmount && matchesMaxAmount
+                    val matchesTags = tags.isEmpty() || payment.tags.any { tags.contains(it) }
+                    matchesQuery && matchesCategory && matchesMinAmount && matchesMaxAmount && matchesTags
                 }
             
             (expenses + installmentPayments).sortedByDescending { it.date }
@@ -223,7 +223,8 @@ class ExpenseRepositoryImpl(
             amount = amount,
             categoryId = categoryId,
             isInstallmentPayment = true,
-            merchant = merchant
+            merchant = merchant,
+            tags = tagsList?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList()
         )
     }
 }

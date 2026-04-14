@@ -66,12 +66,16 @@ interface InstallmentDao {
             e.item_name || ' (Installment ' || ii.month_number || ')' as item_name,
             ii.amount as amount,
             e.category_id as category_id,
-            e.merchant as merchant
+            e.merchant as merchant,
+            e.id as expense_id,
+            (SELECT GROUP_CONCAT(t.name) FROM tags t JOIN expense_tag_ref etr ON t.id = etr.tagId WHERE etr.expenseId = e.id) as tags_list
         FROM installment_items ii
         JOIN installments i ON ii.installment_id = i.id
         JOIN expenses e ON i.expense_id = e.id
         WHERE ii.status = 'Paid' AND ii.due_date >= :since AND ii.due_date < :until
     """)
+
+
     fun getPaidInstallmentPaymentsBetween(since: Long, until: Long): Flow<List<com.sans.expensetracker.data.local.entity.InstallmentPaymentRow>>
 
     @Update
