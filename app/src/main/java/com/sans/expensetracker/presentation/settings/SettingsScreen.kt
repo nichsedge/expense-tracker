@@ -15,6 +15,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.net.Uri
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -29,6 +32,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -82,7 +86,17 @@ fun SettingsScreen(
     val currentLanguage = viewModel.currentLanguage.value
     val snackbarHostState = remember { SnackbarHostState() }
     val currentBudget by viewModel.monthlyBudget.collectAsState()
+    val aiModelPath by viewModel.aiModelPath.collectAsState()
     val isLoading by viewModel.isLoading
+
+    val context = LocalContext.current
+    val modelPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            viewModel.updateAiModel(context, uri)
+        }
+    }
 
     var showAddCategoryDialog by remember { mutableStateOf(false) }
     var categoryToEdit by remember { mutableStateOf<CategoryEntity?>(null) }
@@ -137,6 +151,8 @@ fun SettingsScreen(
             onLanguageToggle = onLanguageToggle,
             currentLanguage = currentLanguage,
             currentBudget = currentBudget,
+            aiModelPath = aiModelPath,
+            onAiModelClick = { modelPickerLauncher.launch("*/*") },
             isLoading = isLoading
         )
     }
@@ -277,6 +293,8 @@ fun SettingsContent(
     onLanguageToggle: () -> Unit,
     currentLanguage: String,
     currentBudget: Long,
+    aiModelPath: String?,
+    onAiModelClick: () -> Unit,
     isLoading: Boolean
 ) {
     val context = LocalContext.current
@@ -429,6 +447,38 @@ fun SettingsContent(
                             if (currentBudget > 0L) com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(
                                 currentBudget
                             ) else "Not Set",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            Surface(
+                onClick = onAiModelClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 1.dp
+            ) {
+                Row(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.SmartToy,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("AI Model (Scan Invoice)")
+                        Text(
+                            aiModelPath?.substringAfterLast("/") ?: "Not Set",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

@@ -8,8 +8,10 @@ import com.sans.expensetracker.data.local.AppDatabase
 import com.sans.expensetracker.data.local.entity.CategoryEntity
 import com.sans.expensetracker.data.local.entity.TagEntity
 import com.sans.expensetracker.domain.preferences.BudgetPreferences
+import com.sans.expensetracker.domain.preferences.AiPreferences
 import com.sans.expensetracker.domain.repository.ExpenseRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -20,7 +22,8 @@ class SettingsViewModel @Inject constructor(
     private val repository: ExpenseRepository,
     private val localeManager: com.sans.expensetracker.data.util.LocaleManager,
     private val db: AppDatabase,
-    private val budgetPreferences: BudgetPreferences
+    private val budgetPreferences: BudgetPreferences,
+    private val aiPreferences: AiPreferences
 ) : ViewModel() {
 
     private val _isLoading = mutableStateOf(false)
@@ -44,6 +47,12 @@ class SettingsViewModel @Inject constructor(
         initialValue = emptyList()
     )
 
+    val aiModelPath = aiPreferences.getAiModelPath().stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = null
+    )
+
     private val _currentLanguage = mutableStateOf(localeManager.getLocale())
     val currentLanguage: State<String> = _currentLanguage
 
@@ -61,6 +70,49 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             budgetPreferences.setMonthlyBudget(amount)
         }
+    }
+
+    fun updateAiModel(context: android.content.Context, uri: android.net.Uri) {
+        _isLoading.value = true
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val fileName = getFileName(context, uri)
+                val file = java.io.File(context.cacheDir, fileName)
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    java.io.FileOutputStream(file).use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                aiPreferences.setAiModelPath(file.absolutePath)
+                _syncMessage.value = "AI model updated to $fileName"
+            } catch (e: Exception) {
+                _error.value = "Failed to copy model: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    private fun getFileName(context: android.content.Context, uri: android.net.Uri): String {
+        var result: String? = null
+        if (uri.scheme == "content") {
+            context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val index = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                    if (index >= 0) {
+                        result = cursor.getString(index)
+                    }
+                }
+            }
+        }
+        if (result == null) {
+            result = uri.path
+            val cut = result?.lastIndexOf('/') ?: -1
+            if (cut != -1) {
+                result = result?.substring(cut + 1)
+            }
+        }
+        return result ?: "model.litertlm"
     }
 
     // Category CRUD
