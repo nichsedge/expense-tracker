@@ -94,7 +94,7 @@ sealed class ScanReceiptEvent {
 class ScanReceiptViewModel @Inject constructor(
     private val expenseRepository: ExpenseRepository,
     private val aiPreferences: AiPreferences,
-    @ApplicationContext private val appContext: Context
+    @param:ApplicationContext private val appContext: Context
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ScanReceiptState())
