@@ -52,6 +52,34 @@ class AddExpenseViewModel @Inject constructor(
 
     val isEditMode get() = editExpenseId != null
 
+    val categories = getCategoriesUseCase().stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    var amount by mutableStateOf("")
+    var itemName by mutableStateOf("")
+    var merchant by mutableStateOf("")
+    var categoryId by mutableLongStateOf(1L)
+    var isInstallment by mutableStateOf(false)
+    var durationMonths by mutableStateOf("")
+    var selectedDate by mutableLongStateOf(System.currentTimeMillis())
+    var selectedTags by mutableStateOf(listOf<String>())
+
+    var itemNameSuggestions by mutableStateOf(emptyList<String>())
+        private set
+    var merchantSuggestions by mutableStateOf(emptyList<String>())
+        private set
+
+    var newTagText by mutableStateOf("")
+
+    val allTags = expenseRepository.getAllTags().stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
     init {
         editExpenseId?.let { id ->
             viewModelScope.launch {
@@ -97,34 +125,6 @@ class AddExpenseViewModel @Inject constructor(
             }
             .launchIn(viewModelScope)
     }
-
-    val categories = getCategoriesUseCase().stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = emptyList()
-    )
-
-    var amount by mutableStateOf("")
-    var itemName by mutableStateOf("")
-    var merchant by mutableStateOf("")
-    var categoryId by mutableLongStateOf(1L)
-    var isInstallment by mutableStateOf(false)
-    var durationMonths by mutableStateOf("")
-    var selectedDate by mutableLongStateOf(System.currentTimeMillis())
-    var selectedTags by mutableStateOf(listOf<String>())
-
-    var itemNameSuggestions by mutableStateOf(emptyList<String>())
-        private set
-    var merchantSuggestions by mutableStateOf(emptyList<String>())
-        private set
-
-    var newTagText by mutableStateOf("")
-
-    val allTags = expenseRepository.getAllTags().stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = emptyList()
-    )
 
     fun toggleTag(tagName: String) {
         selectedTags = if (selectedTags.contains(tagName)) {
