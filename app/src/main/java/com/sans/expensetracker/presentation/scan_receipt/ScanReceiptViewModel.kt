@@ -208,13 +208,16 @@ class ScanReceiptViewModel @Inject constructor(
                     val categories = expenseRepository.getAllCategories().firstOrNull() ?: emptyList()
                     val defaultCategoryId = categories.firstOrNull()?.id ?: 1L
 
+                    val categoryMap = categories.associateBy { it.name.lowercase(Locale.US) }
+                    val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+
                     accepted.forEach { tx ->
-                        val matchedCategory = categories.find { it.name.equals(tx.category, ignoreCase = true) }
+                        val matchedCategory = categoryMap[tx.category?.lowercase(Locale.US)]
                         val catId = matchedCategory?.id ?: defaultCategoryId
 
                         val txDate = try {
                             tx.dateString?.let {
-                                SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(it)?.time
+                                dateFormat.parse(it)?.time
                             } ?: System.currentTimeMillis()
                         } catch (e: Exception) {
                             System.currentTimeMillis()
