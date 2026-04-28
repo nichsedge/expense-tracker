@@ -15,6 +15,8 @@
 Use the Gradle wrapper from the repo root:
 
 - `./gradlew assembleDebug` builds a debug APK.
+- `./gradlew assembleRelease` builds an optimized, minified release APK (using debug signing).
+- `./build_release.sh` clean builds and copies the release APK to `./release/`.
 - `./gradlew testDebugUnitTest` runs JVM unit tests.
 - `./gradlew connectedDebugAndroidTest` runs instrumentation tests on a device/emulator.
 - `./gradlew tasks` lists available tasks.

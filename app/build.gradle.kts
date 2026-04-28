@@ -22,11 +22,16 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Use debug signing for release for now if no release key is provided, 
+            // or just let it fail if the user wants to set it up properly.
+            // But for GitHub APK, we can just use debug signing if we want it to be easy.
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {
