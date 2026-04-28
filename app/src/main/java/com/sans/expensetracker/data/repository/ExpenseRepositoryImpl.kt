@@ -13,6 +13,10 @@ class ExpenseRepositoryImpl(
     private val installmentDao: com.sans.expensetracker.data.local.dao.InstallmentDao
 ) : ExpenseRepository {
 
+    companion object {
+        private const val INSTALLMENT_PAYMENT_ID_OFFSET = 100_000_000L
+    }
+
     override fun getAllExpenses(): Flow<List<Expense>> {
         return combine(
             dao.getAllExpenses(),
@@ -79,7 +83,29 @@ class ExpenseRepositoryImpl(
     }
 
     override suspend fun getExpenseById(id: Long): Expense? {
-        return dao.getExpenseById(id)?.toDomain()
+        return if (id >= INSTALLMENT_PAYMENT_ID_OFFSET) {
+            val installmentItemId = id - INSTALLMENT_PAYMENT_ID_OFFSET
+            // We return a pseudo-expense for the installment item
+            // Note: Since InstallmentPaymentRow is internal to the DAO query, we might need a separate way to fetch it
+            // or just fetch the installment item and map it.
+            installmentDao.getInstallmentItemById(installmentItemId)?.let { item ->
+                val installment = installmentDao.getInstallmentById(item.installmentId)
+                val parentExpense = installment?.let { dao.getExpenseById(it.expenseId) }
+                
+                Expense(
+                    id = id,
+                    date = item.dueDate,
+                    itemName = (parentExpense?.expense?.itemName ?: "Installment") + " (Installment ${item.monthNumber})",
+                    amount = item.amount,
+                    categoryId = parentExpense?.expense?.categoryId ?: 1L,
+                    isInstallmentPayment = true,
+                    merchant = parentExpense?.expense?.merchant,
+                    tags = parentExpense?.tags?.map { it.name } ?: emptyList()
+                )
+            }
+        } else {
+            dao.getExpenseById(id)?.toDomain()
+        }
     }
 
     override suspend fun getItemNameSuggestions(query: String): List<String> {
@@ -225,7 +251,7 @@ class ExpenseRepositoryImpl(
 
     private fun com.sans.expensetracker.data.local.entity.InstallmentPaymentRow.toDomain(): Expense {
         return Expense(
-            id = id + 100_000_000L, // Offset to avoid conflict with ExpenseEntity IDs
+            id = id + INSTALLMENT_PAYMENT_ID_OFFSET,
             date = date,
             itemName = itemName,
             amount = amount,
