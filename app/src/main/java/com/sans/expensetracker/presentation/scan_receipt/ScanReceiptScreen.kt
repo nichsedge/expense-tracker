@@ -581,6 +581,7 @@ fun SuggestedTransactionCard(
                     },
                     label = { Text(stringResource(R.string.amount_label)) },
                     modifier = Modifier.fillMaxWidth(),
+                    visualTransformation = com.sans.expensetracker.core.util.ThousandsSeparatorVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true
                 )

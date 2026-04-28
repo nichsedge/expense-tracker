@@ -110,6 +110,7 @@ fun AddExpenseScreen(
                 modifier = Modifier.fillMaxWidth(),
                 textStyle = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
                 singleLine = true,
+                visualTransformation = com.sans.expensetracker.core.util.ThousandsSeparatorVisualTransformation(),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Decimal,
                     imeAction = ImeAction.Next
