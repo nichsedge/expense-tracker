@@ -252,6 +252,7 @@ fun SettingsScreen(
                     onValueChange = { budgetInput = it.filter { char -> char.isDigit() } },
                     label = { Text("Amount") },
                     singleLine = true,
+                    visualTransformation = com.sans.expensetracker.core.util.ThousandsSeparatorVisualTransformation(),
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth()
                 )

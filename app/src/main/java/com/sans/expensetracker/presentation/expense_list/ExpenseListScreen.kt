@@ -469,6 +469,7 @@ fun AdvancedFilterSheet(
                     },
                     modifier = Modifier.weight(1f),
                     label = { Text(stringResource(R.string.min_amount)) },
+                    visualTransformation = com.sans.expensetracker.core.util.ThousandsSeparatorVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true
                 )
@@ -482,6 +483,7 @@ fun AdvancedFilterSheet(
                     },
                     modifier = Modifier.weight(1f),
                     label = { Text(stringResource(R.string.max_amount)) },
+                    visualTransformation = com.sans.expensetracker.core.util.ThousandsSeparatorVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true
                 )
