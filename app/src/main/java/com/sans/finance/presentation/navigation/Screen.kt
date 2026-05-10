@@ -32,6 +32,12 @@ sealed class Screen {
     object Settings : Screen()
 
     @Serializable
+    object CategorySettings : Screen()
+
+    @Serializable
+    object TagSettings : Screen()
+
+    @Serializable
     object RecurringExpenses : Screen()
 
     @Serializable

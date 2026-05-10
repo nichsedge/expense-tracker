@@ -34,20 +34,6 @@ class SettingsViewModel @Inject constructor(
     private val _syncMessage = mutableStateOf<String?>(null)
     val syncMessage: State<String?> = _syncMessage
 
-    val categories = repository.getAllCategories().stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = emptyList()
-    )
-
-    val tags = repository.getAllTagEntities().stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = emptyList()
-    )
-
-
-
     private val _currentLanguage = mutableStateOf(localeManager.getLocale())
     val currentLanguage: State<String> = _currentLanguage
 
@@ -68,58 +54,6 @@ class SettingsViewModel @Inject constructor(
     }
 
 
-
-    // Category CRUD
-    fun addCategory(name: String, icon: String) {
-        viewModelScope.launch {
-            repository.insertCategory(CategoryEntity(name = name, icon = icon))
-        }
-    }
-
-    fun updateCategory(category: CategoryEntity) {
-        viewModelScope.launch {
-            repository.updateCategory(category)
-        }
-    }
-
-
-    fun onCategoriesReordered(reorderedCategories: List<CategoryEntity>) {
-        viewModelScope.launch {
-            val updatedCategories = reorderedCategories.mapIndexed { index, category ->
-                category.copy(orderIndex = index)
-            }
-            repository.updateCategories(updatedCategories)
-        }
-    }
-
-    fun deleteCategory(category: CategoryEntity) {
-        viewModelScope.launch {
-            repository.deleteCategory(category)
-        }
-    }
-
-    // Tag CRUD
-    fun updateTag(tag: TagEntity) {
-        viewModelScope.launch {
-            repository.updateTag(tag)
-        }
-    }
-
-
-    fun onTagsReordered(reorderedTags: List<TagEntity>) {
-        viewModelScope.launch {
-            val updatedTags = reorderedTags.mapIndexed { index, tag ->
-                tag.copy(orderIndex = index)
-            }
-            repository.updateTags(updatedTags)
-        }
-    }
-
-    fun deleteTag(tag: TagEntity) {
-        viewModelScope.launch {
-            repository.deleteTag(tag)
-        }
-    }
 
     fun exportFullBackup(context: android.content.Context) {
         _isLoading.value = true

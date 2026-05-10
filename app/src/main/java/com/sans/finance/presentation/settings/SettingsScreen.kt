@@ -78,10 +78,10 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onLanguageToggle: () -> Unit,
     onNavigateToBudgets: () -> Unit,
+    onNavigateToCategories: () -> Unit,
+    onNavigateToTags: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
-    val categories by viewModel.categories.collectAsState()
-    val tags by viewModel.tags.collectAsState()
     val currentLanguage = viewModel.currentLanguage.value
     val snackbarHostState = remember { SnackbarHostState() }
     val currentBudget by viewModel.monthlyBudget.collectAsState()
@@ -89,13 +89,6 @@ fun SettingsScreen(
     val isLoading by viewModel.isLoading
 
     val context = LocalContext.current
-
-
-    var showAddCategoryDialog by remember { mutableStateOf(false) }
-    var categoryToEdit by remember { mutableStateOf<CategoryEntity?>(null) }
-    var tagToEdit by remember { mutableStateOf<TagEntity?>(null) }
-    var categoryToDelete by remember { mutableStateOf<CategoryEntity?>(null) }
-    var tagToDelete by remember { mutableStateOf<TagEntity?>(null) }
 
     val listState = rememberLazyListState()
 
@@ -129,15 +122,10 @@ fun SettingsScreen(
         SettingsContent(
             paddingValues = paddingValues,
             listState = listState,
-            categories = categories,
-            tags = tags,
             viewModel = viewModel,
-            onCategoryEdit = { categoryToEdit = it },
-            onCategoryDelete = { categoryToDelete = it },
-            onTagEdit = { tagToEdit = it },
-            onTagDelete = { tagToDelete = it },
-            onAddCategory = { showAddCategoryDialog = true },
             onBudget = onNavigateToBudgets,
+            onNavigateToCategories = onNavigateToCategories,
+            onNavigateToTags = onNavigateToTags,
             exportBackup = { viewModel.exportFullBackup(it) },
             onLanguageToggle = onLanguageToggle,
             currentLanguage = currentLanguage,
@@ -147,88 +135,6 @@ fun SettingsScreen(
         )
     }
 
-    // Dialogs
-    if (showAddCategoryDialog) {
-        CategoryEditDialog(
-            onDismiss = { showAddCategoryDialog = false },
-            onConfirm = { name, icon ->
-                viewModel.addCategory(name, icon)
-                showAddCategoryDialog = false
-            }
-        )
-    }
-
-    categoryToEdit?.let { category ->
-        CategoryEditDialog(
-            category = category,
-            onDismiss = { categoryToEdit = null },
-            onConfirm = { name, icon ->
-                viewModel.updateCategory(category.copy(name = name, icon = icon))
-                categoryToEdit = null
-            }
-        )
-    }
-
-    tagToEdit?.let { tag ->
-        TagEditDialog(
-            tag = tag,
-            onDismiss = { tagToEdit = null },
-            onConfirm = { newName ->
-                viewModel.updateTag(tag.copy(name = newName))
-                tagToEdit = null
-            }
-        )
-    }
-
-    categoryToDelete?.let { category ->
-        AlertDialog(
-            onDismissRequest = { categoryToDelete = null },
-            title = { Text("Delete Category") },
-            text = { Text("Are you sure you want to delete category '${category.name}'? All expenses in this category will become uncategorized.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.deleteCategory(category)
-                        categoryToDelete = null
-                    },
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text("Delete")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { categoryToDelete = null }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-
-    tagToDelete?.let { tag ->
-        AlertDialog(
-            onDismissRequest = { tagToDelete = null },
-            title = { Text("Delete Tag") },
-            text = { Text("Are you sure you want to delete tag '${tag.name}'? This will remove the tag from all associated expenses.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.deleteTag(tag)
-                        tagToDelete = null
-                    },
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text("Delete")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { tagToDelete = null }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-
-
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -236,15 +142,10 @@ fun SettingsScreen(
 fun SettingsContent(
     paddingValues: PaddingValues,
     listState: androidx.compose.foundation.lazy.LazyListState,
-    categories: List<CategoryEntity>,
-    tags: List<TagEntity>,
     viewModel: SettingsViewModel,
-    onCategoryEdit: (CategoryEntity) -> Unit,
-    onCategoryDelete: (CategoryEntity) -> Unit,
-    onTagEdit: (TagEntity) -> Unit,
-    onTagDelete: (TagEntity) -> Unit,
-    onAddCategory: () -> Unit,
     onBudget: () -> Unit,
+    onNavigateToCategories: () -> Unit,
+    onNavigateToTags: () -> Unit,
     exportBackup: (android.content.Context) -> Unit,
     onLanguageToggle: () -> Unit,
     currentLanguage: String,
@@ -384,88 +285,58 @@ fun SettingsContent(
 
         }
 
-        // Categories Section
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            Surface(
+                onClick = onNavigateToCategories,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 1.dp
             ) {
-                SettingsSectionTitle(stringResource(R.string.categories))
-                TextButton(onClick = onAddCategory) {
-                    Icon(Icons.Default.Add, contentDescription = null)
-                    Spacer(Modifier.width(4.dp))
-                    Text(stringResource(R.string.add_category))
+                Row(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.ChevronRight, // Could change icon later
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.width(16.dp))
+                    Text(stringResource(R.string.categories))
                 }
             }
         }
 
-        itemsIndexed(categories, key = { _, item -> "cat_${item.id}" }) { index, category ->
-            SettingsItem(
-                title = category.name,
-                icon = category.icon,
-                onEdit = { onCategoryEdit(category) },
-                onDelete = { onCategoryDelete(category) },
-                onMoveUp = if (index > 0) {
-                    {
-                        val mutable = categories.toMutableList()
-                        val item = mutable.removeAt(index)
-                        mutable.add(index - 1, item)
-                        viewModel.onCategoriesReordered(mutable)
-                    }
-                } else null,
-                onMoveDown = if (index < categories.size - 1) {
-                    {
-                        val mutable = categories.toMutableList()
-                        val item = mutable.removeAt(index)
-                        mutable.add(index + 1, item)
-                        viewModel.onCategoriesReordered(mutable)
-                    }
-                } else null,
-                modifier = Modifier.animateItem()
-            )
-        }
-
-        // Tags Section
         item {
-            SettingsSectionTitle(stringResource(R.string.tags))
-        }
-
-        if (tags.isEmpty()) {
-            item {
-                Text(
-                    "No tags found. Tags are created when you add them to expenses.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                )
+            Surface(
+                onClick = onNavigateToTags,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 1.dp
+            ) {
+                Row(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.width(16.dp))
+                    Text(stringResource(R.string.tags))
+                }
             }
-        }
-
-        itemsIndexed(tags, key = { _, item -> "tag_${item.id}" }) { index, tag ->
-            SettingsItem(
-                title = tag.name,
-                icon = "🏷️",
-                onEdit = { onTagEdit(tag) },
-                onDelete = { onTagDelete(tag) },
-                onMoveUp = if (index > 0) {
-                    {
-                        val mutable = tags.toMutableList()
-                        val item = mutable.removeAt(index)
-                        mutable.add(index - 1, item)
-                        viewModel.onTagsReordered(mutable)
-                    }
-                } else null,
-                onMoveDown = if (index < tags.size - 1) {
-                    {
-                        val mutable = tags.toMutableList()
-                        val item = mutable.removeAt(index)
-                        mutable.add(index + 1, item)
-                        viewModel.onTagsReordered(mutable)
-                    }
-                } else null,
-                modifier = Modifier.animateItem()
-            )
         }
     }
 }
