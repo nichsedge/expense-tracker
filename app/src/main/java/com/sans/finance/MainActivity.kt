@@ -60,6 +60,16 @@ fun AppNavigation(onLanguageToggle: () -> Unit) {
                 onLanguageToggle = onLanguageToggle
             )
         }
+        composable<Screen.CategorySettings> {
+            com.sans.finance.presentation.settings.categories.CategorySettingsScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable<Screen.TagSettings> {
+            com.sans.finance.presentation.settings.tags.TagSettingsScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
         composable<Screen.ExpenseList> {
             ExpenseListScreen(
                 onAddExpenseClick = {
@@ -98,7 +108,9 @@ fun AppNavigation(onLanguageToggle: () -> Unit) {
             SettingsScreen(
                 onBack = { navController.popBackStack() },
                 onLanguageToggle = onLanguageToggle,
-                onNavigateToBudgets = { navController.navigate(Screen.Budgets) }
+                onNavigateToBudgets = { navController.navigate(Screen.Budgets) },
+                onNavigateToCategories = { navController.navigate(Screen.CategorySettings) },
+                onNavigateToTags = { navController.navigate(Screen.TagSettings) }
             )
         }
         composable<Screen.Accounts> {

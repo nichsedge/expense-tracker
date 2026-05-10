@@ -203,6 +203,10 @@ class ExpenseRepositoryImpl(
         return categoryDao.getAllCategories()
     }
 
+    override fun getCategoriesByType(type: String): Flow<List<com.sans.finance.data.local.entity.CategoryEntity>> {
+        return categoryDao.getCategoriesByType(type)
+    }
+
     override suspend fun insertCategory(category: com.sans.finance.data.local.entity.CategoryEntity) {
         categoryDao.insertCategory(category)
     }

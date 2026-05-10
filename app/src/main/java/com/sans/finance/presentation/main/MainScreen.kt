@@ -79,6 +79,12 @@ fun MainScreen(
                     onLanguageToggle = onLanguageToggle,
                     onNavigateToBudgets = {
                         rootNavController.navigate(Screen.Budgets)
+                    },
+                    onNavigateToCategories = {
+                        rootNavController.navigate(Screen.CategorySettings)
+                    },
+                    onNavigateToTags = {
+                        rootNavController.navigate(Screen.TagSettings)
                     }
                 )
             }

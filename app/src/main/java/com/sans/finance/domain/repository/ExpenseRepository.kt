@@ -30,6 +30,7 @@ interface ExpenseRepository {
 
     // Category management
     fun getAllCategories(): Flow<List<com.sans.finance.data.local.entity.CategoryEntity>>
+    fun getCategoriesByType(type: String): Flow<List<com.sans.finance.data.local.entity.CategoryEntity>>
     suspend fun insertCategory(category: com.sans.finance.data.local.entity.CategoryEntity)
     suspend fun updateCategory(category: com.sans.finance.data.local.entity.CategoryEntity)
     suspend fun updateCategories(categories: List<com.sans.finance.data.local.entity.CategoryEntity>)
