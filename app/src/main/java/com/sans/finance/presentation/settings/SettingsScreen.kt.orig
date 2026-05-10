@@ -231,7 +231,7 @@ fun SettingsScreen(
 
 }
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SettingsContent(
     paddingValues: PaddingValues,
@@ -253,7 +253,7 @@ fun SettingsContent(
     isLoading: Boolean
 ) {
     val context = LocalContext.current
-    
+
     LazyColumn(
         state = listState,
         modifier = Modifier
@@ -266,9 +266,9 @@ fun SettingsContent(
         item {
             SettingsSectionTitle(stringResource(R.string.data_management))
             Card(
-                onClick = { exportBackup(context) },
                 modifier = Modifier
-                    .fillMaxWidth(),
+                    .fillMaxWidth()
+                    .clickable { exportBackup(context) },
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)
             ) {
                 Row(
@@ -319,9 +319,9 @@ fun SettingsContent(
         item {
             SettingsSectionTitle(stringResource(R.string.language))
             Card(
-                onClick = onLanguageToggle,
                 modifier = Modifier
-                    .fillMaxWidth(),
+                    .fillMaxWidth()
+                    .clickable { onLanguageToggle() },
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 Row(
@@ -511,7 +511,7 @@ fun SettingsItem(
             )
             Spacer(Modifier.width(16.dp))
             Text(title, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-            
+
             if (onMoveUp != null) {
                 IconButton(onClick = onMoveUp) {
                     Icon(
@@ -522,7 +522,7 @@ fun SettingsItem(
                     )
                 }
             }
-            
+
             if (onMoveDown != null) {
                 IconButton(onClick = onMoveDown) {
                     Icon(
