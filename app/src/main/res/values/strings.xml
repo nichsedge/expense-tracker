@@ -58,6 +58,17 @@
     <string name="yearly">Yearly</string>
     <string name="recurring_expenses">Recurring Expenses</string>
     <string name="back">Back</string>
+    <string name="income">Income</string>
+    <string name="expenses">Expenses</string>
+    <string name="annually">Annually</string>
+    <string name="custom">Custom</string>
+    <string name="previous">Previous</string>
+    <string name="next">Next</string>
+    <string name="select_date_range">Select Date Range</string>
+    <string name="total_income">Total Income</string>
+    <string name="total_expenses">Total Expenses</string>
+    <string name="no_data_available">No data available for this period</string>
+    <string name="transactions">Transactions</string>
 
     <!-- Scan Receipt feature -->
     <string name="scan_receipt">Scan Receipt</string>

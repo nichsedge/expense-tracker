@@ -242,11 +242,43 @@ class ExpenseRepositoryImpl(
         return dao.getSpendingByCategoryBetween(since, until)
     }
 
+    override fun getBreakdownByCategoryBetween(
+        since: Long,
+        until: Long,
+        type: String
+    ): Flow<List<com.sans.finance.data.local.entity.CategorySpent>> {
+        return dao.getBreakdownByCategoryBetween(since, until, type)
+    }
+
+    override fun getTotalAmountByTypeBetween(
+        since: Long,
+        until: Long,
+        type: String
+    ): Flow<Long?> {
+        return dao.getTotalAmountByTypeBetween(since, until, type)
+    }
+
     override fun getDailySpendingBetween(
         since: Long,
         until: Long
     ): Flow<List<com.sans.finance.data.local.entity.DaySpent>> {
         return dao.getDailySpendingBetween(since, until)
+    }
+
+    override fun getDailyBreakdownByCategoryBetween(
+        since: Long,
+        until: Long,
+        categoryId: Long,
+        type: String
+    ): Flow<List<com.sans.finance.data.local.entity.DaySpent>> {
+        return dao.getDailyBreakdownByCategoryBetween(since, until, categoryId, type)
+    }
+
+    override fun getMonthlyBreakdownByCategory(
+        categoryId: Long,
+        type: String
+    ): Flow<List<com.sans.finance.data.local.entity.DaySpent>> {
+        return dao.getMonthlyBreakdownByCategory(categoryId, type)
     }
 
     // Internal mapping extension

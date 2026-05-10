@@ -46,8 +46,32 @@ interface ExpenseRepository {
         until: Long
     ): Flow<List<com.sans.finance.data.local.entity.CategorySpent>>
 
+    fun getBreakdownByCategoryBetween(
+        since: Long,
+        until: Long,
+        type: String
+    ): Flow<List<com.sans.finance.data.local.entity.CategorySpent>>
+
+    fun getTotalAmountByTypeBetween(
+        since: Long,
+        until: Long,
+        type: String
+    ): Flow<Long?>
+
     fun getDailySpendingBetween(
         since: Long,
         until: Long
+    ): Flow<List<com.sans.finance.data.local.entity.DaySpent>>
+
+    fun getDailyBreakdownByCategoryBetween(
+        since: Long,
+        until: Long,
+        categoryId: Long,
+        type: String
+    ): Flow<List<com.sans.finance.data.local.entity.DaySpent>>
+
+    fun getMonthlyBreakdownByCategory(
+        categoryId: Long,
+        type: String
     ): Flow<List<com.sans.finance.data.local.entity.DaySpent>>
 }

@@ -36,6 +36,7 @@ interface ExpenseDao {
         WHERE (:query IS NULL OR e.item_name LIKE '%' || :query || '%' OR e.merchant LIKE '%' || :query || '%')
         AND (:categoryCount = 0 OR e.category_id IN (:categoryIds))
         AND (e.date >= :since AND e.date < :until)
+        AND e.is_installment = 0
         AND (:minAmount IS NULL OR e.final_price >= :minAmount)
         AND (:maxAmount IS NULL OR e.final_price <= :maxAmount)
         AND (:tagCount = 0 OR t.name IN (:tags))
@@ -122,6 +123,47 @@ interface ExpenseDao {
 
     @Query(
         """
+        SELECT categoryId, categoryName, categoryIcon, SUM(amount) as totalAmount
+        FROM (
+            SELECT c.id as categoryId, c.name as categoryName, c.icon as categoryIcon, SUM(e.final_price) as amount
+            FROM expenses e
+            JOIN categories c ON e.category_id = c.id
+            WHERE e.date >= :since AND e.date < :until AND e.type = :type AND e.is_installment = 0
+            GROUP BY c.id
+            UNION ALL
+            SELECT c.id as categoryId, c.name as categoryName, c.icon as categoryIcon, SUM(ii.amount) as amount
+            FROM installment_items ii
+            JOIN installments i ON ii.installment_id = i.id
+            JOIN expenses e ON i.expense_id = e.id
+            JOIN categories c ON e.category_id = c.id
+            WHERE :type = 'EXPENSE' AND ii.due_date >= :since AND ii.due_date < :until AND ii.status = 'Paid'
+            GROUP BY c.id
+        ) sub
+        GROUP BY categoryId
+    """
+    )
+    fun getBreakdownByCategoryBetween(
+        since: Long,
+        until: Long,
+        type: String
+    ): Flow<List<com.sans.finance.data.local.entity.CategorySpent>>
+
+    @Query(
+        """
+        SELECT SUM(amount) 
+        FROM (
+            SELECT final_price as amount FROM expenses 
+            WHERE date >= :since AND date < :until AND type = :type AND is_installment = 0
+            UNION ALL
+            SELECT ii.amount FROM installment_items ii
+            WHERE :type = 'EXPENSE' AND ii.due_date >= :since AND ii.due_date < :until AND ii.status = 'Paid'
+        )
+    """
+    )
+    fun getTotalAmountByTypeBetween(since: Long, until: Long, type: String): Flow<Long?>
+
+    @Query(
+        """
         SELECT day, SUM(amount) as amount
         FROM (
             SELECT (date / 86400000) * 86400000 as day, SUM(final_price) as amount
@@ -141,6 +183,56 @@ interface ExpenseDao {
     fun getDailySpendingBetween(
         since: Long,
         until: Long
+    ): Flow<List<com.sans.finance.data.local.entity.DaySpent>>
+
+    @Query(
+        """
+        SELECT day, SUM(amount) as amount
+        FROM (
+            SELECT (date / 86400000) * 86400000 as day, SUM(final_price) as amount
+            FROM expenses
+            WHERE date >= :since AND date < :until AND type = :type AND category_id = :categoryId
+            GROUP BY day
+            UNION ALL
+            SELECT (due_date / 86400000) * 86400000 as day, SUM(ii.amount) as amount
+            FROM installment_items ii
+            JOIN installments i ON ii.installment_id = i.id
+            JOIN expenses e ON i.expense_id = e.id
+            WHERE :type = 'EXPENSE' AND e.category_id = :categoryId AND ii.due_date >= :since AND ii.due_date < :until AND ii.status = 'Paid'
+            GROUP BY day
+        ) sub
+        GROUP BY day
+        ORDER BY day ASC
+    """
+    )
+    fun getDailyBreakdownByCategoryBetween(
+        since: Long,
+        until: Long,
+        categoryId: Long,
+        type: String
+    ): Flow<List<com.sans.finance.data.local.entity.DaySpent>>
+
+    @Query(
+        """
+        SELECT day, SUM(amount) as amount
+        FROM (
+            SELECT CAST(strftime('%s', date / 1000, 'unixepoch', 'start of month') AS INTEGER) * 1000 as day, final_price as amount
+            FROM expenses
+            WHERE type = :type AND category_id = :categoryId AND is_installment = 0
+            UNION ALL
+            SELECT CAST(strftime('%s', due_date / 1000, 'unixepoch', 'start of month') AS INTEGER) * 1000 as day, amount
+            FROM installment_items ii
+            JOIN installments i ON ii.installment_id = i.id
+            JOIN expenses e ON i.expense_id = e.id
+            WHERE :type = 'EXPENSE' AND e.category_id = :categoryId AND ii.status = 'Paid'
+        ) sub
+        GROUP BY day
+        ORDER BY day ASC
+    """
+    )
+    fun getMonthlyBreakdownByCategory(
+        categoryId: Long,
+        type: String
     ): Flow<List<com.sans.finance.data.local.entity.DaySpent>>
 }
 

@@ -9,6 +9,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import com.sans.finance.core.util.CalendarUtils
+import java.util.Calendar
 import javax.inject.Inject
 
 data class DashboardState(
@@ -52,14 +54,19 @@ class DashboardViewModel @Inject constructor(
             .mapValues { entry -> entry.value.sumOf { it.balance } }
 
         // Compute this-month cash flow
-        val cal = java.util.Calendar.getInstance()
-        cal.set(java.util.Calendar.DAY_OF_MONTH, 1)
-        cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
-        cal.set(java.util.Calendar.MINUTE, 0)
-        cal.set(java.util.Calendar.SECOND, 0)
-        cal.set(java.util.Calendar.MILLISECOND, 0)
+        val cal = CalendarUtils.getInstance()
+        cal.set(Calendar.DAY_OF_MONTH, 1)
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
         val monthStart = cal.timeInMillis
-        val monthlyTxns = transactions.filter { it.date >= monthStart }
+        cal.add(Calendar.MONTH, 1)
+        val nextMonthStart = cal.timeInMillis
+        
+        val monthlyTxns = transactions.filter { 
+            it.date >= monthStart && it.date < nextMonthStart && (!it.isInstallment || it.isInstallmentPayment)
+        }
         val monthlyIncome = monthlyTxns.filter { it.type == "INCOME" }.sumOf { it.amount }
         val monthlyExpense = monthlyTxns.filter { it.type == "EXPENSE" }.sumOf { it.amount }
         val savingsRate = if (monthlyIncome > 0) ((monthlyIncome - monthlyExpense).toFloat() / monthlyIncome.toFloat()).coerceIn(0f, 1f) else 0f

@@ -18,9 +18,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.PieChart
+import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -28,7 +32,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
@@ -36,10 +39,18 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberDateRangePickerState
+import androidx.compose.material3.DateRangePicker
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -55,12 +66,15 @@ import com.sans.finance.R
 import com.sans.finance.core.util.CurrencyFormatter
 import com.sans.finance.core.util.DateFormatterUtils
 import com.sans.finance.core.util.CalendarUtils
-import com.sans.finance.presentation.components.CategoryIcon
+import com.sans.finance.data.local.entity.CategorySpent
+import com.sans.finance.data.local.entity.DaySpent
+import com.sans.finance.domain.model.Expense
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
-import kotlin.math.roundToLong
+import java.text.SimpleDateFormat
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -92,144 +106,122 @@ fun StatsScreen(
     viewModel: StatsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    var showDatePicker by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.statistics), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = if (state.selectedCategory != null) { { viewModel.onCategorySelected(null) } } else onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
         }
     ) { paddingValues ->
-        if (state.isLoading) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .verticalScroll(rememberScrollState())
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp)
-            ) {
-                // Monthly Overview Header
-                HeaderPart(
-                    title = stringResource(R.string.this_month),
-                    amount = state.thisMonthSpent,
-                    lastMonthAmount = state.lastMonthSpent
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            if (state.selectedCategory == null) {
+                // Period Type Selector
+                PeriodTypeSelector(
+                    selectedType = state.selectedPeriodType,
+                    onTypeSelected = viewModel::onPeriodTypeSelected
                 )
 
-                // Spending Trend Chart
-                TrendPeriodSelector(
-                    selectedPeriod = state.selectedTrendPeriod,
-                    onPeriodSelected = viewModel::onTrendPeriodSelected
+                // Date Navigator
+                DateNavigator(
+                    state = state,
+                    onPrevious = viewModel::onPreviousPeriod,
+                    onNext = viewModel::onNextPeriod,
+                    onDateClick = { if (state.selectedPeriodType == StatsPeriodType.CUSTOM) showDatePicker = true }
                 )
 
-                SpendingTrendChart(state.trendSpending, state.selectedTrendPeriod)
-
-                // Categories Breakdown
-                CategoryBreakdown(state.spendingByCategory)
-
-                // Comparison Cards
-                // Comparison Cards
-                SectionTitle(
-                    stringResource(R.string.yearly_summary),
-                    icon = Icons.Default.CalendarMonth
-                )
-
+                // Income / Expense Overview Cards
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     StatsSimpleCard(
-                        modifier = Modifier.weight(1.0f),
-                        title = stringResource(R.string.this_year),
-                        amount = state.thisYearSpent,
-                        color = MaterialTheme.colorScheme.primaryContainer
+                        modifier = Modifier.weight(1f),
+                        title = stringResource(R.string.income),
+                        amount = state.totalIncomeForPeriod,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        isSelected = state.selectedTransactionType == TransactionType.INCOME,
+                        onClick = { viewModel.onTransactionTypeSelected(TransactionType.INCOME) }
                     )
                     StatsSimpleCard(
-                        modifier = Modifier.weight(1.0f),
-                        title = stringResource(R.string.last_year),
-                        amount = state.lastYearSpent,
-                        color = MaterialTheme.colorScheme.secondaryContainer
+                        modifier = Modifier.weight(1f),
+                        title = stringResource(R.string.expenses),
+                        amount = state.totalExpenseForPeriod,
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        isSelected = state.selectedTransactionType == TransactionType.EXPENSE,
+                        onClick = { viewModel.onTransactionTypeSelected(TransactionType.EXPENSE) }
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-        }
-    }
-}
-
-@Composable
-fun HeaderPart(
-    title: String,
-    amount: Long,
-    lastMonthAmount: Long
-) {
-    val diff = amount - lastMonthAmount
-    val percent = if (lastMonthAmount > 0) (diff.toDouble() / lastMonthAmount * 100).toInt() else 0
-
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-        Text(
-            title.uppercase(),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.secondary,
-            letterSpacing = 1.5.sp
-        )
-        Text(
-            CurrencyFormatter.formatAmount(amount),
-            style = MaterialTheme.typography.displaySmall,
-            fontWeight = FontWeight.Black,
-            color = MaterialTheme.colorScheme.primary
-        )
-
-        if (lastMonthAmount > 0) {
-            Surface(
-                color = if (diff > 0) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer,
-                shape = CircleShape
-            ) {
-                Text(
-                    text = "${if (diff > 0) "+" else ""}$percent% from last month",
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (diff > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary,
-                    fontWeight = FontWeight.Bold
+                if (state.isLoading) {
+                    Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                } else {
+                    // Category Breakdown with Pie Chart
+                    CategoryBreakdown(
+                        categories = state.breakdown,
+                        onCategoryClick = viewModel::onCategorySelected
+                    )
+                }
+            } else {
+                // Category Detail View
+                CategoryDetailView(
+                    state = state,
+                    onBack = { viewModel.onCategorySelected(null) }
                 )
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
+    }
+
+    if (showDatePicker) {
+        CustomDateRangePickerDialog(
+            onDismiss = { showDatePicker = false },
+            onRangeSelected = { start, end ->
+                viewModel.onCustomDateRangeSelected(start, end)
+                showDatePicker = false
+            }
+        )
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TrendPeriodSelector(
-    selectedPeriod: TrendPeriod,
-    onPeriodSelected: (TrendPeriod) -> Unit
+fun PeriodTypeSelector(
+    selectedType: StatsPeriodType,
+    onTypeSelected: (StatsPeriodType) -> Unit
 ) {
-    val periods = TrendPeriod.values()
+    val types = StatsPeriodType.values()
     val options = listOf(
-        stringResource(R.string.daily),
         stringResource(R.string.weekly),
         stringResource(R.string.monthly),
-        stringResource(R.string.quarterly),
-        stringResource(R.string.yearly)
+        stringResource(R.string.annually),
+        stringResource(R.string.custom)
     )
 
     SingleChoiceSegmentedButtonRow(
         modifier = Modifier.fillMaxWidth()
     ) {
-        periods.forEachIndexed { index, period ->
+        types.forEachIndexed { index, type ->
             SegmentedButton(
-                shape = SegmentedButtonDefaults.itemShape(index = index, count = periods.size),
-                onClick = { onPeriodSelected(period) },
-                selected = selectedPeriod == period,
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = types.size),
+                onClick = { onTypeSelected(type) },
+                selected = selectedType == type,
                 label = {
                     Text(
                         options[index],
@@ -243,51 +235,345 @@ fun TrendPeriodSelector(
 }
 
 @Composable
-fun SpendingTrendChart(
-    spending: List<com.sans.finance.data.local.entity.DaySpent>,
-    period: TrendPeriod
+fun DateNavigator(
+    state: StatsState,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onDateClick: () -> Unit
 ) {
-    SectionTitle(stringResource(R.string.spending_trend), icon = Icons.Default.Insights)
+    val periodText = getPeriodText(state)
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconButton(onClick = onPrevious, enabled = state.selectedPeriodType != StatsPeriodType.CUSTOM) {
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous")
+        }
+
+        Surface(
+            onClick = onDateClick,
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+            enabled = state.selectedPeriodType == StatsPeriodType.CUSTOM
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (state.selectedPeriodType == StatsPeriodType.CUSTOM) {
+                    Icon(Icons.Default.CalendarToday, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                Text(
+                    text = periodText,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        IconButton(onClick = onNext, enabled = state.selectedPeriodType != StatsPeriodType.CUSTOM) {
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next")
+        }
+    }
+}
+
+@Composable
+fun getPeriodText(state: StatsState): String {
+    val cal = state.currentPeriodDate
+    return when (state.selectedPeriodType) {
+        StatsPeriodType.WEEKLY -> {
+            val start = cal.clone() as Calendar
+            start.set(Calendar.DAY_OF_WEEK, start.firstDayOfWeek)
+            val end = start.clone() as Calendar
+            end.add(Calendar.DAY_OF_YEAR, 6)
+            val df = SimpleDateFormat("dd MMM", Locale.getDefault())
+            "${df.format(start.time)} - ${df.format(end.time)}"
+        }
+        StatsPeriodType.MONTHLY -> {
+            val df = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
+            df.format(cal.time)
+        }
+        StatsPeriodType.ANNUALLY -> {
+            val df = SimpleDateFormat("yyyy", Locale.getDefault())
+            df.format(cal.time)
+        }
+        StatsPeriodType.CUSTOM -> {
+            if (state.customStartDate != null && state.customEndDate != null) {
+                val df = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+                "${df.format(Date(state.customStartDate))} - ${df.format(Date(state.customEndDate))}"
+            } else {
+                stringResource(R.string.select_date_range)
+            }
+        }
+    }
+}
+
+@Composable
+fun StatsSimpleCard(
+    modifier: Modifier = Modifier,
+    title: String,
+    amount: Long,
+    color: Color,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = modifier,
+        onClick = onClick,
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) color else color.copy(alpha = 0.3f)
+        ),
+        shape = MaterialTheme.shapes.large,
+        border = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, color) else null
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                title,
+                style = MaterialTheme.typography.labelMedium,
+                color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                CurrencyFormatter.formatAmount(amount),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.ExtraBold
+            )
+        }
+    }
+}
+
+@Composable
+fun CategoryBreakdown(
+    categories: List<CategorySpent>,
+    onCategoryClick: (CategorySpent) -> Unit
+) {
+    SectionTitle(stringResource(R.string.by_category), icon = Icons.Default.PieChart)
+
+    val totalInCategories = categories.sumOf { it.totalAmount }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(modifier = Modifier.padding(8.dp)) {
+            if (categories.isNotEmpty() && totalInCategories > 0) {
+                PieChartWithLabels(
+                    categories = categories,
+                    totalAmount = totalInCategories
+                )
+                
+                categories.sortedByDescending { it.totalAmount }.forEachIndexed { index, category ->
+                    val percent =
+                        if (totalInCategories > 0) (category.totalAmount.toFloat() / totalInCategories * 100) else 0f
+                    val color = pieChartColors[index % pieChartColors.size]
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onCategoryClick(category) }
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(color),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = String.format(Locale.US, "%.0f%%", percent),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        Text(
+                            text = category.categoryName,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        Text(
+                            CurrencyFormatter.formatAmount(category.totalAmount),
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                    }
+                }
+            } else {
+                Box(
+                    modifier = Modifier.fillMaxWidth().height(200.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(stringResource(R.string.no_data_available))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CategoryDetailView(
+    state: StatsState,
+    onBack: () -> Unit
+) {
+    val category = state.selectedCategory ?: return
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
+    ) {
+        // Detail Header
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = category.categoryName,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Black
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            Text(
+                text = CurrencyFormatter.formatAmount(category.totalAmount),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+
+        // Category Trend
+        TrendChart(
+            title = stringResource(R.string.spending_trend),
+            trendData = state.categoryTrend,
+            period = state.selectedPeriodType
+        )
+
+        // Transaction Log
+        SectionTitle(stringResource(R.string.transactions), icon = Icons.AutoMirrored.Filled.List)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.large,
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+        ) {
+            Column(
+                modifier = Modifier.padding(8.dp),
+                verticalArrangement = Arrangement.spacedBy(0.dp)
+            ) {
+                if (state.categoryTransactions.isEmpty()) {
+                    Text(
+                        stringResource(R.string.no_data_available),
+                        modifier = Modifier.padding(16.dp),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                } else {
+                    state.categoryTransactions.forEachIndexed { index, transaction ->
+                        TransactionItem(transaction)
+                        if (index < state.categoryTransactions.size - 1) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                thickness = 0.5.dp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun TransactionItem(transaction: Expense) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = transaction.itemName,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = DateFormatterUtils.getStandardFormatter().format(Date(transaction.date)),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (!transaction.merchant.isNullOrBlank()) {
+                Text(
+                    text = transaction.merchant,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+            }
+        }
+        Text(
+            text = CurrencyFormatter.formatAmount(transaction.amount),
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Black,
+            color = if (transaction.type == "INCOME") Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
+@Composable
+fun SectionTitle(title: String, icon: ImageVector? = null) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(bottom = 12.dp, top = 8.dp)
+    ) {
+        if (icon != null) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+        }
+        Text(
+            title.uppercase(),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.secondary,
+            letterSpacing = 1.5.sp
+        )
+    }
+}
+
+@Composable
+fun TrendChart(
+    title: String,
+    trendData: List<DaySpent>,
+    period: StatsPeriodType
+) {
+    SectionTitle(title, icon = Icons.Default.Insights)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(
-                alpha = 0.3f
-            )
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
         )
     ) {
         Box(modifier = Modifier
             .padding(16.dp)
             .fillMaxWidth()
             .height(220.dp)) {
-            if (spending.isEmpty()) {
-                Text("No data for this period", modifier = Modifier.align(Alignment.Center))
+            if (trendData.isEmpty()) {
+                Text(stringResource(R.string.no_data_available), modifier = Modifier.align(Alignment.Center))
             } else {
-                val sortedSpending = remember(spending) { spending.sortedBy { it.day } }
+                val sortedSpending = remember(trendData) { trendData.sortedBy { it.day } }
 
-                val dateFormat = remember(period) {
-                    when (period) {
-                        TrendPeriod.DAILY -> DateFormatterUtils.getDayMonthFormatter()
-                        TrendPeriod.WEEKLY -> DateFormatterUtils.getDayMonthFormatter()
-                        TrendPeriod.MONTHLY -> DateFormatterUtils.getMonthYearFormatter()
-                        TrendPeriod.QUARTERLY -> {
-                            object : java.text.Format() {
-                                override fun format(obj: Any?, toAppendTo: StringBuffer, pos: java.text.FieldPosition): StringBuffer {
-                                    val date = obj as Date
-                                    val cal = CalendarUtils.getInstance().apply { time = date }
-                                    val year = cal.get(Calendar.YEAR) % 100
-                                    val quarter = (cal.get(Calendar.MONTH) / 3) + 1
-                                    toAppendTo.append("Q$quarter '$year")
-                                    return toAppendTo
-                                }
-                                override fun parseObject(source: String?, pos: java.text.ParsePosition?): Any? = null
-                            }
-                        }
-                        TrendPeriod.YEARLY -> DateFormatterUtils.getYearFormatter()
-                    }
-                }
+                val dateFormat = remember { DateFormatterUtils.getMonthYearFormatter() }
 
                 val primaryColor = MaterialTheme.colorScheme.primary
                 val onSurfaceColor = MaterialTheme.colorScheme.onSurface
@@ -297,7 +583,7 @@ fun SpendingTrendChart(
 
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     val maxAmount = sortedSpending.maxOfOrNull { it.amount } ?: 1L
-                    val minAmount = 0L // Start y-axis at 0
+                    val minAmount = 0L
                     val amountRange = (maxAmount - minAmount).coerceAtLeast(1L)
 
                     val textLayoutResults = sortedSpending.map {
@@ -317,29 +603,18 @@ fun SpendingTrendChart(
                     val chartWidth = chartRight - chartLeft
                     val chartHeight = chartBottom - chartTop
 
-                    // Draw horizontal grid lines and y-axis labels
+                    // Grid and Y-axis
                     for (i in 0 until yAxisLabels) {
                         val fraction = i.toFloat() / (yAxisLabels - 1)
                         val y = chartBottom - (fraction * chartHeight)
                         val value = minAmount + (amountRange * fraction).toLong()
 
-                        drawLine(
-                            color = gridColor,
-                            start = Offset(chartLeft, y),
-                            end = Offset(chartRight, y),
-                            strokeWidth = 1f
-                        )
-
-                        val textLayoutResult = textMeasurer.measure(
-                            CurrencyFormatter.formatAmountCompact(value), style = labelStyle
-                        )
-                        drawText(
-                            textLayoutResult = textLayoutResult,
-                            topLeft = Offset(chartLeft - textLayoutResult.size.width - 8f, y - textLayoutResult.size.height / 2f)
-                        )
+                        drawLine(color = gridColor, start = Offset(chartLeft, y), end = Offset(chartRight, y), strokeWidth = 1f)
+                        val textLayoutResult = textMeasurer.measure(CurrencyFormatter.formatAmountCompact(value), style = labelStyle)
+                        drawText(textLayoutResult = textLayoutResult, topLeft = Offset(chartLeft - textLayoutResult.size.width - 8f, y - textLayoutResult.size.height / 2f))
                     }
 
-                    // Points and Path
+                    // Curve
                     if (sortedSpending.size > 1) {
                         val path = Path()
                         val points = mutableListOf<Offset>()
@@ -356,81 +631,30 @@ fun SpendingTrendChart(
                         for (i in 0 until points.size - 1) {
                             val p1 = points[i]
                             val p2 = points[i + 1]
-
-                            // Cubic bezier interpolation for smooth curve
                             val controlPoint1 = Offset(p1.x + (p2.x - p1.x) / 2f, p1.y)
                             val controlPoint2 = Offset(p1.x + (p2.x - p1.x) / 2f, p2.y)
-
-                            path.cubicTo(
-                                controlPoint1.x, controlPoint1.y,
-                                controlPoint2.x, controlPoint2.y,
-                                p2.x, p2.y
-                            )
+                            path.cubicTo(controlPoint1.x, controlPoint1.y, controlPoint2.x, controlPoint2.y, p2.x, p2.y)
                         }
 
-                        // Area fill under the path
                         val fillPath = Path().apply {
                             addPath(path)
                             lineTo(points.last().x, chartBottom)
                             lineTo(points.first().x, chartBottom)
                             close()
                         }
+                        drawPath(path = fillPath, brush = Brush.verticalGradient(colors = listOf(primaryColor.copy(alpha = 0.3f), Color.Transparent), startY = chartTop, endY = chartBottom))
+                        drawPath(path = path, color = primaryColor, style = Stroke(width = 6f))
 
-                        drawPath(
-                            path = fillPath,
-                            brush = Brush.verticalGradient(
-                                colors = listOf(primaryColor.copy(alpha = 0.3f), Color.Transparent),
-                                startY = chartTop,
-                                endY = chartBottom
-                            )
-                        )
-
-                        drawPath(
-                            path = path,
-                            color = primaryColor,
-                            style = Stroke(width = 6f)
-                        )
-
-                        // Draw x-axis labels
-                        val labelsToDraw = Math.min(sortedSpending.size, 5) // Draw max 5 labels to avoid overlapping
+                        // X-axis labels
+                        val labelsToDraw = Math.min(sortedSpending.size, 5)
                         if (labelsToDraw > 0) {
                             val step = Math.max(1, (sortedSpending.size - 1) / (labelsToDraw - 1).coerceAtLeast(1))
                             for (i in sortedSpending.indices step step) {
                                 val x = chartLeft + i * stepX
                                 val textLayoutResult = textLayoutResults[i]
-                                drawText(
-                                    textLayoutResult = textLayoutResult,
-                                    topLeft = Offset(x - textLayoutResult.size.width / 2f, chartBottom + 8f)
-                                )
-                            }
-                            // ensure last item is always drawn if not included in steps
-                            if ((sortedSpending.size - 1) % step != 0) {
-                                val lastIndex = sortedSpending.size - 1
-                                val x = chartLeft + lastIndex * stepX
-                                val textLayoutResult = textLayoutResults[lastIndex]
-                                drawText(
-                                    textLayoutResult = textLayoutResult,
-                                    topLeft = Offset(x - textLayoutResult.size.width, chartBottom + 8f) // align to right
-                                )
+                                drawText(textLayoutResult = textLayoutResult, topLeft = Offset(x - textLayoutResult.size.width / 2f, chartBottom + 8f))
                             }
                         }
-                    } else if (sortedSpending.size == 1) {
-                         // single point
-                         val x = chartLeft + chartWidth / 2f
-                         val fractionY = (sortedSpending.first().amount - minAmount).toFloat() / amountRange
-                         val y = chartBottom - (fractionY * chartHeight)
-
-                         drawCircle(
-                             color = primaryColor,
-                             radius = 6f,
-                             center = Offset(x, y)
-                         )
-
-                         val textLayoutResult = textLayoutResults.first()
-                         drawText(
-                            textLayoutResult = textLayoutResult,
-                            topLeft = Offset(x - textLayoutResult.size.width / 2f, chartBottom + 8f)
-                        )
                     }
                 }
             }
@@ -438,124 +662,9 @@ fun SpendingTrendChart(
     }
 }
 
-@Composable
-fun CategoryBreakdown(
-    categories: List<com.sans.finance.data.local.entity.CategorySpent>
-) {
-    SectionTitle(stringResource(R.string.by_category), icon = Icons.Default.PieChart)
-
-    val totalInCategories = categories.sumOf { it.totalAmount }
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(modifier = Modifier.padding(8.dp)) {
-            if (categories.isNotEmpty() && totalInCategories > 0) {
-                PieChartWithLabels(
-                    categories = categories,
-                    totalAmount = totalInCategories
-                )
-            }
-
-            categories.sortedByDescending { it.totalAmount }.forEachIndexed { index, category ->
-                val percent =
-                    if (totalInCategories > 0) (category.totalAmount.toFloat() / totalInCategories * 100) else 0f
-                val color = pieChartColors[index % pieChartColors.size]
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(color),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = String.format(Locale.US, "%.0f%%", percent),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    Text(
-                        text = category.categoryName,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    Text(
-                        CurrencyFormatter.formatAmount(category.totalAmount),
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun StatsSimpleCard(
-    modifier: Modifier = Modifier,
-    title: String,
-    amount: Long,
-    color: Color
-) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = color),
-        shape = MaterialTheme.shapes.large
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                title,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                CurrencyFormatter.formatAmount(amount),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.ExtraBold
-            )
-        }
-    }
-}
-
-@Composable
-fun SectionTitle(title: String, icon: ImageVector? = null) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.padding(bottom = 12.dp)
-    ) {
-        if (icon != null) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-        }
-        Text(
-            title.uppercase(),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.secondary,
-            letterSpacing = 1.5.sp
-        )
-    }
-}
 @Composable
 fun PieChartWithLabels(
-    categories: List<com.sans.finance.data.local.entity.CategorySpent>,
+    categories: List<CategorySpent>,
     totalAmount: Long
 ) {
     if (categories.isEmpty() || totalAmount == 0L) return
@@ -577,7 +686,7 @@ fun PieChartWithLabels(
 
             var startAngle = -90f
 
-            categories.sortedByDescending { it.totalAmount }.forEachIndexed { index, category ->
+            categories.sortedByDescending { it.totalAmount }.take(12).forEachIndexed { index, category ->
                 val sweepAngle = (category.totalAmount.toFloat() / totalAmount) * 360f
                 val color = pieChartColors[index % pieChartColors.size]
 
@@ -591,68 +700,121 @@ fun PieChartWithLabels(
                     size = androidx.compose.ui.geometry.Size(radius * 2, radius * 2)
                 )
 
-                // Calculate label position
-                val angleInRadians = (startAngle + sweepAngle / 2) * (Math.PI / 180f)
-                val lineStart = Offset(
-                    x = center.x + (radius * 0.9f) * cos(angleInRadians).toFloat(),
-                    y = center.y + (radius * 0.9f) * sin(angleInRadians).toFloat()
-                )
-                val lineEnd = Offset(
-                    x = center.x + (radius * 1.2f) * cos(angleInRadians).toFloat(),
-                    y = center.y + (radius * 1.2f) * sin(angleInRadians).toFloat()
-                )
-                val isRightSide = cos(angleInRadians) > 0
-                val textEnd = Offset(
-                    x = lineEnd.x + (if (isRightSide) 20f else -20f),
-                    y = lineEnd.y
-                )
+                // Only draw labels for slices > 3% to avoid clutter
+                if (sweepAngle > 10f) {
+                    // Calculate label position
+                    val angleInRadians = (startAngle + sweepAngle / 2) * (Math.PI / 180f)
+                    val lineStart = Offset(
+                        x = center.x + (radius * 0.9f) * cos(angleInRadians).toFloat(),
+                        y = center.y + (radius * 0.9f) * sin(angleInRadians).toFloat()
+                    )
+                    val lineEnd = Offset(
+                        x = center.x + (radius * 1.2f) * cos(angleInRadians).toFloat(),
+                        y = center.y + (radius * 1.2f) * sin(angleInRadians).toFloat()
+                    )
+                    val isRightSide = cos(angleInRadians) > 0
+                    val textEnd = Offset(
+                        x = lineEnd.x + (if (isRightSide) 20f else -20f),
+                        y = lineEnd.y
+                    )
 
-                // Draw connecting line
-                val path = Path().apply {
-                    moveTo(lineStart.x, lineStart.y)
-                    lineTo(lineEnd.x, lineEnd.y)
-                    lineTo(textEnd.x, textEnd.y)
+                    // Draw connecting line
+                    val path = Path().apply {
+                        moveTo(lineStart.x, lineStart.y)
+                        lineTo(lineEnd.x, lineEnd.y)
+                        lineTo(textEnd.x, textEnd.y)
+                    }
+                    drawPath(
+                        path = path,
+                        color = color,
+                        style = Stroke(width = 2f)
+                    )
+
+                    // Draw text
+                    val percentage = (category.totalAmount.toFloat() / totalAmount) * 100
+                    val percentageText = String.format(Locale.US, "%.1f %%", percentage)
+
+                    val nameLayoutResult = textMeasurer.measure(
+                        text = category.categoryName,
+                        style = TextStyle(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = onSurfaceColor
+                        )
+                    )
+                    val percentLayoutResult = textMeasurer.measure(
+                        text = percentageText,
+                        style = TextStyle(
+                            fontSize = 12.sp,
+                            color = onSurfaceColor
+                        )
+                    )
+
+                    val textX = if (isRightSide) textEnd.x + 4f else textEnd.x - Math.max(nameLayoutResult.size.width, percentLayoutResult.size.width) - 4f
+                    val textY = textEnd.y - nameLayoutResult.size.height
+
+                    drawText(
+                        textLayoutResult = nameLayoutResult,
+                        topLeft = Offset(textX, textY)
+                    )
+                    drawText(
+                        textLayoutResult = percentLayoutResult,
+                        topLeft = Offset(textX, textY + nameLayoutResult.size.height)
+                    )
                 }
-                drawPath(
-                    path = path,
-                    color = color,
-                    style = Stroke(width = 2f)
-                )
-
-                // Draw text
-                val percentage = (category.totalAmount.toFloat() / totalAmount) * 100
-                val percentageText = String.format(Locale.US, "%.1f %%", percentage)
-
-                val nameLayoutResult = textMeasurer.measure(
-                    text = category.categoryName,
-                    style = TextStyle(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp,
-                        color = onSurfaceColor
-                    )
-                )
-                val percentLayoutResult = textMeasurer.measure(
-                    text = percentageText,
-                    style = TextStyle(
-                        fontSize = 12.sp,
-                        color = onSurfaceColor
-                    )
-                )
-
-                val textX = if (isRightSide) textEnd.x + 4f else textEnd.x - Math.max(nameLayoutResult.size.width, percentLayoutResult.size.width) - 4f
-                val textY = textEnd.y - nameLayoutResult.size.height
-
-                drawText(
-                    textLayoutResult = nameLayoutResult,
-                    topLeft = Offset(textX, textY)
-                )
-                drawText(
-                    textLayoutResult = percentLayoutResult,
-                    topLeft = Offset(textX, textY + nameLayoutResult.size.height)
-                )
 
                 startAngle += sweepAngle
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CustomDateRangePickerDialog(
+    onDismiss: () -> Unit,
+    onRangeSelected: (Long, Long) -> Unit
+) {
+    val dateRangePickerState = rememberDateRangePickerState()
+    
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 32.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.cancel))
+                }
+                TextButton(
+                    onClick = {
+                        val start = dateRangePickerState.selectedStartDateMillis
+                        val end = dateRangePickerState.selectedEndDateMillis
+                        if (start != null && end != null) {
+                            onRangeSelected(start, end)
+                        }
+                    },
+                    enabled = dateRangePickerState.selectedStartDateMillis != null && dateRangePickerState.selectedEndDateMillis != null
+                ) {
+                    Text(stringResource(R.string.ok))
+                }
+            }
+            
+            DateRangePicker(
+                state = dateRangePickerState,
+                modifier = Modifier.weight(1f),
+                title = { Text(stringResource(R.string.select_date_range), modifier = Modifier.padding(16.dp)) }
+            )
         }
     }
 }
