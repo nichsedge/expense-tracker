@@ -187,10 +187,11 @@ fun ExpenseListScreen(
             )
 
             Text(
-                stringResource(R.string.recent_transactions),
-                style = MaterialTheme.typography.titleMedium,
+                stringResource(R.string.recent_transactions).uppercase(),
+                style = MaterialTheme.typography.labelLarge,
                 modifier = Modifier.padding(horizontal = 16.dp),
-                fontWeight = FontWeight.Bold
+                color = MaterialTheme.colorScheme.secondary,
+                letterSpacing = 1.5.sp
             )
 
             DateRangeFilterBar(
@@ -214,11 +215,11 @@ fun ExpenseListScreen(
                             color = Color.Transparent
                         ) {
                             Text(
-                                date,
+                                date.uppercase(),
                                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.secondary,
+                                letterSpacing = 1.5.sp
                             )
                         }
                     }
@@ -544,32 +545,41 @@ fun SummaryCard(periodTotal: Long, budget: Long = 0L) {
             .fillMaxWidth()
             .padding(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         shape = MaterialTheme.shapes.large,
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            androidx.compose.ui.graphics.Brush.linearGradient(
+                listOf(
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                    MaterialTheme.colorScheme.tertiary.copy(alpha = 0.4f)
+                )
+            )
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier.padding(24.dp)
         ) {
             Text(
-                stringResource(R.string.total_filtered),
+                stringResource(R.string.total_filtered).uppercase(),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold
+                color = MaterialTheme.colorScheme.secondary,
+                letterSpacing = 1.5.sp
             )
             Text(
                 com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(periodTotal),
                 style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Black),
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                color = MaterialTheme.colorScheme.primary
             )
 
             if (budget > 0L) {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(24.dp))
                 val progress = (periodTotal.toFloat() / budget.toFloat()).coerceIn(0f, 1f)
                 val isOverBudget = periodTotal > budget
                 val progressColor =
-                    if (isOverBudget) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                    if (isOverBudget) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary
 
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Row(
@@ -577,15 +587,16 @@ fun SummaryCard(periodTotal: Long, budget: Long = 0L) {
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            "Monthly Budget Progress",
+                            "Monthly Budget Progress".uppercase(),
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                            color = MaterialTheme.colorScheme.secondary,
+                            letterSpacing = 1.2.sp
                         )
                         Text(
                             "${(progress * 100).toInt()}%",
                             style = MaterialTheme.typography.labelSmall,
                             color = progressColor,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Black
                         )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
@@ -595,10 +606,10 @@ fun SummaryCard(periodTotal: Long, budget: Long = 0L) {
                             .fillMaxWidth()
                             .height(8.dp),
                         color = progressColor,
-                        trackColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f),
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
                         strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         "${
                             com.sans.expensetracker.core.util.CurrencyFormatter.formatAmount(
@@ -610,7 +621,7 @@ fun SummaryCard(periodTotal: Long, budget: Long = 0L) {
                             )
                         }",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                        color = MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.align(Alignment.End)
                     )
                 }

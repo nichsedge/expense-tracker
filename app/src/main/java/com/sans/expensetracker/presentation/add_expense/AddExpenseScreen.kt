@@ -202,9 +202,10 @@ fun AddExpenseScreen(
             }
 
             Text(
-                stringResource(R.string.category),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                stringResource(R.string.category).uppercase(),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.secondary,
+                letterSpacing = 1.5.sp
             )
 
             LazyRow(
@@ -226,7 +227,7 @@ fun AddExpenseScreen(
                 }
             }
 
-            Text("Tags", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("Tags".uppercase(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary, letterSpacing = 1.5.sp)
 
             val allTags by viewModel.allTags.collectAsState()
 
@@ -359,17 +360,24 @@ fun AddExpenseScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
+            val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
             Button(
-                onClick = { viewModel.onSaveClick(onBack) },
+                onClick = { 
+                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                    viewModel.onSaveClick(onBack) 
+                },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
-                shape = MaterialTheme.shapes.small
+                    .height(58.dp),
+                shape = MaterialTheme.shapes.medium
             ) {
                 Text(
-                    if (viewModel.isEditMode) stringResource(R.string.update_transaction) else stringResource(
+                    text = (if (viewModel.isEditMode) stringResource(R.string.update_transaction) else stringResource(
                         R.string.confirm_transaction
-                    ), fontWeight = FontWeight.Bold, fontSize = 16.sp
+                    )).uppercase(), 
+                    fontWeight = FontWeight.Black, 
+                    fontSize = 16.sp,
+                    letterSpacing = 1.sp
                 )
             }
         }

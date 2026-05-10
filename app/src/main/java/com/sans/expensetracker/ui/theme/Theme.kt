@@ -12,10 +12,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Indigo500,
-    onPrimary = Color.White,
-    secondary = Emerald500,
-    tertiary = Rose500,
+    primary = Slate50, // Slate focus
+    onPrimary = Slate900,
+    secondary = Slate500,
+    tertiary = Emerald500,
     error = Rose500,
     background = Slate900,
     surface = Slate800,
@@ -26,10 +26,10 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Indigo600,
+    primary = Slate900, // Slate focus
     onPrimary = Color.White,
-    secondary = Emerald500,
-    tertiary = Rose500,
+    secondary = Slate500,
+    tertiary = Emerald500,
     error = Rose500,
     background = Slate50,
     surface = Color.White,
@@ -42,8 +42,7 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun ExpenseTrackerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = false, // Disabled by default to strictly follow Atracker brand colors
+    dynamicColor: Boolean = false, // Strictly follow Slate-based Atracker brand
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
