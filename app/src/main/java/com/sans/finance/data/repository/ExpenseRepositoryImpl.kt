@@ -77,7 +77,7 @@ class ExpenseRepositoryImpl(
             val expenses = expenseEntities.map { it.toDomain() }
             val installmentPayments = installmentRows.map { it.toDomain() }
                 .filter { payment ->
-                    val matchesQuery = searchQuery == null || payment.itemName.contains(searchQuery, ignoreCase = true)
+                    val matchesQuery = searchQuery == null || payment.note.contains(searchQuery, ignoreCase = true)
                     val matchesCategory = categoryIds.isEmpty() || categoryIds.contains(payment.categoryId)
                     val matchesMinAmount = minAmount == null || payment.amount >= minAmount
                     val matchesMaxAmount = maxAmount == null || payment.amount <= maxAmount
@@ -102,11 +102,11 @@ class ExpenseRepositoryImpl(
                 Expense(
                     id = id,
                     date = item.dueDate,
-                    itemName = (parentExpense?.expense?.itemName ?: "Installment") + " (Installment ${item.monthNumber})",
+                    note = (parentExpense?.expense?.note ?: "Installment") + " (Installment ${item.monthNumber})",
                     amount = item.amount,
                     categoryId = parentExpense?.expense?.categoryId ?: 1L,
                     isInstallmentPayment = true,
-                    merchant = parentExpense?.expense?.merchant,
+                    description = parentExpense?.expense?.description,
                     tags = parentExpense?.tags?.map { it.name } ?: emptyList()
                 )
             }
@@ -115,12 +115,12 @@ class ExpenseRepositoryImpl(
         }
     }
 
-    override suspend fun getItemNameSuggestions(query: String): List<String> {
-        return dao.getItemNameSuggestions(query)
+    override suspend fun getNoteSuggestions(query: String): List<String> {
+        return dao.getNoteSuggestions(query)
     }
 
-    override suspend fun getMerchantSuggestions(query: String): List<String> {
-        return dao.getMerchantSuggestions(query)
+    override suspend fun getDescriptionSuggestions(query: String): List<String> {
+        return dao.getDescriptionSuggestions(query)
     }
 
     override suspend fun insertExpense(expense: Expense): Long {
@@ -287,7 +287,7 @@ class ExpenseRepositoryImpl(
         return Expense(
             id = expense.id,
             date = expense.date,
-            itemName = expense.itemName,
+            note = expense.note,
             amount = expense.finalPrice,
             categoryId = expense.categoryId,
             isRecurring = expense.isRecurring,
@@ -296,7 +296,7 @@ class ExpenseRepositoryImpl(
             nextDueDate = expense.nextDueDate,
             accountId = expense.accountId,
             type = expense.type,
-            merchant = expense.merchant,
+            description = expense.description,
             tags = tags.map { it.name },
             quantity = expense.quantity,
             totalPaid = totalPaid,
@@ -309,7 +309,7 @@ class ExpenseRepositoryImpl(
         return com.sans.finance.data.local.entity.ExpenseEntity(
             id = id,
             date = date,
-            itemName = itemName,
+            note = note,
             finalPrice = amount,
             originalPrice = amount,
             categoryId = categoryId,
@@ -319,7 +319,7 @@ class ExpenseRepositoryImpl(
             nextDueDate = nextDueDate,
             accountId = accountId,
             type = type,
-            merchant = merchant,
+            description = description,
             platform = tags.firstOrNull(), // Keep for legacy if needed, or null
             quantity = quantity,
             status = "completed"
@@ -330,11 +330,11 @@ class ExpenseRepositoryImpl(
         return Expense(
             id = id + INSTALLMENT_PAYMENT_ID_OFFSET,
             date = date,
-            itemName = itemName,
+            note = note,
             amount = amount,
             categoryId = categoryId,
             isInstallmentPayment = true,
-            merchant = merchant,
+            description = description,
             tags = tagsList?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList()
         )
     }

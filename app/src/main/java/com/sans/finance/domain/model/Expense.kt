@@ -3,7 +3,7 @@ package com.sans.finance.domain.model
 data class Expense(
     val id: Long = 0,
     val date: Long,
-    val itemName: String,
+    val note: String,
     val amount: Long,
     val categoryId: Long,
     val isRecurring: Boolean = false,
@@ -11,7 +11,7 @@ data class Expense(
     val recurrenceInterval: String? = null,
     val nextDueDate: Long? = null,
     val isInstallmentPayment: Boolean = false,
-    val merchant: String? = null,
+    val description: String? = null,
     val accountId: Long = 1,
     val type: String = "EXPENSE",
     val tags: List<String> = emptyList(),

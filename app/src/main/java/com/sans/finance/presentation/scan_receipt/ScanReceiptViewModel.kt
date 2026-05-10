@@ -226,10 +226,10 @@ class ScanReceiptViewModel @Inject constructor(
                         expenseRepository.insertExpense(
                             Expense(
                                 date = txDate,
-                                itemName = tx.title,
+                                note = tx.title,
                                 amount = tx.amount,
                                 categoryId = catId,
-                                merchant = null,
+                                description = null,
                                 tags = listOf("Scanned Receipt")
                             )
                         )

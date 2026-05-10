@@ -119,7 +119,7 @@ class InstallmentRepositoryImpl(
 
     private fun com.sans.finance.data.local.entity.InstallmentWithExpense.toDomainModel(): Installment {
         return installment.toDomainModel().copy(
-            expenseName = expense.itemName,
+            expenseName = expense.note,
             expenseDate = expense.date
         )
     }

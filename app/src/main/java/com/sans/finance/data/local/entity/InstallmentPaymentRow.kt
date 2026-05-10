@@ -5,10 +5,10 @@ import androidx.room.ColumnInfo
 data class InstallmentPaymentRow(
     val id: Long,
     val date: Long,
-    @ColumnInfo(name = "item_name") val itemName: String,
+    @ColumnInfo(name = "note") val note: String,
     val amount: Long,
     @ColumnInfo(name = "category_id") val categoryId: Long,
-    val merchant: String?,
+    @ColumnInfo(name = "description") val description: String?,
     @ColumnInfo(name = "expense_id") val expenseId: Long,
     @ColumnInfo(name = "tags_list") val tagsList: String? = null
 )

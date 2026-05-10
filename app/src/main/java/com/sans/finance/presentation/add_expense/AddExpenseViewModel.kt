@@ -71,8 +71,8 @@ class AddExpenseViewModel @Inject constructor(
     )
 
     var amount by mutableStateOf("")
-    var itemName by mutableStateOf("")
-    var merchant by mutableStateOf("")
+    var note by mutableStateOf("")
+    var description by mutableStateOf("")
     var categoryId by mutableLongStateOf(1L)
     var accountId by mutableLongStateOf(1L)
     // transactionType moved up
@@ -83,9 +83,9 @@ class AddExpenseViewModel @Inject constructor(
     var selectedDate by mutableLongStateOf(System.currentTimeMillis())
     var selectedTags by mutableStateOf(listOf<String>())
 
-    var itemNameSuggestions by mutableStateOf(emptyList<String>())
+    var noteSuggestions by mutableStateOf(emptyList<String>())
         private set
-    var merchantSuggestions by mutableStateOf(emptyList<String>())
+    var descriptionSuggestions by mutableStateOf(emptyList<String>())
         private set
 
     var newTagText by mutableStateOf("")
@@ -107,8 +107,8 @@ class AddExpenseViewModel @Inject constructor(
             viewModelScope.launch {
                 getExpenseByIdUseCase(id)?.let { expense ->
                     amount = kotlin.math.ceil(expense.amount / 100.0).toLong().toString()
-                    itemName = expense.itemName
-                    merchant = expense.merchant ?: ""
+                    note = expense.note
+                    description = expense.description ?: ""
                     categoryId = expense.categoryId
                     accountId = expense.accountId
                     transactionType = expense.type
@@ -127,26 +127,26 @@ class AddExpenseViewModel @Inject constructor(
             }
         }
 
-        snapshotFlow { itemName }
+        snapshotFlow { note }
             .debounce(300)
             .distinctUntilChanged()
             .onEach { query ->
                 if (query.length >= 2) {
-                    itemNameSuggestions = getItemNameSuggestionsUseCase(query)
+                    noteSuggestions = getItemNameSuggestionsUseCase(query)
                 } else {
-                    itemNameSuggestions = emptyList()
+                    noteSuggestions = emptyList()
                 }
             }
             .launchIn(viewModelScope)
 
-        snapshotFlow { merchant }
+        snapshotFlow { description }
             .debounce(300)
             .distinctUntilChanged()
             .onEach { query ->
                 if (query.length >= 2) {
-                    merchantSuggestions = getMerchantSuggestionsUseCase(query)
+                    descriptionSuggestions = getMerchantSuggestionsUseCase(query)
                 } else {
-                    merchantSuggestions = emptyList()
+                    descriptionSuggestions = emptyList()
                 }
             }
             .launchIn(viewModelScope)
@@ -198,7 +198,7 @@ class AddExpenseViewModel @Inject constructor(
             val expense = Expense(
                 id = editExpenseId ?: 0,
                 date = selectedDate,
-                itemName = itemName.ifBlank { "Uncategorized Item" },
+                note = note.ifBlank { "Uncategorized Item" },
                 amount = amountInCents,
                 categoryId = categoryId,
                 accountId = accountId,
@@ -207,7 +207,7 @@ class AddExpenseViewModel @Inject constructor(
                 isRecurring = isRecurring,
                 recurrenceInterval = if (isRecurring) recurrenceInterval else null,
                 nextDueDate = nextDueDateVal,
-                merchant = merchant.ifBlank { null },
+                description = description.ifBlank { null },
                 tags = selectedTags,
                 quantity = 1
             )

@@ -77,24 +77,24 @@ object CsvParser {
             } ?: System.currentTimeMillis()
 
             val platform = row.getOrNull(1)?.ifEmpty { null }
-            val merchant = row.getOrNull(2)?.ifEmpty { null }
-            val itemName = row.getOrNull(3)
-            if (itemName.isNullOrEmpty()) return null
+            val description = row.getOrNull(2)?.ifEmpty { null }
+            val note = row.getOrNull(3)
+            if (note.isNullOrEmpty()) return null
 
             val qty = row.getOrNull(4)?.toIntOrNull() ?: 1
 
             val originalPrice = parsePriceToCents(row.getOrNull(5) ?: "")
             val finalPrice = parsePriceToCents(row.getOrNull(6) ?: "")
-            val status = row.getOrNull(7)?.ifEmpty { "Completed" } ?: "Completed"
+            val status = row.getOrNull(7) ?: "completed"
             val isInstallment = row.getOrNull(8) == "1"
 
-            val categoryId = getCategoryIdForPrompt(itemName, merchant)
+            val categoryId = getCategoryIdForPrompt(note, description)
 
             ExpenseEntity(
                 date = date,
                 platform = platform,
-                merchant = merchant,
-                itemName = itemName,
+                description = description,
+                note = note,
                 quantity = qty,
                 originalPrice = originalPrice,
                 finalPrice = finalPrice,
@@ -120,8 +120,8 @@ object CsvParser {
         return clean.toLongOrNull()?.let { it * 100 } ?: 0L
     }
 
-    private fun getCategoryIdForPrompt(itemName: String, merchant: String?): Long {
-        val text = (itemName + " " + (merchant ?: "")).lowercase()
+    private fun getCategoryIdForPrompt(note: String, description: String?): Long {
+        val text = (note + " " + (description ?: "")).lowercase()
         return when {
             // Health & Personal Care (Category 2)
             containsAny(

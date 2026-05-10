@@ -663,20 +663,20 @@ fun ExpenseItem(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    expense.itemName,
+                    expense.note,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     color = if (expense.isInstallmentPayment) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurface
                 )
-                val merchantDisplay = when {
-                    !expense.merchant.isNullOrBlank() -> "${expense.merchant} • "
+                val descriptionDisplay = when {
+                    !expense.description.isNullOrBlank() -> "${expense.description} • "
                     expense.tags.isNotEmpty() -> "${expense.tags.joinToString(", ")} • "
                     else -> ""
                 }
 
                 Text(
-                    "$merchantDisplay${category?.name ?: stringResource(R.string.uncategorized)}",
+                    "$descriptionDisplay${category?.name ?: stringResource(R.string.uncategorized)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

@@ -33,7 +33,7 @@ interface ExpenseDao {
         SELECT DISTINCT e.* FROM expenses e
         LEFT JOIN expense_tag_ref etr ON e.id = etr.expenseId
         LEFT JOIN tags t ON etr.tagId = t.id
-        WHERE (:query IS NULL OR e.item_name LIKE '%' || :query || '%' OR e.merchant LIKE '%' || :query || '%')
+        WHERE (:query IS NULL OR e.note LIKE '%' || :query || '%' OR e.description LIKE '%' || :query || '%')
         AND (:categoryCount = 0 OR e.category_id IN (:categoryIds))
         AND (e.date >= :since AND e.date < :until)
         AND e.is_installment = 0
@@ -80,11 +80,11 @@ interface ExpenseDao {
     @Query("SELECT COUNT(*) FROM expenses")
     suspend fun getExpenseCount(): Int
 
-    @Query("SELECT DISTINCT item_name FROM expenses WHERE item_name LIKE '%' || :query || '%' ORDER BY item_name ASC LIMIT 5")
-    suspend fun getItemNameSuggestions(query: String): List<String>
+    @Query("SELECT DISTINCT note FROM expenses WHERE note LIKE '%' || :query || '%' ORDER BY note ASC LIMIT 5")
+    suspend fun getNoteSuggestions(query: String): List<String>
 
-    @Query("SELECT DISTINCT merchant FROM expenses WHERE merchant LIKE '%' || :query || '%' AND merchant IS NOT NULL AND merchant != '' ORDER BY merchant ASC LIMIT 5")
-    suspend fun getMerchantSuggestions(query: String): List<String>
+    @Query("SELECT DISTINCT description FROM expenses WHERE description LIKE '%' || :query || '%' AND description IS NOT NULL AND description != '' ORDER BY description ASC LIMIT 5")
+    suspend fun getDescriptionSuggestions(query: String): List<String>
 
     @Query("SELECT SUM(final_price) FROM expenses WHERE date >= :since AND is_installment = 0")
     fun getTotalSpentSince(since: Long): Flow<Long?>

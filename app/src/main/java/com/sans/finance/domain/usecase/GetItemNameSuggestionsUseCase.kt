@@ -7,6 +7,6 @@ class GetItemNameSuggestionsUseCase @Inject constructor(
     private val repository: ExpenseRepository
 ) {
     suspend operator fun invoke(query: String): List<String> {
-        return repository.getItemNameSuggestions(query)
+        return repository.getNoteSuggestions(query)
     }
 }

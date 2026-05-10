@@ -444,7 +444,7 @@ fun DashboardBillItem(bill: com.sans.finance.domain.model.Expense) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
-                Text(bill.itemName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                Text(bill.note, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
                 Text("Recurring Payment", style = MaterialTheme.typography.labelSmall)
             }
             Text(

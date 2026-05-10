@@ -499,7 +499,7 @@ fun TransactionItem(transaction: Expense) {
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = transaction.itemName,
+                text = transaction.note,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold
             )
@@ -508,9 +508,9 @@ fun TransactionItem(transaction: Expense) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            if (!transaction.merchant.isNullOrBlank()) {
+            if (!transaction.description.isNullOrBlank()) {
                 Text(
-                    text = transaction.merchant,
+                    text = transaction.description,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.secondary
                 )

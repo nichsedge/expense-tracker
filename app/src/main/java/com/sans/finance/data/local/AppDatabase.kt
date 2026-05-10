@@ -33,7 +33,7 @@ import kotlinx.coroutines.launch
         GoalEntity::class,
         BudgetEntity::class
     ],
-    version = 12,
+    version = 13,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -203,6 +203,13 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE expenses ADD COLUMN recurrence_interval TEXT")
                 db.execSQL("ALTER TABLE expenses ADD COLUMN next_due_date INTEGER")
+            }
+        }
+
+        val MIGRATION_12_13 = object : androidx.room.migration.Migration(12, 13) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE expenses RENAME COLUMN item_name TO note")
+                db.execSQL("ALTER TABLE expenses RENAME COLUMN merchant TO description")
             }
         }
     }

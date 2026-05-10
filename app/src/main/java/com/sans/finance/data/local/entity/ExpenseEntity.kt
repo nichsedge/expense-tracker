@@ -9,8 +9,8 @@ data class ExpenseEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val date: Long, // timestamp
     val platform: String?,
-    val merchant: String?,
-    @ColumnInfo(name = "item_name") val itemName: String,
+    @ColumnInfo(name = "description") val description: String?,
+    @ColumnInfo(name = "note") val note: String,
     val quantity: Int,
     @ColumnInfo(name = "original_price") val originalPrice: Long,
     @ColumnInfo(name = "final_price") val finalPrice: Long,

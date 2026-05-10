@@ -6,8 +6,8 @@
     <string name="add_expense">Catat Pengeluaran</string>
     <string name="amount_spent">Jumlah Pengeluaran</string>
     <string name="category">Kategori</string>
-    <string name="what_did_you_buy">Beli apa?</string>
-    <string name="merchant_store">Toko / Tempat (Opsional)</string>
+    <string name="what_did_you_buy">Catatan</string>
+    <string name="merchant_store">Deskripsi (Opsional)</string>
 
     <string name="is_installment">Ini adalah Cicilan</string>
     <string name="duration_months">Durasi (Bulan)</string>

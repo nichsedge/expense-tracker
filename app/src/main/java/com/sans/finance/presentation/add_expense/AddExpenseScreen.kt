@@ -75,8 +75,8 @@ fun AddExpenseScreen(
     var showDatePicker by remember { androidx.compose.runtime.mutableStateOf(false) }
     val dateFormatter = DateFormatterUtils.getStandardFormatter()
     val focusManager = LocalFocusManager.current
-    var itemNameExpanded by remember { androidx.compose.runtime.mutableStateOf(false) }
-    var merchantExpanded by remember { androidx.compose.runtime.mutableStateOf(false) }
+    var noteExpanded by remember { androidx.compose.runtime.mutableStateOf(false) }
+    var descriptionExpanded by remember { androidx.compose.runtime.mutableStateOf(false) }
     var typeExpanded by remember { androidx.compose.runtime.mutableStateOf(false) }
     var accountExpanded by remember { androidx.compose.runtime.mutableStateOf(false) }
     var recurrenceExpanded by remember { androidx.compose.runtime.mutableStateOf(false) }
@@ -233,14 +233,14 @@ fun AddExpenseScreen(
 
             @OptIn(ExperimentalMaterial3Api::class)
             ExposedDropdownMenuBox(
-                expanded = itemNameExpanded && viewModel.itemNameSuggestions.isNotEmpty(),
-                onExpandedChange = { itemNameExpanded = !itemNameExpanded }
+                expanded = noteExpanded && viewModel.noteSuggestions.isNotEmpty(),
+                onExpandedChange = { noteExpanded = !noteExpanded }
             ) {
                 OutlinedTextField(
-                    value = viewModel.itemName,
+                    value = viewModel.note,
                     onValueChange = {
-                        viewModel.itemName = it
-                        itemNameExpanded = true
+                        viewModel.note = it
+                        noteExpanded = true
                     },
                     label = { Text(stringResource(R.string.what_did_you_buy)) },
                     modifier = Modifier
@@ -257,15 +257,15 @@ fun AddExpenseScreen(
                 )
 
                 ExposedDropdownMenu(
-                    expanded = itemNameExpanded && viewModel.itemNameSuggestions.isNotEmpty(),
-                    onDismissRequest = { itemNameExpanded = false }
+                    expanded = noteExpanded && viewModel.noteSuggestions.isNotEmpty(),
+                    onDismissRequest = { noteExpanded = false }
                 ) {
-                    viewModel.itemNameSuggestions.forEach { suggestion ->
+                    viewModel.noteSuggestions.forEach { suggestion ->
                         DropdownMenuItem(
                             text = { Text(suggestion) },
                             onClick = {
-                                viewModel.itemName = suggestion
-                                itemNameExpanded = false
+                                viewModel.note = suggestion
+                                noteExpanded = false
                             }
                         )
                     }
@@ -344,14 +344,14 @@ fun AddExpenseScreen(
 
             @OptIn(ExperimentalMaterial3Api::class)
             ExposedDropdownMenuBox(
-                expanded = merchantExpanded && viewModel.merchantSuggestions.isNotEmpty(),
-                onExpandedChange = { merchantExpanded = !merchantExpanded }
+                expanded = descriptionExpanded && viewModel.descriptionSuggestions.isNotEmpty(),
+                onExpandedChange = { descriptionExpanded = !descriptionExpanded }
             ) {
                 OutlinedTextField(
-                    value = viewModel.merchant,
+                    value = viewModel.description,
                     onValueChange = {
-                        viewModel.merchant = it
-                        merchantExpanded = true
+                        viewModel.description = it
+                        descriptionExpanded = true
                     },
                     label = { Text(stringResource(R.string.merchant_store)) },
                     modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable),
@@ -370,15 +370,15 @@ fun AddExpenseScreen(
                 )
 
                 ExposedDropdownMenu(
-                    expanded = merchantExpanded && viewModel.merchantSuggestions.isNotEmpty(),
-                    onDismissRequest = { merchantExpanded = false }
+                    expanded = descriptionExpanded && viewModel.descriptionSuggestions.isNotEmpty(),
+                    onDismissRequest = { descriptionExpanded = false }
                 ) {
-                    viewModel.merchantSuggestions.forEach { suggestion ->
+                    viewModel.descriptionSuggestions.forEach { suggestion ->
                         DropdownMenuItem(
                             text = { Text(suggestion) },
                             onClick = {
-                                viewModel.merchant = suggestion
-                                merchantExpanded = false
+                                viewModel.description = suggestion
+                                descriptionExpanded = false
                             }
                         )
                     }

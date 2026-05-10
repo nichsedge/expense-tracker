@@ -6,8 +6,8 @@
     <string name="add_expense">Record Expense</string>
     <string name="amount_spent">Amount Spent</string>
     <string name="category">Category</string>
-    <string name="what_did_you_buy">What did you buy?</string>
-    <string name="merchant_store">Merchant / Store (Optional)</string>
+    <string name="what_did_you_buy">Note</string>
+    <string name="merchant_store">Description (Optional)</string>
 
     <string name="is_installment">This is an Installment Plan</string>
     <string name="duration_months">Duration (Months)</string>
