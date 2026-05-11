@@ -1,6 +1,6 @@
 @file:Suppress("unused")
 
-package com.sans.finance.presentation.add_expense
+package com.sans.finance.presentation.add_transaction
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -12,7 +12,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.sans.finance.domain.model.Expense
-import com.sans.finance.domain.usecase.AddExpenseUseCase
+import com.sans.finance.domain.usecase.AddTransactionUseCase
 import com.sans.finance.domain.usecase.GetExpenseByIdUseCase
 import com.sans.finance.domain.usecase.GetItemNameSuggestionsUseCase
 import com.sans.finance.domain.usecase.GetMerchantSuggestionsUseCase
@@ -32,8 +32,8 @@ import javax.inject.Inject
 
 @OptIn(FlowPreview::class)
 @HiltViewModel
-class AddExpenseViewModel @Inject constructor(
-    private val addExpenseUseCase: AddExpenseUseCase,
+class AddTransactionViewModel @Inject constructor(
+    private val addTransactionUseCase: AddTransactionUseCase,
     private val updateExpenseUseCase: UpdateExpenseUseCase,
     private val getExpenseByIdUseCase: GetExpenseByIdUseCase,
     private val getCategoriesUseCase: com.sans.finance.domain.usecase.GetCategoriesUseCase,
@@ -43,6 +43,7 @@ class AddExpenseViewModel @Inject constructor(
     private val installmentRepository: com.sans.finance.domain.repository.InstallmentRepository,
     private val expenseRepository: com.sans.finance.domain.repository.ExpenseRepository,
     private val accountRepository: com.sans.finance.domain.repository.AccountRepository,
+    private val localeManager: com.sans.finance.data.util.LocaleManager,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -85,6 +86,8 @@ class AddExpenseViewModel @Inject constructor(
     var durationMonths by mutableStateOf("")
     var selectedDate by mutableLongStateOf(System.currentTimeMillis())
     var selectedTags by mutableStateOf(listOf<String>())
+    var currency by mutableStateOf(localeManager.getCurrency())
+    val enabledCurrencies = localeManager.getEnabledCurrencies()
 
     var noteSuggestions by mutableStateOf(emptyList<String>())
         private set
@@ -123,6 +126,7 @@ class AddExpenseViewModel @Inject constructor(
                     recurrenceInterval = expense.recurrenceInterval ?: "MONTHLY"
                     selectedDate = expense.date
                     selectedTags = expense.tags
+                    currency = expense.currency
 
                     if (expense.isInstallment) {
                         installmentRepository.getInstallmentByExpenseId(id)?.let { installment ->
@@ -216,11 +220,12 @@ class AddExpenseViewModel @Inject constructor(
                 nextDueDate = nextDueDateVal,
                 description = description.ifBlank { null },
                 tags = selectedTags,
-                quantity = 1
+                quantity = 1,
+                currency = currency
             )
 
             if (editExpenseId == null) {
-                val expenseId = addExpenseUseCase(expense)
+                val expenseId = addTransactionUseCase(expense)
                 if (isInstallment && durationMonths.isNotBlank()) {
                     val duration = durationMonths.toIntOrNull() ?: 0
                     createInstallmentPlanUseCase(expenseId, amountInCents, duration, selectedDate)

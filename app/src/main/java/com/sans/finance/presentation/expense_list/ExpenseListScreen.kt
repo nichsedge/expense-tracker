@@ -77,7 +77,7 @@ import com.sans.finance.presentation.components.CategoryIcon
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExpenseListScreen(
-    onAddExpenseClick: () -> Unit,
+    onAddTransactionClick: () -> Unit,
 
     onInstallmentsClick: () -> Unit,
     onStatsClick: () -> Unit,
@@ -119,12 +119,12 @@ fun ExpenseListScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = onAddExpenseClick,
+                onClick = onAddTransactionClick,
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 shape = MaterialTheme.shapes.medium
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Expense")
+                Icon(Icons.Default.Add, contentDescription = "Add Transaction")
             }
         }
     ) { paddingValues ->
@@ -176,7 +176,8 @@ fun ExpenseListScreen(
             SummaryCard(
                 income = state.totalFilteredIncome,
                 expense = state.totalFilteredExpense,
-                total = state.totalFilteredAmount
+                total = state.totalFilteredAmount,
+                currencyCode = state.currentCurrency
             )
 
 
@@ -247,7 +248,8 @@ fun ExpenseListScreen(
                                     if (dayIncome > 0) {
                                         Text(
                                             text = com.sans.finance.core.util.CurrencyFormatter.formatAmount(
-                                                dayIncome
+                                                dayIncome,
+                                                state.currentCurrency
                                             ),
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = Color(0xFF4CAF50)
@@ -257,7 +259,8 @@ fun ExpenseListScreen(
                                     if (dayExpense > 0) {
                                         Text(
                                             text = com.sans.finance.core.util.CurrencyFormatter.formatAmount(
-                                                dayExpense
+                                                dayExpense,
+                                                state.currentCurrency
                                             ),
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = Color(0xFFE53935)
@@ -591,7 +594,8 @@ fun AdvancedFilterSheet(
 fun SummaryCard(
     income: Long,
     expense: Long,
-    total: Long
+    total: Long,
+    currencyCode: String
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -613,7 +617,7 @@ fun SummaryCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        com.sans.finance.core.util.CurrencyFormatter.formatAmount(income),
+                        com.sans.finance.core.util.CurrencyFormatter.formatAmount(income, currencyCode),
                         style = MaterialTheme.typography.bodyLarge,
                         color = Color(0xFF4CAF50)
                     )
@@ -625,7 +629,7 @@ fun SummaryCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        com.sans.finance.core.util.CurrencyFormatter.formatAmount(expense),
+                        com.sans.finance.core.util.CurrencyFormatter.formatAmount(expense, currencyCode),
                         style = MaterialTheme.typography.bodyLarge,
                         color = Color(0xFFE53935)
                     )
@@ -637,7 +641,7 @@ fun SummaryCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        com.sans.finance.core.util.CurrencyFormatter.formatAmount(total),
+                        com.sans.finance.core.util.CurrencyFormatter.formatAmount(total, currencyCode),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -728,7 +732,7 @@ fun ExpenseItem(
                     val amountColor =
                         if (expense.type == "INCOME") Color(0xFF4CAF50) else Color(0xFFE53935)
                     Text(
-                        com.sans.finance.core.util.CurrencyFormatter.formatAmount(displayAmount),
+                        com.sans.finance.core.util.CurrencyFormatter.formatAmount(displayAmount, expense.currency),
                         style = MaterialTheme.typography.bodyMedium,
                         color = amountColor
                     )

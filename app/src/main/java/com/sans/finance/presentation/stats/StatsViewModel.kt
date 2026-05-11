@@ -39,12 +39,14 @@ data class StatsState(
     val selectedCategory: CategorySpent? = null,
     val categoryTrend: List<DaySpent> = emptyList(),
     val categoryTransactions: List<Expense> = emptyList(),
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    val currentCurrency: String = "USD"
 )
 
 @HiltViewModel
 class StatsViewModel @Inject constructor(
-    private val expenseRepository: ExpenseRepository
+    private val expenseRepository: ExpenseRepository,
+    private val localeManager: com.sans.finance.data.util.LocaleManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(StatsState())
@@ -53,6 +55,7 @@ class StatsViewModel @Inject constructor(
     private var dataJob: Job? = null
 
     init {
+        _state.update { it.copy(currentCurrency = localeManager.getCurrency()) }
         loadData()
     }
 

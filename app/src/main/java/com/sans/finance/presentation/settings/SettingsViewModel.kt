@@ -36,8 +36,33 @@ class SettingsViewModel @Inject constructor(
     private val _currentLanguage = mutableStateOf(localeManager.getLocale())
     val currentLanguage: State<String> = _currentLanguage
 
+    private val _currentCurrency = mutableStateOf(localeManager.getCurrency())
+    val currentCurrency: State<String> = _currentCurrency
+
+    private val _enabledCurrencies = mutableStateOf(localeManager.getEnabledCurrencies())
+    val enabledCurrencies: State<List<String>> = _enabledCurrencies
+
     fun updateLanguage(lang: String) {
         _currentLanguage.value = lang
+    }
+
+    fun toggleCurrency() {
+        val next = if (_currentCurrency.value == "USD") "IDR" else "USD"
+        localeManager.setCurrency(next)
+        _currentCurrency.value = next
+    }
+
+    fun toggleEnabledCurrency(currency: String) {
+        val currentList = _enabledCurrencies.value.toMutableList()
+        if (currentList.contains(currency)) {
+            if (currentList.size > 1) { // Keep at least one
+                currentList.remove(currency)
+            }
+        } else {
+            currentList.add(currency)
+        }
+        localeManager.setEnabledCurrencies(currentList)
+        _enabledCurrencies.value = currentList
     }
 
     val monthlyBudget = budgetRepository.getAllBudgets().map { budgets ->

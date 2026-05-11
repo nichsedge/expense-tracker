@@ -57,8 +57,8 @@ fun MainScreen(
             }
             composable<Screen.ExpenseList> {
                 ExpenseListScreen(
-                    onAddExpenseClick = {
-                        rootNavController.navigate(Screen.AddExpense)
+                    onAddTransactionClick = {
+                        rootNavController.navigate(Screen.AddTransaction)
                     },
                     onInstallmentsClick = {
                         rootNavController.navigate(Screen.Installments)

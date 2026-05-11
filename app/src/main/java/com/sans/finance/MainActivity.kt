@@ -10,7 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.sans.finance.presentation.add_expense.AddExpenseScreen
+import com.sans.finance.presentation.add_transaction.AddTransactionScreen
 import com.sans.finance.presentation.expense_list.ExpenseListScreen
 import com.sans.finance.presentation.goals.GoalScreen
 import com.sans.finance.presentation.main.MainScreen
@@ -72,8 +72,8 @@ fun AppNavigation(onLanguageToggle: () -> Unit) {
         }
         composable<Screen.ExpenseList> {
             ExpenseListScreen(
-                onAddExpenseClick = {
-                    navController.navigate(Screen.AddExpense)
+                onAddTransactionClick = {
+                    navController.navigate(Screen.AddTransaction)
                 },
 
                 onInstallmentsClick = {
@@ -87,12 +87,12 @@ fun AppNavigation(onLanguageToggle: () -> Unit) {
                 }
             )
         }
-        composable<Screen.AddExpense> {
-            AddExpenseScreen(onBack = { navController.popBackStack() })
+        composable<Screen.AddTransaction> {
+            AddTransactionScreen(onBack = { navController.popBackStack() })
         }
 
         composable<Screen.EditExpense> {
-            AddExpenseScreen(onBack = { navController.popBackStack() })
+            AddTransactionScreen(onBack = { navController.popBackStack() })
         }
         composable<Screen.Installments> {
             com.sans.finance.presentation.installments.InstallmentsScreen(

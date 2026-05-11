@@ -78,7 +78,8 @@ fun DashboardScreen(
                 NetWorthCard(
                     netWorth = state.netWorth,
                     assets = state.totalAssets,
-                    liabilities = state.totalLiabilities
+                    liabilities = state.totalLiabilities,
+                    currencyCode = state.currentCurrency
                 )
             }
 
@@ -86,7 +87,8 @@ fun DashboardScreen(
                 MonthlyCashFlowCard(
                     income = state.monthlyIncome,
                     expense = state.monthlyExpense,
-                    savingsRate = state.monthlySavingsRate
+                    savingsRate = state.monthlySavingsRate,
+                    currencyCode = state.currentCurrency
                 )
             }
 
@@ -94,18 +96,25 @@ fun DashboardScreen(
                 item {
                     GlobalBudgetCard(
                         budget = state.globalBudget,
-                        spent = state.globalSpent
+                        spent = state.globalSpent,
+                        currencyCode = state.currentCurrency
                     )
                 }
             }
 
             item {
-                ForecastCard(projectedBalance = state.projectedBalance30Days)
+                ForecastCard(
+                    projectedBalance = state.projectedBalance30Days,
+                    currencyCode = state.currentCurrency
+                )
             }
 
             if (state.wealthDistribution.isNotEmpty()) {
                 item {
-                    WealthDistributionCard(distribution = state.wealthDistribution)
+                    WealthDistributionCard(
+                    distribution = state.wealthDistribution,
+                    currencyCode = state.currentCurrency
+                )
                 }
             }
 
@@ -125,7 +134,7 @@ fun DashboardScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     state.goals.forEach { goal ->
-                        DashboardGoalItem(goal)
+                        DashboardGoalItem(goal, state.currentCurrency)
                         Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
@@ -141,7 +150,7 @@ fun DashboardScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     state.upcomingBills.forEach { bill ->
-                        DashboardBillItem(bill)
+                        DashboardBillItem(bill, state.currentCurrency)
                         Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
@@ -156,7 +165,8 @@ fun DashboardScreen(
 fun NetWorthCard(
     netWorth: Long,
     assets: Long,
-    liabilities: Long
+    liabilities: Long,
+    currencyCode: String
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -185,7 +195,7 @@ fun NetWorthCard(
                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
             )
             Text(
-                CurrencyFormatter.formatAmount(netWorth),
+                CurrencyFormatter.formatAmount(netWorth, currencyCode),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Black,
                 color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -197,16 +207,16 @@ fun NetWorthCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                BreakdownItem("Assets", assets, Color(0xFF4CAF50))
+                BreakdownItem("Assets", assets, Color(0xFF4CAF50), currencyCode)
                 VerticalDivider(modifier = Modifier.height(40.dp))
-                BreakdownItem("Liabilities", liabilities, Color(0xFFF44336))
+                BreakdownItem("Liabilities", liabilities, Color(0xFFF44336), currencyCode)
             }
         }
     }
 }
 
 @Composable
-fun BreakdownItem(label: String, amount: Long, color: Color) {
+fun BreakdownItem(label: String, amount: Long, color: Color, currencyCode: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             label.uppercase(),
@@ -214,7 +224,7 @@ fun BreakdownItem(label: String, amount: Long, color: Color) {
             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f)
         )
         Text(
-            CurrencyFormatter.formatAmount(amount),
+            CurrencyFormatter.formatAmount(amount, currencyCode),
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Bold,
             color = color
@@ -223,7 +233,7 @@ fun BreakdownItem(label: String, amount: Long, color: Color) {
 }
 
 @Composable
-fun ForecastCard(projectedBalance: Long) {
+fun ForecastCard(projectedBalance: Long, currencyCode: String) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
@@ -245,7 +255,7 @@ fun ForecastCard(projectedBalance: Long) {
                     color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
                 )
                 Text(
-                    CurrencyFormatter.formatAmount(projectedBalance),
+                    CurrencyFormatter.formatAmount(projectedBalance, currencyCode),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -262,7 +272,7 @@ fun ForecastCard(projectedBalance: Long) {
 }
 
 @Composable
-fun WealthDistributionCard(distribution: Map<String, Long>) {
+fun WealthDistributionCard(distribution: Map<String, Long>, currencyCode: String) {
     val total = distribution.values.sumOf { kotlin.math.abs(it) }.coerceAtLeast(1L)
 
     Card(
@@ -329,7 +339,7 @@ fun WealthDistributionCard(distribution: Map<String, Long>) {
                             modifier = Modifier.weight(1f)
                         )
                         Text(
-                            CurrencyFormatter.formatAmount(entry.value),
+                            CurrencyFormatter.formatAmount(entry.value, currencyCode),
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -341,7 +351,7 @@ fun WealthDistributionCard(distribution: Map<String, Long>) {
 }
 
 @Composable
-fun MonthlyCashFlowCard(income: Long, expense: Long, savingsRate: Float) {
+fun MonthlyCashFlowCard(income: Long, expense: Long, savingsRate: Float, currencyCode: String) {
     val animatedSavings by animateFloatAsState(
         targetValue = savingsRate,
         animationSpec = tween(800),
@@ -392,7 +402,7 @@ fun MonthlyCashFlowCard(income: Long, expense: Long, savingsRate: Float) {
                         )
                     }
                     Text(
-                        CurrencyFormatter.formatAmount(income),
+                        CurrencyFormatter.formatAmount(income, currencyCode),
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF4CAF50)
@@ -423,7 +433,7 @@ fun MonthlyCashFlowCard(income: Long, expense: Long, savingsRate: Float) {
                         )
                     }
                     Text(
-                        CurrencyFormatter.formatAmount(expense),
+                        CurrencyFormatter.formatAmount(expense, currencyCode),
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFFF44336)
@@ -490,7 +500,7 @@ fun AiAdvisorCard(suggestions: List<String>) {
 }
 
 @Composable
-fun DashboardGoalItem(goal: com.sans.finance.data.local.entity.GoalEntity) {
+fun DashboardGoalItem(goal: com.sans.finance.data.local.entity.GoalEntity, currencyCode: String) {
     val progress = (goal.currentAmount.toFloat() / goal.targetAmount.toFloat()).coerceIn(0f, 1f)
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -521,7 +531,7 @@ fun DashboardGoalItem(goal: com.sans.finance.data.local.entity.GoalEntity) {
 }
 
 @Composable
-fun DashboardBillItem(bill: com.sans.finance.domain.model.Expense) {
+fun DashboardBillItem(bill: com.sans.finance.domain.model.Expense, currencyCode: String) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -546,7 +556,7 @@ fun DashboardBillItem(bill: com.sans.finance.domain.model.Expense) {
                 Text("Recurring Payment", style = MaterialTheme.typography.labelSmall)
             }
             Text(
-                CurrencyFormatter.formatAmount(bill.amount),
+                CurrencyFormatter.formatAmount(bill.amount, bill.currency),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.error
@@ -556,7 +566,7 @@ fun DashboardBillItem(bill: com.sans.finance.domain.model.Expense) {
 }
 
 @Composable
-fun GlobalBudgetCard(budget: Long, spent: Long) {
+fun GlobalBudgetCard(budget: Long, spent: Long, currencyCode: String) {
     val progress = (spent.toFloat() / budget.toFloat()).coerceIn(0f, 1f)
     val isOverBudget = spent > budget
     val remaining = (budget - spent).coerceAtLeast(0L)
@@ -620,7 +630,7 @@ fun GlobalBudgetCard(budget: Long, spent: Long) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        CurrencyFormatter.formatAmount(spent),
+                        CurrencyFormatter.formatAmount(spent, currencyCode),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -632,7 +642,7 @@ fun GlobalBudgetCard(budget: Long, spent: Long) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        CurrencyFormatter.formatAmount(if (isOverBudget) spent - budget else remaining),
+                        CurrencyFormatter.formatAmount(if (isOverBudget) spent - budget else remaining, currencyCode),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
                         color = if (isOverBudget) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary

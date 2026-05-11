@@ -31,7 +31,8 @@ data class DashboardState(
     val monthlySavingsRate: Float = 0f,
     // Global budget
     val globalBudget: Long = 0L,
-    val globalSpent: Long = 0L
+    val globalSpent: Long = 0L,
+    val currentCurrency: String = "USD"
 )
 
 @HiltViewModel
@@ -39,7 +40,8 @@ class DashboardViewModel @Inject constructor(
     private val accountRepository: AccountRepository,
     private val expenseRepository: ExpenseRepository,
     private val goalRepository: GoalRepository,
-    private val budgetRepository: BudgetRepository
+    private val budgetRepository: BudgetRepository,
+    private val localeManager: com.sans.finance.data.util.LocaleManager
 ) : ViewModel() {
 
     val state = combine(
@@ -105,7 +107,8 @@ class DashboardViewModel @Inject constructor(
             monthlyExpense = monthlyExpense,
             monthlySavingsRate = savingsRate,
             globalBudget = budgets.find { it.categoryId == null }?.amount ?: 0L,
-            globalSpent = monthlyExpense
+            globalSpent = monthlyExpense,
+            currentCurrency = localeManager.getCurrency()
         )
     }.stateIn(
         scope = viewModelScope,

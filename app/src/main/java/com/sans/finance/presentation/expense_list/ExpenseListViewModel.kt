@@ -52,7 +52,8 @@ data class ExpenseListState(
     val minAmount: Long? = null,
     val maxAmount: Long? = null,
     val dailySpending: Map<Long, Long> = emptyMap(),
-    val monthlyBudget: Long = 0L
+    val monthlyBudget: Long = 0L,
+    val currentCurrency: String = "USD"
 )
 
 @HiltViewModel
@@ -62,7 +63,8 @@ class ExpenseListViewModel @Inject constructor(
     private val accountRepository: com.sans.finance.domain.repository.AccountRepository,
     private val installmentRepository: com.sans.finance.domain.repository.InstallmentRepository,
     private val getCategoriesUseCase: com.sans.finance.domain.usecase.GetCategoriesUseCase,
-    private val budgetRepository: BudgetRepository
+    private val budgetRepository: BudgetRepository,
+    private val localeManager: com.sans.finance.data.util.LocaleManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ExpenseListState())
@@ -72,6 +74,7 @@ class ExpenseListViewModel @Inject constructor(
         get() = DateFormatterUtils.getStandardFormatter()
 
     init {
+        _state.update { it.copy(currentCurrency = localeManager.getCurrency()) }
         updateDateRange(DateRangeFilter.THIS_MONTH)
 
         loadExpenses()

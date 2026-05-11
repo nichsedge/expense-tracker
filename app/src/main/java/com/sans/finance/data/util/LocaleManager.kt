@@ -36,4 +36,21 @@ class LocaleManager @Inject constructor(
         val locale = Locale.forLanguageTag(language)
         Locale.setDefault(locale)
     }
+
+    fun setCurrency(currency: String) {
+        prefs.edit().putString("currency", currency).apply()
+    }
+
+    fun getCurrency(): String {
+        return prefs.getString("currency", "USD") ?: "USD"
+    }
+
+    fun getEnabledCurrencies(): List<String> {
+        val currencies = prefs.getString("enabled_currencies", "USD,IDR") ?: "USD,IDR"
+        return currencies.split(",").filter { it.isNotBlank() }
+    }
+
+    fun setEnabledCurrencies(currencies: List<String>) {
+        prefs.edit().putString("enabled_currencies", currencies.joinToString(",")).apply()
+    }
 }

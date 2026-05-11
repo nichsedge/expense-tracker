@@ -6,8 +6,13 @@ import java.util.Locale
 import kotlin.math.ceil
 
 object CurrencyFormatter {
-    private fun getFormatter(currencyCode: String = "IDR"): NumberFormat {
-        val formatter = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID"))
+    private fun getFormatter(currencyCode: String = "USD"): NumberFormat {
+        val locale = when (currencyCode) {
+            "IDR" -> Locale("id", "ID")
+            "USD" -> Locale.US
+            else -> Locale.getDefault()
+        }
+        val formatter = NumberFormat.getCurrencyInstance(locale)
         try {
             val currency = java.util.Currency.getInstance(currencyCode)
             formatter.currency = currency
@@ -23,7 +28,7 @@ object CurrencyFormatter {
      * Formats the amount in cents (Long) into a display string.
      * Rounds up to the nearest whole number and removes thousands separators.
      */
-    fun formatAmount(amountInCents: Long, currencyCode: String = "IDR"): String {
+    fun formatAmount(amountInCents: Long, currencyCode: String = "USD"): String {
         val amount = ceil(amountInCents / 100.0).toLong()
         val formatter = getFormatter(currencyCode)
 
@@ -34,7 +39,7 @@ object CurrencyFormatter {
     /**
      * Formats the amount concisely (e.g. 10K, 1M) for UI charts or dense views.
      */
-    fun formatAmountCompact(amountInCents: Long, currencyCode: String = "IDR"): String {
+    fun formatAmountCompact(amountInCents: Long, currencyCode: String = "USD"): String {
         val amount = ceil(amountInCents / 100.0).toLong()
         val symbol = try {
             java.util.Currency.getInstance(currencyCode).getSymbol(Locale.getDefault())

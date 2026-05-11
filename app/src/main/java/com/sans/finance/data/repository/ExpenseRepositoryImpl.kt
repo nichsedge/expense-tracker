@@ -338,6 +338,7 @@ class ExpenseRepositoryImpl(
             description = expense.description,
             tags = tags.map { it.name },
             quantity = expense.quantity,
+            currency = expense.currency,
             totalPaid = totalPaid,
             remainingBalance = installment?.remainingBalance ?: 0L,
             monthlyPayment = installment?.monthlyPayment ?: 0L
@@ -362,6 +363,7 @@ class ExpenseRepositoryImpl(
             description = description,
             platform = tags.firstOrNull(), // Keep for legacy if needed, or null
             quantity = quantity,
+            currency = currency,
             status = "completed"
         )
     }

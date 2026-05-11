@@ -157,7 +157,8 @@ fun StatsScreen(
                         amount = state.totalIncomeForPeriod,
                         color = MaterialTheme.colorScheme.primaryContainer,
                         isSelected = state.selectedTransactionType == TransactionType.INCOME,
-                        onClick = { viewModel.onTransactionTypeSelected(TransactionType.INCOME) }
+                        onClick = { viewModel.onTransactionTypeSelected(TransactionType.INCOME) },
+                        currencyCode = state.currentCurrency
                     )
                     StatsSimpleCard(
                         modifier = Modifier.weight(1f),
@@ -165,7 +166,8 @@ fun StatsScreen(
                         amount = state.totalExpenseForPeriod,
                         color = MaterialTheme.colorScheme.secondaryContainer,
                         isSelected = state.selectedTransactionType == TransactionType.EXPENSE,
-                        onClick = { viewModel.onTransactionTypeSelected(TransactionType.EXPENSE) }
+                        onClick = { viewModel.onTransactionTypeSelected(TransactionType.EXPENSE) },
+                        currencyCode = state.currentCurrency
                     )
                 }
 
@@ -182,7 +184,8 @@ fun StatsScreen(
                     // Category Breakdown with Pie Chart
                     CategoryBreakdown(
                         categories = state.breakdown,
-                        onCategoryClick = viewModel::onCategorySelected
+                        onCategoryClick = viewModel::onCategorySelected,
+                        currencyCode = state.currentCurrency
                     )
                 }
             } else {
@@ -336,7 +339,8 @@ fun StatsSimpleCard(
     amount: Long,
     color: Color,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    currencyCode: String
 ) {
     Card(
         modifier = modifier,
@@ -354,7 +358,7 @@ fun StatsSimpleCard(
                 color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                CurrencyFormatter.formatAmount(amount),
+                CurrencyFormatter.formatAmount(amount, currencyCode),
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.ExtraBold
             )
@@ -365,7 +369,8 @@ fun StatsSimpleCard(
 @Composable
 fun CategoryBreakdown(
     categories: List<CategorySpent>,
-    onCategoryClick: (CategorySpent) -> Unit
+    onCategoryClick: (CategorySpent) -> Unit,
+    currencyCode: String
 ) {
     SectionTitle(stringResource(R.string.by_category), icon = Icons.Default.PieChart)
 
@@ -419,7 +424,7 @@ fun CategoryBreakdown(
                         )
 
                         Text(
-                            CurrencyFormatter.formatAmount(category.totalAmount),
+                            CurrencyFormatter.formatAmount(category.totalAmount, currencyCode),
                             fontWeight = FontWeight.ExtraBold
                         )
                     }
@@ -461,7 +466,7 @@ fun CategoryDetailView(
             )
             Spacer(modifier = Modifier.weight(1f))
             Text(
-                text = CurrencyFormatter.formatAmount(category.totalAmount),
+                text = CurrencyFormatter.formatAmount(category.totalAmount, state.currentCurrency),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.ExtraBold,
                 color = MaterialTheme.colorScheme.primary
@@ -472,7 +477,8 @@ fun CategoryDetailView(
         TrendChart(
             title = stringResource(R.string.spending_trend),
             trendData = state.categoryTrend,
-            period = state.selectedPeriodType
+            period = state.selectedPeriodType,
+            currencyCode = state.currentCurrency
         )
 
         // Transaction Log
@@ -541,7 +547,7 @@ fun TransactionItem(transaction: Expense) {
             }
         }
         Text(
-            text = CurrencyFormatter.formatAmount(transaction.amount),
+            text = CurrencyFormatter.formatAmount(transaction.amount, transaction.currency),
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Black,
             color = if (transaction.type == "INCOME") Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurface
@@ -577,7 +583,8 @@ fun SectionTitle(title: String, icon: ImageVector? = null) {
 fun TrendChart(
     title: String,
     trendData: List<DaySpent>,
-    period: StatsPeriodType
+    period: StatsPeriodType,
+    currencyCode: String = "USD"
 ) {
     SectionTitle(title, icon = Icons.Default.Insights)
 
@@ -622,7 +629,7 @@ fun TrendChart(
                         textLayoutResults.maxOfOrNull { it.size.height }?.toFloat() ?: 40f
                     val yAxisLabels = 5
                     val yAxisLabelWidth = textMeasurer.measure(
-                        CurrencyFormatter.formatAmountCompact(maxAmount), style = labelStyle
+                        CurrencyFormatter.formatAmountCompact(maxAmount, currencyCode), style = labelStyle
                     ).size.width.toFloat() + 16f
 
                     val chartLeft = yAxisLabelWidth
@@ -646,7 +653,7 @@ fun TrendChart(
                             strokeWidth = 1f
                         )
                         val textLayoutResult = textMeasurer.measure(
-                            CurrencyFormatter.formatAmountCompact(value),
+                            CurrencyFormatter.formatAmountCompact(value, currencyCode),
                             style = labelStyle
                         )
                         drawText(

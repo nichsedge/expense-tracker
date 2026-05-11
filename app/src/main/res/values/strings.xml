@@ -2,7 +2,7 @@
     <string name="app_name">Sans Finance</string>
     <string name="one_time">One-time</string>
     <string name="installment">Installment</string>
-    <string name="add_expense">Record Expense</string>
+    <string name="add_transaction">Record Transaction</string>
     <string name="amount_spent">Amount Spent</string>
     <string name="category">Category</string>
     <string name="what_did_you_buy">Note</string>

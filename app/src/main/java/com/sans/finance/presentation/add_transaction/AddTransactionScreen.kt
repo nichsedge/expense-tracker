@@ -1,4 +1,4 @@
-package com.sans.finance.presentation.add_expense
+package com.sans.finance.presentation.add_transaction
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -22,27 +22,22 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -60,16 +55,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.sans.finance.R
-import com.sans.finance.presentation.components.CategoryIcon
 import com.sans.finance.core.util.DateFormatterUtils
+import com.sans.finance.presentation.components.CategoryIcon
 import java.util.Date
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddExpenseScreen(
+fun AddTransactionScreen(
     onBack: () -> Unit,
-    viewModel: AddExpenseViewModel = hiltViewModel()
+    viewModel: AddTransactionViewModel = hiltViewModel()
 ) {
     val categories by viewModel.categories.collectAsState()
     val accounts by viewModel.accounts.collectAsState()
@@ -81,10 +75,8 @@ fun AddExpenseScreen(
     var noteExpanded by remember { androidx.compose.runtime.mutableStateOf(false) }
     var descriptionExpanded by remember { androidx.compose.runtime.mutableStateOf(false) }
     var accountExpanded by remember { androidx.compose.runtime.mutableStateOf(false) }
+    var toAccountExpanded by remember { androidx.compose.runtime.mutableStateOf(false) }
     var recurrenceExpanded by remember { androidx.compose.runtime.mutableStateOf(false) }
-    val currencySymbol = remember {
-        try { java.util.Currency.getInstance("IDR").getSymbol(java.util.Locale.getDefault()) } catch (e: Exception) { "Rp" }
-    }
 
     Scaffold(
         topBar = {
@@ -92,7 +84,7 @@ fun AddExpenseScreen(
                 title = {
                     Text(
                         if (viewModel.isEditMode) stringResource(R.string.edit_transaction) else stringResource(
-                            R.string.add_expense
+                            R.string.add_transaction
                         ), fontWeight = FontWeight.Bold
                     )
                 },
@@ -113,24 +105,27 @@ fun AddExpenseScreen(
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             // Transaction Type Selector (Segmented Buttons / Tabs)
+            // Transaction Type Selector (Rounded Chips)
             val types = listOf("EXPENSE", "INCOME", "TRANSFER")
-            SingleChoiceSegmentedButtonRow(
-                modifier = Modifier.fillMaxWidth()
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                types.forEachIndexed { index, type ->
-                    SegmentedButton(
-                        shape = SegmentedButtonDefaults.itemShape(index = index, count = types.size),
-                        onClick = { viewModel.transactionType = type },
+                items(types) { type ->
+                    FilterChip(
                         selected = viewModel.transactionType == type,
+                        onClick = { viewModel.transactionType = type },
                         label = {
                             Text(
                                 type.lowercase().replaceFirstChar { it.uppercase() },
                                 fontWeight = if (viewModel.transactionType == type) FontWeight.Bold else FontWeight.Normal
                             )
-                        }
+                        },
+                        shape = androidx.compose.foundation.shape.CircleShape
                     )
                 }
             }
+
 
             // Account Selector
             @OptIn(ExperimentalMaterial3Api::class)
@@ -143,9 +138,11 @@ fun AddExpenseScreen(
                     value = selectedAccount?.name ?: "Unknown Account",
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Account") },
+                    label = { Text(if (viewModel.transactionType == "TRANSFER") "From Account" else "Account") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = accountExpanded) },
-                    modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
                     shape = MaterialTheme.shapes.medium
                 )
                 ExposedDropdownMenu(
@@ -176,7 +173,9 @@ fun AddExpenseScreen(
                         readOnly = true,
                         label = { Text("To Account") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = toAccountExpanded) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
                         shape = MaterialTheme.shapes.medium
                     )
                     ExposedDropdownMenu(
@@ -197,24 +196,62 @@ fun AddExpenseScreen(
             }
 
             // Amount Input with large text
-            OutlinedTextField(
-                value = viewModel.amount,
-                onValueChange = { viewModel.amount = it },
-                label = { Text(stringResource(R.string.amount_spent)) },
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                textStyle = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                singleLine = true,
-                visualTransformation = com.sans.finance.core.util.ThousandsSeparatorVisualTransformation(),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Decimal,
-                    imeAction = ImeAction.Next
-                ),
-                keyboardActions = KeyboardActions(
-                    onNext = { focusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Down) }
-                ),
-                prefix = { Text("$currencySymbol ", fontWeight = FontWeight.Bold) },
-                shape = MaterialTheme.shapes.medium
-            )
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                var currencyExpanded by remember { androidx.compose.runtime.mutableStateOf(false) }
+
+                ExposedDropdownMenuBox(
+                    expanded = currencyExpanded,
+                    onExpandedChange = { currencyExpanded = !currencyExpanded },
+                    modifier = Modifier.width(100.dp)
+                ) {
+                    OutlinedTextField(
+                        value = viewModel.currency,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Curr") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = currencyExpanded) },
+                        modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                        shape = MaterialTheme.shapes.medium,
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
+                    )
+                    ExposedDropdownMenu(
+                        expanded = currencyExpanded,
+                        onDismissRequest = { currencyExpanded = false }
+                    ) {
+                        viewModel.enabledCurrencies.forEach { curr ->
+                            DropdownMenuItem(
+                                text = { Text(curr) },
+                                onClick = {
+                                    viewModel.currency = curr
+                                    currencyExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                OutlinedTextField(
+                    value = viewModel.amount,
+                    onValueChange = { viewModel.amount = it },
+                    label = { Text(stringResource(R.string.amount_spent)) },
+                    modifier = Modifier.weight(1f),
+                    textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    singleLine = true,
+                    visualTransformation = com.sans.finance.core.util.ThousandsSeparatorVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Decimal,
+                        imeAction = ImeAction.Next
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onNext = { focusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Down) }
+                    ),
+                    shape = MaterialTheme.shapes.medium
+                )
+            }
 
             // Date Picker Field
             OutlinedTextField(
@@ -316,12 +353,17 @@ fun AddExpenseScreen(
                                 Text(category.name)
                             }
                         },
-                        shape = MaterialTheme.shapes.small
+                        shape = androidx.compose.foundation.shape.CircleShape
                     )
                 }
             }
 
-            Text("Tags".uppercase(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary, letterSpacing = 1.5.sp)
+            Text(
+                "Tags".uppercase(),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.secondary,
+                letterSpacing = 1.5.sp
+            )
 
             val allTags by viewModel.allTags.collectAsState()
 
@@ -336,7 +378,7 @@ fun AddExpenseScreen(
                         selected = viewModel.selectedTags.contains(tagName),
                         onClick = { viewModel.toggleTag(tagName) },
                         label = { Text(tagName) },
-                        shape = MaterialTheme.shapes.small
+                        shape = androidx.compose.foundation.shape.CircleShape
                     )
                 }
             }
@@ -377,7 +419,9 @@ fun AddExpenseScreen(
                         descriptionExpanded = true
                     },
                     label = { Text(stringResource(R.string.merchant_store)) },
-                    modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(
                         imeAction = if (viewModel.isInstallment) ImeAction.Next else ImeAction.Done
@@ -408,25 +452,28 @@ fun AddExpenseScreen(
                 }
             }
 
-            Surface(
+            val paymentTypes = listOf("ONE_TIME", "RECURRING", "INSTALLMENT")
+            val paymentLabels = listOf(
+                stringResource(R.string.one_time),
+                stringResource(R.string.recurring_expenses),
+                stringResource(R.string.installment)
+            )
+            LazyRow(
                 modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                onClick = { viewModel.isRecurring = !viewModel.isRecurring }
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Checkbox(
-                        checked = viewModel.isRecurring,
-                        onCheckedChange = { viewModel.isRecurring = it }
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        stringResource(R.string.recurring_expenses),
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Medium
+                items(paymentTypes.size) { index ->
+                    val type = paymentTypes[index]
+                    FilterChip(
+                        selected = viewModel.paymentType == type,
+                        onClick = { viewModel.paymentType = type },
+                        label = {
+                            Text(
+                                paymentLabels[index],
+                                fontWeight = if (viewModel.paymentType == type) FontWeight.Bold else FontWeight.Normal
+                            )
+                        },
+                        shape = androidx.compose.foundation.shape.CircleShape
                     )
                 }
             }
@@ -443,7 +490,9 @@ fun AddExpenseScreen(
                         readOnly = true,
                         label = { Text("Recurrence Interval") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = recurrenceExpanded) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
                         shape = MaterialTheme.shapes.medium
                     )
                     ExposedDropdownMenu(
@@ -460,29 +509,6 @@ fun AddExpenseScreen(
                             )
                         }
                     }
-                }
-            }
-
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                onClick = { viewModel.isInstallment = !viewModel.isInstallment }
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Checkbox(
-                        checked = viewModel.isInstallment,
-                        onCheckedChange = { viewModel.isInstallment = it }
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        stringResource(R.string.is_installment),
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Medium
-                    )
                 }
             }
 

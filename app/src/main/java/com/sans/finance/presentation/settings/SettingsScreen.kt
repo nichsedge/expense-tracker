@@ -34,6 +34,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -123,10 +124,13 @@ fun SettingsScreen(
             onNavigateToTags = onNavigateToTags,
             exportBackup = { viewModel.exportFullBackup(it) },
             onLanguageToggle = onLanguageToggle,
+            onCurrencyToggle = { viewModel.toggleCurrency() },
             currentLanguage = currentLanguage,
+            currentCurrency = viewModel.currentCurrency.value,
             currentBudget = currentBudget,
-
-            isLoading = isLoading
+            isLoading = isLoading,
+            enabledCurrencies = viewModel.enabledCurrencies.value,
+            onToggleEnabledCurrency = { viewModel.toggleEnabledCurrency(it) }
         )
     }
 
@@ -144,10 +148,13 @@ fun SettingsContent(
     onNavigateToTags: () -> Unit,
     exportBackup: (android.content.Context) -> Unit,
     onLanguageToggle: () -> Unit,
+    onCurrencyToggle: () -> Unit,
     currentLanguage: String,
+    currentCurrency: String,
     currentBudget: Long,
-
-    isLoading: Boolean
+    isLoading: Boolean,
+    enabledCurrencies: List<String>,
+    onToggleEnabledCurrency: (String) -> Unit
 ) {
     val context = LocalContext.current
 
@@ -237,6 +244,66 @@ fun SettingsContent(
                         )
                     }
                     Icon(Icons.Default.ChevronRight, contentDescription = null)
+                }
+            }
+        }
+
+        // Currency Section
+        item {
+            SettingsSectionTitle("Currency")
+            Card(
+                onClick = onCurrencyToggle,
+                modifier = Modifier
+                    .fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.ShoppingCart, contentDescription = null) // Using ShoppingCart as placeholder or find a better one
+                        Spacer(Modifier.width(16.dp))
+                        Text(
+                            if (currentCurrency == "USD") "US Dollar (USD)" else "Indonesian Rupiah (IDR)",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                    Icon(Icons.Default.ChevronRight, contentDescription = null)
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Quick Selection Options",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.padding(start = 8.dp)
+            )
+            FlowRow(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                val allOptions = listOf("USD", "IDR", "EUR", "GBP", "JPY", "SGD")
+                allOptions.forEach { curr ->
+                    val isEnabled = enabledCurrencies.contains(curr)
+                    FilterChip(
+                        selected = isEnabled,
+                        onClick = { onToggleEnabledCurrency(curr) },
+                        label = { Text(curr) },
+                        leadingIcon = if (isEnabled) {
+                            {
+                                Icon(
+                                    imageVector = Icons.Default.Flag,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        } else null
+                    )
                 }
             }
         }

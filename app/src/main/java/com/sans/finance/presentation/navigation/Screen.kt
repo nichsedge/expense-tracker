@@ -14,7 +14,7 @@ sealed class Screen {
     object ExpenseList : Screen()
 
     @Serializable
-    object AddExpense : Screen()
+    object AddTransaction : Screen()
 
     @Serializable
     data class ExpenseDetail(val expenseId: Long) : Screen()
