@@ -2,6 +2,7 @@ package com.sans.finance.data.ai
 
 interface AiProvider {
     suspend fun generateMonthlyReview(input: MonthlyReviewInput): MonthlyReviewResult
+    suspend fun generatePortfolioAnalysis(input: PortfolioAnalysisInput): PortfolioAnalysisResult
 }
 
 data class MonthlyReviewInput(

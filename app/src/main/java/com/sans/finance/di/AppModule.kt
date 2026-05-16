@@ -174,4 +174,8 @@ object AppModule {
     @Singleton
     fun provideAiSettingsRepository(repo: SecureAiSettingsRepository): AiSettingsRepository = repo
 
+    @Provides
+    @Singleton
+    fun provideGetRebalanceSuggestionsUseCase(): com.sans.finance.domain.usecase.GetRebalanceSuggestionsUseCase =
+        com.sans.finance.domain.usecase.GetRebalanceSuggestionsUseCase()
 }

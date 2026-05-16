@@ -13,13 +13,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -34,6 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.sans.finance.domain.model.AssetClassHealth
 import com.sans.finance.domain.model.HealthStatus
 import com.sans.finance.domain.model.RiskLevel
@@ -41,7 +42,9 @@ import com.sans.finance.domain.model.RiskLevel
 @Composable
 fun PortfolioHealthView(
     healthList: List<AssetClassHealth>,
+    rebalanceSuggestions: List<com.sans.finance.domain.model.RebalanceAction>,
     isPrivacyModeEnabled: Boolean,
+    currentCurrency: String,
     modifier: Modifier = Modifier,
     onTargetClick: (AssetClassHealth) -> Unit = {}
 ) {
@@ -52,16 +55,21 @@ fun PortfolioHealthView(
         return
     }
 
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
+    Column(
+        modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        item {
-            DiversificationSummary(healthList)
+        DiversificationSummary(healthList)
+
+        if (rebalanceSuggestions.isNotEmpty()) {
+            RebalanceSuggestionsSection(
+                suggestions = rebalanceSuggestions,
+                isPrivacyModeEnabled = isPrivacyModeEnabled,
+                currentCurrency = currentCurrency
+            )
         }
 
-        items(healthList) { health ->
+        healthList.forEach { health ->
             AssetHealthCard(health, isPrivacyModeEnabled, onClick = { onTargetClick(health) })
         }
     }
@@ -244,6 +252,93 @@ fun AssetHealthCard(health: AssetClassHealth, isPrivacyModeEnabled: Boolean, onC
                     color = statusColor.copy(alpha = 0.8f),
                     fontWeight = FontWeight.Medium
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun RebalanceSuggestionsSection(
+    suggestions: List<com.sans.finance.domain.model.RebalanceAction>,
+    isPrivacyModeEnabled: Boolean,
+    currentCurrency: String
+) {
+    Column {
+        Text(
+            "SUGGESTED REBALANCING ACTIONS",
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Black,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(bottom = 8.dp),
+            letterSpacing = 1.sp
+        )
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.extraLarge,
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            border = androidx.compose.foundation.BorderStroke(
+                1.dp,
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                suggestions.forEachIndexed { index, suggestion ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                suggestion.assetClass,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                val actionColor = if (suggestion.action == com.sans.finance.domain.model.RebalanceType.BUY)
+                                    Color(0xFF4CAF50) else Color(0xFFF44336)
+                                Icon(
+                                    imageVector = if (suggestion.action == com.sans.finance.domain.model.RebalanceType.BUY)
+                                        Icons.Default.Add else Icons.Default.Remove,
+                                    contentDescription = null,
+                                    tint = actionColor,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    suggestion.action.name,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = actionColor,
+                                    fontWeight = FontWeight.Black
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    "Adjust by ${String.format("%.1f%%", suggestion.percentageToAdjust)}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        com.sans.finance.presentation.components.PrivacyText(
+                            amount = (suggestion.amount * 100).toLong(),
+                            currencyCode = currentCurrency,
+                            isVisible = !isPrivacyModeEnabled,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Black,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    if (index < suggestions.size - 1) {
+                        androidx.compose.material3.HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                        )
+                    }
+                }
             }
         }
     }

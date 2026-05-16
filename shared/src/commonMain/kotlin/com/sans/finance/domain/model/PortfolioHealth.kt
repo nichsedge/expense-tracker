@@ -29,6 +29,16 @@ enum class HealthStatus {
     HEALTHY, OVERWEIGHT, UNDERWEIGHT
 }
 
+@Serializable
+data class RebalanceAction(
+    val assetClass: String,
+    val action: RebalanceType,
+    val amount: Double,
+    val percentageToAdjust: Double
+)
+
+enum class RebalanceType { BUY, SELL, NONE }
+
 object PortfolioHealthDefaults {
     val targets = listOf(
         AssetClassTarget("Cash & Equivalents", 15.0, "Emergency fund and liquidity", RiskLevel.LOW),

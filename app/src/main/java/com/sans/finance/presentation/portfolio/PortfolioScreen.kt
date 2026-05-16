@@ -26,6 +26,8 @@ import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -137,7 +139,28 @@ fun PortfolioScreen(
                         )
                     }
                 },
-                actions = {},
+                actions = {
+                    if (state.snapshotDates.isNotEmpty()) {
+                        IconButton(
+                            onClick = viewModel::analyzePortfolioWithAi,
+                            enabled = !state.isAiAnalyzing
+                        ) {
+                            if (state.isAiAnalyzing) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.AutoAwesome,
+                                    contentDescription = "Analyze with AI",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent,
                     scrolledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
@@ -305,12 +328,30 @@ fun PortfolioScreen(
                             item { Spacer(modifier = Modifier.height(32.dp)) }
                         }
                     } else {
-                        PortfolioHealthView(
-                            healthList = state.healthList,
-                            isPrivacyModeEnabled = state.isPrivacyModeEnabled,
-                            onTargetClick = { editingTarget = it },
-                            modifier = Modifier.padding(16.dp)
-                        )
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            state.aiAnalysis?.let { analysis ->
+                                item {
+                                    PortfolioAiInsightCard(
+                                        analysis = analysis,
+                                        onClear = viewModel::clearAiAnalysis
+                                    )
+                                }
+                            }
+
+                            item {
+                                PortfolioHealthView(
+                                    healthList = state.healthList,
+                                    rebalanceSuggestions = state.rebalanceSuggestions,
+                                    isPrivacyModeEnabled = state.isPrivacyModeEnabled,
+                                    currentCurrency = state.currentCurrency,
+                                    onTargetClick = { editingTarget = it }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -614,6 +655,114 @@ fun HoldingItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.Medium
                 )
+            }
+        }
+    }
+}
+@Composable
+fun PortfolioAiInsightCard(
+    analysis: com.sans.finance.data.ai.PortfolioAnalysisResult,
+    onClear: () -> Unit
+) {
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+        alpha = 0.15f
+    ) {
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.AutoAwesome,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        "AI STRATEGIST",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.primary,
+                        letterSpacing = 1.sp
+                    )
+                }
+                IconButton(onClick = onClear, modifier = Modifier.size(24.dp)) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Dismiss",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+            Text(
+                analysis.summary,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Medium
+            )
+
+            Spacer(Modifier.height(16.dp))
+            analysis.insights.forEach { insight ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+                    ),
+                    shape = MaterialTheme.shapes.large
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            val dotColor = when (insight.importance) {
+                                "HIGH" -> MaterialTheme.colorScheme.error
+                                "MEDIUM" -> MaterialTheme.colorScheme.primary
+                                else -> MaterialTheme.colorScheme.secondary
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .background(dotColor, CircleShape)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                insight.title,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Black
+                            )
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            insight.observation,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Row(verticalAlignment = Alignment.Top) {
+                            Icon(
+                                Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                insight.suggestion,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
             }
         }
     }

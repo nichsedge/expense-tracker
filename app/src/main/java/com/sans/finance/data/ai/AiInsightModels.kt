@@ -16,3 +16,28 @@ data class MonthlyReviewResult(
     val rawText: String? = null
 )
 
+@Serializable
+data class PortfolioAnalysisInsight(
+    val title: String,
+    val observation: String,
+    val suggestion: String,
+    val importance: String = "MEDIUM" // LOW | MEDIUM | HIGH
+)
+
+data class PortfolioAnalysisResult(
+    val summary: String,
+    val insights: List<PortfolioAnalysisInsight>,
+    val rawText: String? = null
+)
+
+data class PortfolioAnalysisInput(
+    val dateLabel: String,
+    val currency: String,
+    val totalValue: Double,
+    val assetAllocation: List<Pair<String, Double>>, // AssetClass to Percentage
+    val healthStatus: List<String>, // "Equities: Underweight", etc.
+    val xirr: Double?,
+    val goals: List<String>,
+    val notes: String = ""
+)
+

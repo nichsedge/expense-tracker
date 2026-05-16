@@ -96,4 +96,82 @@ class OpenAiResponsesProvider(
             MonthlyReviewResult(headline = headline, insights = insights, rawText = null)
         }.getOrNull()
     }
+
+    override suspend fun generatePortfolioAnalysis(input: PortfolioAnalysisInput): PortfolioAnalysisResult {
+        val bodyJson = buildJsonObject {
+            put("model", JsonPrimitive(model))
+            put(
+                "instructions",
+                JsonPrimitive(
+                    """
+                    You are an expert wealth management advisor. 
+                    Analyze the user's portfolio and return a concise JSON object.
+                    Schema: { "summary": string, "insights": [{ "title": string, "observation": string, "suggestion": string, "importance": "LOW"|"MEDIUM"|"HIGH" }] }
+                    """.trimIndent()
+                )
+            )
+            put(
+                "input",
+                JsonPrimitive(
+                    """
+                    Date: ${input.dateLabel}
+                    Currency: ${input.currency}
+                    Total Value: ${input.totalValue}
+                    XIRR: ${input.xirr ?: "N/A"}
+                    Allocation: ${input.assetAllocation.joinToString { "${it.first}=${it.second}%" }}
+                    Health: ${input.healthStatus.joinToString()}
+                    Goals: ${input.goals.joinToString()}
+                    Notes: ${input.notes}
+                    """.trimIndent()
+                )
+            )
+            put(
+                "response_format",
+                buildJsonObject {
+                    put("type", JsonPrimitive("json_object"))
+                }
+            )
+        }
+
+        val request = Request.Builder()
+            .url("https://api.openai.com/v1/responses")
+            .header("Authorization", "Bearer $apiKey")
+            .header("Content-Type", "application/json")
+            .post(bodyJson.toString().toRequestBody("application/json".toMediaType()))
+            .build()
+
+        return withContext(Dispatchers.IO) {
+            client.newCall(request).execute().use { resp ->
+                val raw = resp.body.string()
+                if (!resp.isSuccessful) {
+                    throw Exception("OpenAI error ${resp.code}: ${raw.take(500)}")
+                }
+
+                val root = json.parseToJsonElement(raw).jsonObject
+                val outputText = root["output_text"]?.let { element ->
+                    runCatching { element.jsonPrimitive.content }.getOrNull()
+                }
+                val parsed = outputText?.let { parsePortfolioJsonResult(it) }
+                parsed ?: PortfolioAnalysisResult(
+                    summary = "Portfolio Analysis",
+                    insights = emptyList(),
+                    rawText = outputText ?: raw
+                )
+            }
+        }
+    }
+
+    private fun parsePortfolioJsonResult(text: String): PortfolioAnalysisResult? {
+        return runCatching {
+            val obj = json.parseToJsonElement(text).jsonObject
+            val summary = obj["summary"]?.jsonPrimitive?.content ?: "Portfolio Analysis"
+            val insightsJson = obj["insights"]
+            val insights = if (insightsJson == null) {
+                emptyList()
+            } else {
+                json.decodeFromString<List<PortfolioAnalysisInsight>>(insightsJson.toString())
+            }
+            PortfolioAnalysisResult(summary = summary, insights = insights, rawText = null)
+        }.getOrNull()
+    }
 }

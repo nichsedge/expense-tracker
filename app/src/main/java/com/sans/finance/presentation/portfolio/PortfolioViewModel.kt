@@ -49,7 +49,10 @@ data class PortfolioScreenState(
     val xirr: Double? = null,
     val goals: List<com.sans.finance.presentation.goals.GoalWithProgress> = emptyList(),
     val accountAliases: Map<String, String> = emptyMap(),
-    val includedAccountCashIdr: Double = 0.0
+    val includedAccountCashIdr: Double = 0.0,
+    val rebalanceSuggestions: List<com.sans.finance.domain.model.RebalanceAction> = emptyList(),
+    val aiAnalysis: com.sans.finance.data.ai.PortfolioAnalysisResult? = null,
+    val isAiAnalyzing: Boolean = false
 )
 
 private data class PortfolioData(
@@ -70,6 +73,8 @@ class PortfolioViewModel @Inject constructor(
     private val accountAliasDao: AccountAliasDao,
     private val goalRepository: GoalRepository,
     private val localeManager: LocaleManager,
+    private val getRebalanceSuggestionsUseCase: com.sans.finance.domain.usecase.GetRebalanceSuggestionsUseCase,
+    private val aiProviderFactory: com.sans.finance.data.ai.AiProviderFactory,
     @param:ApplicationContext private val context: android.content.Context
 ) : ViewModel() {
 
@@ -77,6 +82,8 @@ class PortfolioViewModel @Inject constructor(
     private val _importMessage = MutableStateFlow<String?>(null)
     private val _selectedTab = MutableStateFlow(0)
     private val _xirr = MutableStateFlow<Double?>(null)
+    private val _aiAnalysis = MutableStateFlow<com.sans.finance.data.ai.PortfolioAnalysisResult?>(null)
+    private val _isAiAnalyzing = MutableStateFlow(false)
 
     init {
         // Seed default targets if none exist
@@ -108,6 +115,8 @@ class PortfolioViewModel @Inject constructor(
         localeManager.privacyMode,
         _selectedTab,
         _xirr,
+        _aiAnalysis,
+        _isAiAnalyzing,
         accountRepository.getAllAccounts(),
         accountTypeRepository.getAllAccountTypes(),
         currencyDao.getAllRates(),
@@ -126,14 +135,16 @@ class PortfolioViewModel @Inject constructor(
         val privacyMode = args[6] as Boolean
         val selectedTab = args[7] as Int
         val xirrValue = args[8] as Double?
+        val aiAnalysis = args[9] as com.sans.finance.data.ai.PortfolioAnalysisResult?
+        val isAiAnalyzing = args[10] as Boolean
         @Suppress("UNCHECKED_CAST")
-        val accounts = args[9] as List<com.sans.finance.data.local.entity.AccountEntity>
+        val accounts = args[11] as List<com.sans.finance.data.local.entity.AccountEntity>
         @Suppress("UNCHECKED_CAST")
-        val accountTypes = args[10] as List<com.sans.finance.data.local.entity.AccountTypeEntity>
+        val accountTypes = args[12] as List<com.sans.finance.data.local.entity.AccountTypeEntity>
         @Suppress("UNCHECKED_CAST")
-        val rates = args[11] as List<com.sans.finance.data.local.entity.ExchangeRateEntity>
+        val rates = args[13] as List<com.sans.finance.data.local.entity.ExchangeRateEntity>
         @Suppress("UNCHECKED_CAST")
-        val aliases = args[12] as List<com.sans.finance.data.local.entity.AccountAliasEntity>
+        val aliases = args[14] as List<com.sans.finance.data.local.entity.AccountAliasEntity>
 
         val currency = localeManager.getCurrency()
 
@@ -203,6 +214,8 @@ class PortfolioViewModel @Inject constructor(
             .sortedByDescending { it.second.sumOf { h -> h.valueIdr } }
             .toMap()
 
+        val rebalanceSuggestions = getRebalanceSuggestionsUseCase(healthList)
+
         val previousDate = dates.getOrNull(validIndex + 1)
         val previousTotalIdr = if (previousDate != null) {
             history.find { it.snapshot_date == previousDate }?.totalIdr
@@ -254,7 +267,10 @@ class PortfolioViewModel @Inject constructor(
             selectedTab = selectedTab,
             goals = goalsWithProgress,
             accountAliases = aliases.associate { it.accountKey to it.aliasName },
-            includedAccountCashIdr = accountCashHoldings.sumOf { it.valueIdr }
+            includedAccountCashIdr = accountCashHoldings.sumOf { it.valueIdr },
+            rebalanceSuggestions = rebalanceSuggestions,
+            aiAnalysis = aiAnalysis,
+            isAiAnalyzing = isAiAnalyzing
         )
     }.stateIn(
         scope = viewModelScope,
@@ -400,5 +416,42 @@ class PortfolioViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    fun analyzePortfolioWithAi() {
+        val currentState = state.value
+        if (currentState.holdings.isEmpty() || _isAiAnalyzing.value) return
+
+        viewModelScope.launch {
+            _isAiAnalyzing.value = true
+            try {
+                val provider = aiProviderFactory.create() ?: throw Exception("AI Provider not configured")
+                
+                val dateFormat = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault())
+                val dateLabel = currentState.selectedDate?.let { dateFormat.format(java.util.Date(it)) } ?: "Current"
+
+                val input = com.sans.finance.data.ai.PortfolioAnalysisInput(
+                    dateLabel = dateLabel,
+                    currency = currentState.currentCurrency,
+                    totalValue = currentState.totalValueIdr,
+                    assetAllocation = currentState.assetClassTotals.map { it.assetClass to (it.totalIdr / currentState.totalValueIdr * 100.0) },
+                    healthStatus = currentState.healthList.map { "${it.assetClass}: ${it.status}" },
+                    xirr = currentState.xirr,
+                    goals = currentState.goals.map { "${it.goal.name}: ${String.format("%.1f%%", (it.currentAmount / it.goal.targetAmount * 100))}" },
+                    notes = "Portfolio rebalancing target check."
+                )
+
+                val result = provider.generatePortfolioAnalysis(input)
+                _aiAnalysis.value = result
+            } catch (e: Exception) {
+                _importMessage.value = "AI Analysis failed: ${e.message}"
+            } finally {
+                _isAiAnalyzing.value = false
+            }
+        }
+    }
+
+    fun clearAiAnalysis() {
+        _aiAnalysis.value = null
     }
 }
