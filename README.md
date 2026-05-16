@@ -1,30 +1,37 @@
 # Sans Finance 🏦
 
-Sans Finance is a premium, on-device AI-powered personal finance and wealth management application for Android. Designed with privacy and performance in mind, it provides a comprehensive dashboard to track your entire financial life—from daily expenses to long-term net worth.
+Sans Finance is a premium, AI-powered personal finance and wealth management application. It provides a comprehensive dashboard to track your entire financial life—from daily expenses to long-term net worth, including investments and portfolio tracking.
 
 <img width="1376" height="3058" alt="Gemini_Generated_Image_mbod72mbod72mbod" src="https://github.com/user-attachments/assets/3fabaac4-d548-4f75-a6b2-9857826bda7a" />
 
 ## ✨ Features
 
 - **Comprehensive Dashboard:** Monitor your Net Worth, Total Assets, and Liabilities in a single, beautiful view.
+- **Wealth & Portfolio Tracking:** Track your investments across different accounts and visualize your wealth distribution.
 - **Monthly Cash Flow:** Track income, expenses, and your monthly savings rate with interactive charts.
-- **On-Device AI Insights:** Get personalized financial suggestions powered by **LiteRT-LM** (Google Edge AI), running entirely on your device for maximum privacy.
-- **AI Receipt Scanning:** Instantly extract transaction details from photos or gallery images using local AI inference.
-- **Wealth Distribution:** Visualize how your assets are distributed across different categories and accounts.
-- **Installment & Debt Tracking:** Manage long-term payment plans and see your remaining balances clearly.
-- **Recurring Expenses:** Automate your fixed costs and upcoming bills.
-- **Advanced Statistics:** Analyze spending trends over 7D, 30D, Monthly, and Yearly timeframes.
-- **Privacy First:** Your data never leaves your device. All processing is local, and backups are stored on your storage.
+- **AI-Powered Insights**: 
+    - **Cloud AI**: Advanced monthly reviews and transaction analysis via **OpenAI** or **OpenRouter**.
+    - **Local AI (Planned)**: Privacy-focused on-device suggestions (Coming Soon).
+- **Budgets & Goals:** Set financial goals and track your progress with dedicated budget management.
+- **Installment & Debt tracking:** Manage long-term payment plans and use the **Debt Strategist** to optimize repayments.
+- **Advanced Statistics:** Analyze spending and account trends over multiple timeframes.
+- **Privacy First:** Core data processing is local, ensuring your financial privacy.
 
 ## 🛠 Tech Stack
 
-- **Language:** [Kotlin](https://kotlinlang.org/) (JDK 17)
-- **UI Framework:** [Jetpack Compose](https://developer.android.com/compose)
-- **Architecture:** Clean Architecture + MVVM
-- **Dependency Injection:** [Hilt](https://dagger.dev/hilt/)
-- **Local Database:** [Room](https://developer.android.com/training/data-storage/room) (SQLite)
-- **On-Device AI:** [LiteRT-LM](https://ai.google.dev/edge/litert)
-- **Data Persistence:** [DataStore](https://developer.android.com/topic/libraries/architecture/datastore) (Preferences)
+- **Architecture:** Kotlin Multiplatform (KMP) + Clean Architecture
+- **Mobile UI:** [Jetpack Compose](https://developer.android.com/compose)
+- **Backend:** [Ktor](https://ktor.io/)
+- **Dependency Injection:** [Hilt](https://dagger.dev/hilt/) (Android)
+- **Local Database:** [Room](https://developer.android.com/training/data-storage/room) (SQLite) - Version 31
+- **AI:** OpenAI & OpenAI-compatible APIs (OpenRouter); Local AI (Planned)
+- **Data Persistence:** DataStore (Preferences)
+
+## 🚀 Project Structure
+
+- `:app` — Android Application
+- `:shared` — Common Domain & Data Logic (KMP)
+- `:server` — Companion Ktor Server
 
 ## 🚀 Getting Started
 
@@ -32,6 +39,7 @@ Sans Finance is a premium, on-device AI-powered personal finance and wealth mana
 
 - Android device/emulator with **API level 36+**.
 - [Android Studio Ladybug](https://developer.android.com/studio) or newer.
+- JDK 17.
 
 ### Build and Install
 

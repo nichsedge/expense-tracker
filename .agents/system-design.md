@@ -1,457 +1,113 @@
 # 1. System Goal
 
-A **mobile-first personal expense tracker** that:
+A **comprehensive wealth management platform** that:
 
 * minimizes input friction
 * supports installments (core differentiator)
-* works fully offline
-* surfaces simple financial insights
+* tracks investments and net worth
+* surfaces AI-powered financial insights (local & cloud)
+* works fully offline with optional cloud sync/backup
 
 ---
 
 # 2. High-Level Architecture
 
-```
-[ Android App ]
-      |
-      v
-[ Local Database (Room / SQLite) ]
-      |
-      v
-[ Domain Logic Layer ]
-      |
-      v
-[ UI Layer (Jetpack Compose) ]
-```
-
-Optional later:
+Sans Finance is built using **Kotlin Multiplatform (KMP)** to share business logic across platforms.
 
 ```
-+ Sync Layer (Firebase / Supabase)
-+ OCR / Parser Service
+[ Android App (:app) ]      [ Future Web/Desktop ]
+          |                        |
+          +-----------+------------+
+                      |
+                      v
+          [ Shared Module (:shared) ]
+          (Domain, Use Cases, Entities)
+                      |
+          +-----------+------------+
+          |                        |
+          v                        v
+[ Local DB (Room) ]        [ Remote API (:server) ]
 ```
 
 ---
 
 # 3. Architecture Pattern
 
-Use **Clean Architecture (simplified)**:
+Use **Clean Architecture** with a shared core:
 
 ```
-Presentation (UI)
+UI Layer (Compose / Ktor Server)
     ↓
-Domain (Use Cases)
+Domain Layer (Use Cases & Models - in :shared)
     ↓
-Data (Repository)
+Data Layer (Repositories & Entities - in :shared / :app)
     ↓
-Local DB (Room)
+Infrastructure (Room / Ktor Client)
 ```
-
-Why:
-
-* keeps logic clean
-* easy to extend (installments, recurring, analytics)
 
 ---
 
 # 4. Core Modules
 
 ## 4.1 Expense Module
-
-Handles:
-
-* CRUD expense
-* filtering
-* tagging
+- CRUD expense, filtering, tagging.
+- FTS (Full Text Search) for transactions.
 
 ## 4.2 Installment Module
+- Splitting expense into payments, tracking remaining balance, due dates.
 
-Handles:
+## 4.3 Wealth & Portfolio Module
+- Tracking assets (Cash, Bank, Investment, Crypto).
+- Portfolio snapshots and health analysis.
+- Net worth tracking over time.
 
-* splitting expense into payments
-* tracking remaining balance
-* due dates
+## 4.4 Goals & Budgets Module
+- Setting financial goals and tracking progress.
+- Monthly budget limits and threshold alerts.
 
-## 4.3 Recurring Module
-
-Handles:
-
-* auto-generating expenses
-* monthly subscriptions
-
-## 4.4 Analytics Module
-
-Handles:
-
-* aggregation
-* summaries
-
-## 4.5 Budget Module (lightweight)
-
-Handles:
-
-* monthly limit
-* threshold alerts
+## 4.5 AI Insights Module
+- **Cloud (Current)**: Deep analysis, monthly reviews, and complex categorization via **OpenAI** or **OpenRouter**.
+- **Local (Planned)**: On-device predictions and suggestions for improved privacy and offline support.
 
 ---
 
-# 5. Data Layer Design
+# 5. Data Layer Design (Database Version 31)
 
-## 5.1 Tables
-
-### expenses
-
-```
-id (PK)
-date (timestamp)
-platform (enum)
-merchant (string)
-item_name (string)
-quantity (int)
-original_price (long)
-final_price (long)
-category_id (FK)
-payment_method (enum)
-status (enum)
-is_impulsive (boolean)
-is_recurring (boolean)
-created_at
-updated_at
-```
-
----
-
-### installments
-
-```
-id (PK)
-expense_id (FK)
-total_amount
-monthly_payment
-duration_months
-remaining_balance
-next_due_date
-status (ongoing/paid)
-created_at
-```
-
----
-
-### installment_payments (important)
-
-Tracks each payment event.
-
-```
-id (PK)
-installment_id (FK)
-payment_date
-amount
-status (paid/pending)
-```
-
----
-
-### categories
-
-```
-id (PK)
-name
-icon
-```
-
----
-
-### recurring_rules
-
-```
-id (PK)
-title
-amount
-category_id
-interval (monthly/weekly)
-next_run_date
-is_active
-```
-
----
-
-### budgets
-
-```
-id (PK)
-month (YYYY-MM)
-limit_amount
-current_spent
-```
+The database includes tables for:
+- `expenses`, `tags`, `categories`
+- `installments`, `installment_payments`
+- `accounts`, `account_types`, `account_aliases`
+- `portfolio_holdings`, `portfolio_snapshots`, `portfolio_targets`
+- `goals`, `budgets`
+- `net_worth_snapshots`
+- `exchange_rates` (for currency conversion)
 
 ---
 
 # 6. Domain Layer (Use Cases)
 
-## Expense
-
-* AddExpenseUseCase
-* UpdateExpenseUseCase
-* DeleteExpenseUseCase
-* GetExpensesUseCase (filters)
-
----
-
-## Installment
-
-* CreateInstallmentPlanUseCase
-* RecordInstallmentPaymentUseCase
-* GetActiveInstallmentsUseCase
-* GetUpcomingPaymentsUseCase
+- **Transaction**: `AddTransactionUseCase`, `GetExpensesUseCase`, `DeleteExpenseUseCase`.
+- **Installment**: `CreateInstallmentPlanUseCase`, `RecordInstallmentPaymentUseCase`.
+- **Wealth**: `GetPortfolioHealthUseCase`, `PredictTransactionUseCase`.
+- **Currency**: `ConvertCurrencyUseCase`.
+- **AI**: `GetDetailsSuggestionsUseCase`, `GetMonthlyReviewUseCase`.
 
 ---
 
-## Recurring
+# 7. UI Layer (Compose Structure)
 
-* GenerateRecurringExpensesUseCase (runs on app open)
-
----
-
-## Analytics
-
-* GetMonthlySpendingUseCase
-* GetCategoryBreakdownUseCase
-* GetLargestExpenseUseCase
+## Primary Screens
+1. **Dashboard**: Summary of net worth, recent activity, and quick actions.
+2. **Wealth/Portfolio**: Asset distribution and investment tracking.
+3. **Monthly Review**: AI-driven analysis of the past month.
+4. **Debt Strategist**: Optimization plans for debt repayment.
+5. **Budgets/Goals**: Financial planning and progress tracking.
+6. **Search**: Advanced filtering and search for all transactions.
 
 ---
 
-## Budget
-
-* CheckBudgetStatusUseCase
-
----
-
-# 7. Data Flow Example
-
-### Case: Add Expense with Installment
-
-```
-UI → AddExpenseUseCase
-    → save expense
-    → CreateInstallmentPlanUseCase
-        → create installment
-        → generate installment_payments
-```
-
----
-
-### Case: App Open
-
-```
-App Start
-  → GenerateRecurringExpensesUseCase
-  → UpdateInstallmentStatusUseCase
-  → LoadDashboardData
-```
-
----
-
-# 8. UI Layer (Compose Structure)
-
-## Screens
-
-### 1. HomeScreen
-
-* summary
-* recent expenses
-* quick add
-
----
-
-### 2. AddExpenseScreen
-
-State:
-
-```
-amount
-category
-notes
-is_installment
-installment_config
-```
-
----
-
-### 3. ExpenseListScreen
-
-* filters
-* search
-
----
-
-### 4. InstallmentScreen
-
-* active plans
-* upcoming payments
-
----
-
-### 5. AnalyticsScreen
-
-* monthly summary
-* category breakdown
-
----
-
-# 9. State Management
-
-Use:
-
-* ViewModel (per screen)
-* StateFlow / MutableStateFlow
-
-Example:
-
-```
-AddExpenseViewModel
-    - uiState: StateFlow<AddExpenseState>
-```
-
----
-
-# 10. Repository Layer
-
-Interface:
-
-```
-ExpenseRepository
-InstallmentRepository
-RecurringRepository
-AnalyticsRepository
-```
-
-Implementation:
-
-* Local only (Room)
-
----
-
-# 11. Background Processing
-
-No need for heavy infra.
-
-Use:
-
-* WorkManager
-
-Tasks:
-
-* recurring expense generation
-* installment due check
-
----
-
-# 12. Performance Considerations
-
-* Index:
-
-    * date
-    * category_id
-    * installment_id
-
-* Pagination for expense list
-
-* Avoid heavy joins → precompute summaries if needed
-
----
-
-# 13. Offline-First Strategy
-
-* All writes → local DB
-* No dependency on network
-
-Future sync:
-
-```
-local DB → sync queue → backend
-```
-
----
-
-# 14. Security
-
-Minimal but enough:
-
-* encrypt DB (SQLCipher optional)
-* no sensitive auth needed initially
-
----
-
-# 15. Scalability (Future)
-
-If you expand:
-
-### Add Backend
-
-```
-Mobile → API → DB (Postgres)
-```
-
-### Features:
-
-* multi-device sync
-* backup
-* account system
-
----
-
-# 16. Biggest Risks (Realistically)
-
-### 1. User stops logging
-
-→ solve with:
-
-* speed
-* defaults
-* repeat entry
-
----
-
-### 2. Installment complexity
-
-→ avoid:
-
-* over-engineering
-* keep fixed monthly only (no variable interest first)
-
----
-
-### 3. Feature creep
-
-→ resist:
-
-* investments
-* crypto
-* stock tracking
-
-Stay focused.
-
----
-
-# 17. What Makes This Actually Valuable
-
-Not:
-
-* pretty charts
-
-But:
-
-* installment awareness
-* impulse tracking
-* spending visibility
-
----
-
-# 18. Build Order (important)
-
-1. Expense CRUD
-2. Simple UI
-3. Installment system
-4. Recurring
-5. Analytics
-6. Budget
+# 8. Offline-First Strategy
+
+- All writes are directed to the local database first.
+- The `:server` module provides an API for future multi-device synchronization and backup.
+- AI operations fallback to local models if the network is unavailable or if privacy is prioritized.
