@@ -7,7 +7,13 @@ import time
 
 # Configuration
 DB_PATH = "sans_finance_db"
-DATA_DIR = os.getenv("PORTFOLIO_DATA_DIR", "./portfolio_data")
+DATA_DIR = os.getenv("PORTFOLIO_DATA_DIR")
+if not DATA_DIR:
+    standard_path = "/home/al/Projects/portfolio-integration/data"
+    if os.path.exists(standard_path):
+        DATA_DIR = standard_path
+    else:
+        DATA_DIR = "./portfolio_data"
 SNAPSHOT_PATTERN = re.compile(r".*_snapshot\.json$")
 
 def extract_price(details):
@@ -36,15 +42,40 @@ def main():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
-    print("🧹 Clearing existing portfolio data...")
-    cursor.execute("DELETE FROM portfolio_snapshot_headers")
-    # portfolio_holdings should be deleted by CASCADE, but let's be sure if not
-    cursor.execute("DELETE FROM portfolio_holdings")
+    if not os.path.exists(DATA_DIR):
+        print(f"⚠️ Warning: Portfolio data directory '{DATA_DIR}' does not exist!")
+        return
 
     files = [f for f in os.listdir(DATA_DIR) if SNAPSHOT_PATTERN.match(f)]
     files.sort()
 
+    if not files:
+        print("⚠️ No snapshot files found. Aborting to prevent erasing existing database data.")
+        return
+
     print(f"📂 Found {len(files)} snapshot files.")
+
+    # Determine which dates we are about to import to only clear those specific dates
+    dates_to_import = []
+    for filename in files:
+        filepath = os.path.join(DATA_DIR, filename)
+        try:
+            with open(filepath, 'r') as f:
+                data = json.load(f)
+            date_str = data.get("metadata", {}).get("date")
+            if date_str:
+                dates_to_import.append(parse_date_to_millis(date_str))
+        except Exception as e:
+            print(f"⚠️ Error reading {filename}: {e}")
+
+    if not dates_to_import:
+        print("⚠️ No valid dates found in snapshot files. Aborting.")
+        return
+
+    print("🧹 Clearing existing portfolio data only for the target dates to be imported...")
+    for s_date in dates_to_import:
+        cursor.execute("DELETE FROM portfolio_snapshot_headers WHERE snapshotDate = ?", (s_date,))
+        cursor.execute("DELETE FROM portfolio_holdings WHERE snapshot_date = ?", (s_date,))
 
     for filename in files:
         filepath = os.path.join(DATA_DIR, filename)
