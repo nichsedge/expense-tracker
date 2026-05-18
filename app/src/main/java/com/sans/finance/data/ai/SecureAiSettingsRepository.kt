@@ -1,89 +1,144 @@
 package com.sans.finance.data.ai
 
 import android.content.Context
-import androidx.core.content.edit
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
+import android.util.Base64
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import java.security.KeyStore
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
 import javax.inject.Inject
 import javax.inject.Singleton
 
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "ai_settings")
+
 @Singleton
 class SecureAiSettingsRepository @Inject constructor(
-    @ApplicationContext context: Context,
+    @param:ApplicationContext private val context: Context,
 ) : AiSettingsRepository {
 
-    @Suppress("DEPRECATION")
+    private val dataStore = context.dataStore
 
-    private val prefs = run {
-        val masterKey = MasterKey.Builder(context)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-            .build()
+    override val settings: Flow<AiSettings> = dataStore.data.map { preferences ->
+        val provider = preferences[KEY_PROVIDER]?.let { runCatching { AiProviderType.valueOf(it) }.getOrNull() }
+            ?: AiProviderType.OFF
 
-        EncryptedSharedPreferences.create(
-            context,
-            "ai_settings_secure_prefs",
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        val openAiApiKeyEncrypted = preferences[KEY_OPENAI_KEY].orEmpty()
+        val openAiApiKey = runCatching { CryptoManager.decrypt(openAiApiKeyEncrypted) }.getOrDefault("")
+
+        val openAiModel = preferences[KEY_OPENAI_MODEL] ?: AiSettings().openAiModel
+
+        val openRouterApiKeyEncrypted = preferences[KEY_OPENROUTER_KEY].orEmpty()
+        val openRouterApiKey = runCatching { CryptoManager.decrypt(openRouterApiKeyEncrypted) }.getOrDefault("")
+
+        val openRouterModel = preferences[KEY_OPENROUTER_MODEL] ?: AiSettings().openRouterModel
+
+        AiSettings(
+            provider = provider,
+            openAiApiKey = openAiApiKey,
+            openAiModel = openAiModel,
+            openRouterApiKey = openRouterApiKey,
+            openRouterModel = openRouterModel
         )
     }
 
-    private val state = MutableStateFlow(load())
-
-    override val settings: Flow<AiSettings> = state.asStateFlow()
-
     override suspend fun setProvider(provider: AiProviderType) {
-        prefs.edit { putString(KEY_PROVIDER, provider.name) }
-        state.value = state.value.copy(provider = provider)
+        dataStore.edit { prefs ->
+            prefs[KEY_PROVIDER] = provider.name
+        }
     }
 
     override suspend fun setOpenAiApiKey(apiKey: String) {
-        prefs.edit { putString(KEY_OPENAI_KEY, apiKey.trim()) }
-        state.value = state.value.copy(openAiApiKey = apiKey.trim())
+        val encrypted = CryptoManager.encrypt(apiKey.trim())
+        dataStore.edit { prefs ->
+            prefs[KEY_OPENAI_KEY] = encrypted
+        }
     }
 
     override suspend fun setOpenAiModel(model: String) {
-        val clean = model.trim()
-        prefs.edit { putString(KEY_OPENAI_MODEL, clean) }
-        state.value = state.value.copy(openAiModel = clean)
+        dataStore.edit { prefs ->
+            prefs[KEY_OPENAI_MODEL] = model.trim()
+        }
     }
 
     override suspend fun setOpenRouterApiKey(apiKey: String) {
-        prefs.edit { putString(KEY_OPENROUTER_KEY, apiKey.trim()) }
-        state.value = state.value.copy(openRouterApiKey = apiKey.trim())
+        val encrypted = CryptoManager.encrypt(apiKey.trim())
+        dataStore.edit { prefs ->
+            prefs[KEY_OPENROUTER_KEY] = encrypted
+        }
     }
 
     override suspend fun setOpenRouterModel(model: String) {
-        val clean = model.trim()
-        prefs.edit { putString(KEY_OPENROUTER_MODEL, clean) }
-        state.value = state.value.copy(openRouterModel = clean)
+        dataStore.edit { prefs ->
+            prefs[KEY_OPENROUTER_MODEL] = model.trim()
+        }
     }
 
-    private fun load(): AiSettings {
-        val provider = prefs.getString(KEY_PROVIDER, AiProviderType.OFF.name)
-            ?.let { runCatching { AiProviderType.valueOf(it) }.getOrNull() }
-            ?: AiProviderType.OFF
+    private object CryptoManager {
+        private const val KEY_ALIAS = "ai_settings_key"
+        private const val ANDROID_KEY_STORE = "AndroidKeyStore"
+        private const val AES_GCM_NOPADDING = "AES/GCM/NoPadding"
 
-        return AiSettings(
-            provider = provider,
-            openAiApiKey = prefs.getString(KEY_OPENAI_KEY, "").orEmpty(),
-            openAiModel = prefs.getString(KEY_OPENAI_MODEL, AiSettings().openAiModel).orEmpty(),
-            openRouterApiKey = prefs.getString(KEY_OPENROUTER_KEY, "").orEmpty(),
-            openRouterModel = prefs.getString(KEY_OPENROUTER_MODEL, AiSettings().openRouterModel)
-                .orEmpty()
-        )
+        private fun getOrCreateKey(): SecretKey {
+            val keyStore = KeyStore.getInstance(ANDROID_KEY_STORE).apply { load(null) }
+            keyStore.getKey(KEY_ALIAS, null)?.let { return it as SecretKey }
+
+            val keyGenerator = KeyGenerator.getInstance(
+                KeyProperties.KEY_ALGORITHM_AES,
+                ANDROID_KEY_STORE
+            )
+            keyGenerator.init(
+                KeyGenParameterSpec.Builder(
+                    KEY_ALIAS,
+                    KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+                )
+                    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                    .build()
+            )
+            return keyGenerator.generateKey()
+        }
+
+        fun encrypt(plainText: String): String {
+            if (plainText.isEmpty()) return ""
+            val cipher = Cipher.getInstance(AES_GCM_NOPADDING)
+            cipher.init(Cipher.ENCRYPT_MODE, getOrCreateKey())
+            val iv = cipher.iv
+            val cipherText = cipher.doFinal(plainText.toByteArray(Charsets.UTF_8))
+            val ivBase64 = Base64.encodeToString(iv, Base64.NO_WRAP)
+            val cipherTextBase64 = Base64.encodeToString(cipherText, Base64.NO_WRAP)
+            return "$ivBase64|$cipherTextBase64"
+        }
+
+        fun decrypt(encryptedData: String): String {
+            if (encryptedData.isEmpty()) return ""
+            val parts = encryptedData.split("|")
+            if (parts.size != 2) return ""
+            val iv = Base64.decode(parts[0], Base64.NO_WRAP)
+            val cipherText = Base64.decode(parts[1], Base64.NO_WRAP)
+
+            val cipher = Cipher.getInstance(AES_GCM_NOPADDING)
+            val spec = GCMParameterSpec(128, iv)
+            cipher.init(Cipher.DECRYPT_MODE, getOrCreateKey(), spec)
+            return String(cipher.doFinal(cipherText), Charsets.UTF_8)
+        }
     }
 
     private companion object {
-        private const val KEY_PROVIDER = "provider"
-        private const val KEY_OPENAI_KEY = "openai_api_key"
-        private const val KEY_OPENAI_MODEL = "openai_model"
-        private const val KEY_OPENROUTER_KEY = "openrouter_api_key"
-        private const val KEY_OPENROUTER_MODEL = "openrouter_model"
+        val KEY_PROVIDER = stringPreferencesKey("provider")
+        val KEY_OPENAI_KEY = stringPreferencesKey("openai_api_key")
+        val KEY_OPENAI_MODEL = stringPreferencesKey("openai_model")
+        val KEY_OPENROUTER_KEY = stringPreferencesKey("openrouter_api_key")
+        val KEY_OPENROUTER_MODEL = stringPreferencesKey("openrouter_model")
     }
 }
-
