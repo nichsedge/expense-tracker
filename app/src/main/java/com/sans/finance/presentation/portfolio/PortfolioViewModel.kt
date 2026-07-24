@@ -12,6 +12,7 @@ import com.sans.finance.data.local.entity.PortfolioHoldingEntity
 import com.sans.finance.data.util.LocaleManager
 import com.sans.finance.data.util.PortfolioJsonExporter
 import com.sans.finance.data.util.PortfolioJsonImporter
+import com.sans.finance.data.util.GcsPortfolioSyncer
 import com.sans.finance.domain.model.AssetClassHealth
 import com.sans.finance.domain.repository.AccountRepository
 import com.sans.finance.domain.repository.AccountTypeRepository
@@ -317,6 +318,25 @@ class PortfolioViewModel @Inject constructor(
                 _importMessage.value = "Imported ${items.size} holdings"
             } catch (e: Exception) {
                 _importMessage.value = "Import failed: ${e.message}"
+            }
+        }
+    }
+
+    fun syncFromGcs() {
+        viewModelScope.launch {
+            try {
+                _importMessage.value = "Connecting to GCS..."
+                val (date, items, exchangeRate) = GcsPortfolioSyncer.downloadLatestSnapshot(context)
+
+                if (items.isEmpty()) {
+                    _importMessage.value = "No valid entries found in GCS"
+                    return@launch
+                }
+                repository.importSnapshot(date, items, exchangeRate)
+                _selectedDateIndex.value = 0
+                _importMessage.value = "Synced ${items.size} holdings from GCS"
+            } catch (e: Exception) {
+                _importMessage.value = "Sync failed: ${e.message}"
             }
         }
     }

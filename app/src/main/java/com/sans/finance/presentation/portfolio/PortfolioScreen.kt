@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.PieChart
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -140,6 +141,15 @@ fun PortfolioScreen(
                     }
                 },
                 actions = {
+                    IconButton(
+                        onClick = viewModel::syncFromGcs
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Sync,
+                            contentDescription = "Sync from Cloud",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                     if (state.snapshotDates.isNotEmpty()) {
                         IconButton(
                             onClick = viewModel::analyzePortfolioWithAi,

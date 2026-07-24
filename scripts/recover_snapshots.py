@@ -4,7 +4,9 @@ import os
 from datetime import datetime
 
 DB_PATH = "sans_finance_db_snapshot.sqlite"
-OUTPUT_DIR = "/home/al/Projects/portfolio-integration/data"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECTS_DIR = os.path.dirname(os.path.dirname(SCRIPT_DIR))
+OUTPUT_DIR = os.path.join(PROJECTS_DIR, "portfolio-integration", "data")
 
 def get_asset_class(category: str) -> str:
     mapping = {
