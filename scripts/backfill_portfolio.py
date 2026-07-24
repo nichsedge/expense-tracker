@@ -2,19 +2,95 @@ import json
 import sqlite3
 import os
 import re
+import sys
+import shutil
 from datetime import datetime
 import time
 
 # Configuration
-DB_PATH = "sans_finance_db"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+SANS_FINANCE_DIR = os.path.dirname(SCRIPT_DIR)
+PROJECTS_DIR = os.path.dirname(SANS_FINANCE_DIR)
+
+DB_PATH = os.path.join(SANS_FINANCE_DIR, "sans_finance_db")
 DATA_DIR = os.getenv("PORTFOLIO_DATA_DIR")
 if not DATA_DIR:
-    standard_path = "/home/al/Projects/portfolio-integration/data"
+    standard_path = os.path.join(PROJECTS_DIR, "portfolio-integration", "data")
     if os.path.exists(standard_path):
         DATA_DIR = standard_path
     else:
         DATA_DIR = "./portfolio_data"
 SNAPSHOT_PATTERN = re.compile(r".*_snapshot\.json$")
+
+def download_snapshots_from_gcs(bucket_name, temp_dir, existing_dates=None):
+    """Downloads snapshot files from GCS to a temporary directory, skipping already imported ones."""
+    try:
+        from google.cloud import storage
+    except ImportError:
+        print("❌ Error: google-cloud-storage package is not installed.")
+        print("💡 Please install it by running: pip install google-cloud-storage")
+        sys.exit(1)
+
+    creds_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+    if not creds_path:
+        # Check relative to sansfinance project directory
+        local_creds = "../creds/gcp/SA_cred_general.json"
+        if os.path.exists(local_creds):
+            creds_path = local_creds
+        else:
+            # Check absolute path dynamically from projects directory
+            abs_creds = os.path.join(PROJECTS_DIR, "creds", "gcp", "SA_cred_general.json")
+            if os.path.exists(abs_creds):
+                creds_path = abs_creds
+
+    if creds_path:
+        print(f"🔑 Using service account credentials from: {creds_path}")
+        client = storage.Client.from_service_account_json(creds_path)
+    else:
+        print("ℹ️ Using Google Application Default Credentials (ADC)")
+        client = storage.Client()
+
+    if existing_dates is None:
+        existing_dates = set()
+
+    try:
+        bucket = client.bucket(bucket_name)
+        blobs = bucket.list_blobs(prefix="snapshots/")
+        
+        os.makedirs(temp_dir, exist_ok=True)
+        download_count = 0
+        skipped_count = 0
+        
+        for blob in blobs:
+            # We only want json snapshot files in the snapshots/ directory
+            if blob.name.endswith("_snapshot.json"):
+                filename = os.path.basename(blob.name)
+                
+                # Incremental Check: parse date from filename YYYY-MM-DD_snapshot.json
+                date_match = re.match(r"(\d{4}-\d{2}-\d{2})_snapshot\.json", filename)
+                if date_match:
+                    date_str = date_match.group(1)
+                    try:
+                        date_ms = parse_date_to_millis(date_str)
+                        if date_ms in existing_dates:
+                            skipped_count += 1
+                            continue
+                    except Exception:
+                        pass
+
+                dest_path = os.path.join(temp_dir, filename)
+                print(f"📥 Downloading gs://{bucket_name}/{blob.name} to {dest_path}...")
+                blob.download_to_filename(dest_path)
+                download_count += 1
+                
+        if skipped_count > 0:
+            print(f"ℹ️ Skipped {skipped_count} snapshot(s) already present in the database.")
+        print(f"✅ Downloaded {download_count} new snapshot file(s) from GCS.")
+        return True
+    except Exception as e:
+        print(f"❌ Failed to download snapshots from GCS: {e}")
+        return False
+
 
 def extract_price(details):
     if not details:
@@ -42,15 +118,44 @@ def main():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
-    if not os.path.exists(DATA_DIR):
-        print(f"⚠️ Warning: Portfolio data directory '{DATA_DIR}' does not exist!")
+    # Query existing snapshot dates in the database for incremental sync
+    existing_dates = set()
+    try:
+        cursor.execute("SELECT snapshotDate FROM portfolio_snapshot_headers")
+        existing_dates = {row[0] for row in cursor.fetchall()}
+    except sqlite3.OperationalError:
+        pass
+
+    data_dir = DATA_DIR
+    gcs_bucket = os.getenv("PORTFOLIO_GCS_BUCKET")
+    temp_dir = "./build/gcs_snapshots"
+    is_temp_dir = False
+
+    if gcs_bucket:
+        print(f"☁️ PORTFOLIO_GCS_BUCKET is set to '{gcs_bucket}'. Syncing snapshots from GCS...")
+        if download_snapshots_from_gcs(gcs_bucket, temp_dir, existing_dates):
+            data_dir = temp_dir
+            is_temp_dir = True
+        else:
+            print("⚠️ Failed to download snapshots from GCS. Falling back to local data directory.")
+
+    if not os.path.exists(data_dir):
+        print(f"⚠️ Warning: Portfolio data directory '{data_dir}' does not exist!")
+        conn.close()
         return
 
-    files = [f for f in os.listdir(DATA_DIR) if SNAPSHOT_PATTERN.match(f)]
+    files = [f for f in os.listdir(data_dir) if SNAPSHOT_PATTERN.match(f)]
     files.sort()
 
     if not files:
-        print("⚠️ No snapshot files found. Aborting to prevent erasing existing database data.")
+        if is_temp_dir:
+            print("✅ Database is already up to date with GCS (no new snapshots).")
+        else:
+            print("⚠️ No snapshot files found. Aborting to prevent erasing existing database data.")
+        if is_temp_dir and os.path.exists(temp_dir):
+            print("🧹 Cleaning up GCS temporary snapshots directory...")
+            shutil.rmtree(temp_dir)
+        conn.close()
         return
 
     print(f"📂 Found {len(files)} snapshot files.")
@@ -58,7 +163,7 @@ def main():
     # Determine which dates we are about to import to only clear those specific dates
     dates_to_import = []
     for filename in files:
-        filepath = os.path.join(DATA_DIR, filename)
+        filepath = os.path.join(data_dir, filename)
         try:
             with open(filepath, 'r') as f:
                 data = json.load(f)
@@ -70,6 +175,10 @@ def main():
 
     if not dates_to_import:
         print("⚠️ No valid dates found in snapshot files. Aborting.")
+        if is_temp_dir and os.path.exists(temp_dir):
+            print("🧹 Cleaning up GCS temporary snapshots directory...")
+            shutil.rmtree(temp_dir)
+        conn.close()
         return
 
     print("🧹 Clearing existing portfolio data only for the target dates to be imported...")
@@ -78,7 +187,7 @@ def main():
         cursor.execute("DELETE FROM portfolio_holdings WHERE snapshot_date = ?", (s_date,))
 
     for filename in files:
-        filepath = os.path.join(DATA_DIR, filename)
+        filepath = os.path.join(data_dir, filename)
         print(f"📄 Processing {filename}...")
         
         with open(filepath, 'r') as f:
@@ -192,6 +301,11 @@ def main():
 
     conn.commit()
     conn.close()
+
+    if is_temp_dir and os.path.exists(temp_dir):
+        print("🧹 Cleaning up GCS temporary snapshots directory...")
+        shutil.rmtree(temp_dir)
+
     print("✅ Backfill complete!")
 
 if __name__ == "__main__":
