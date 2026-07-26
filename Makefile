@@ -1,4 +1,4 @@
-.PHONY: help run build release test test-unit test-android backup restore sync push-portfolio backfill-portfolio clean
+.PHONY: help run build release test test-unit test-android backup restore sync push-portfolio backfill-portfolio prune-portfolio clean
 
 help:
 	@echo "Usage: make [target]"
@@ -15,6 +15,7 @@ help:
 	@echo "  sync               Run sync script"
 	@echo "  push-portfolio     Run portfolio push script"
 	@echo "  backfill-portfolio Run portfolio backfill script"
+	@echo "  prune-portfolio    Run portfolio monthly pruning script"
 	@echo "  clean              Clean build artifacts"
 
 run:
@@ -48,6 +49,9 @@ push-portfolio:
 
 backfill-portfolio:
 	bash scripts/backfill_portfolio.sh
+
+prune-portfolio:
+	bash scripts/prune_portfolio.sh $(ARGS)
 
 clean:
 	./gradlew clean

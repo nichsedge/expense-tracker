@@ -71,6 +71,15 @@ interface PortfolioDao {
     @Query("DELETE FROM portfolio_snapshot_headers WHERE snapshotDate = :date")
     suspend fun deleteByDate(date: Long)
 
+    @Query("DELETE FROM portfolio_holdings WHERE snapshot_date = :date")
+    suspend fun deleteHoldingsByDate(date: Long)
+
+    @Query("DELETE FROM portfolio_snapshot_headers WHERE snapshotDate NOT IN (:keepDates)")
+    suspend fun deleteHeadersExceptDates(keepDates: List<Long>)
+
+    @Query("DELETE FROM portfolio_holdings WHERE snapshot_date NOT IN (:keepDates)")
+    suspend fun deleteHoldingsExceptDates(keepDates: List<Long>)
+
     @Query("DELETE FROM portfolio_snapshot_headers")
     suspend fun deleteAll()
 
