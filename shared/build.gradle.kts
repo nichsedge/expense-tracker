@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.detekt)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.android.kotlin.multiplatform)
 }
@@ -24,4 +25,9 @@ kotlin {
             implementation(libs.kotlin.test)
         }
     }
+}
+
+detekt {
+    baseline = file("detekt-baseline.xml")
+    buildUponDefaultConfig = true
 }

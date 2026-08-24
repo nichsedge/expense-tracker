@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.detekt)
     // alias(libs.plugins.kotlin.android) is no longer required with AGP 9.0+ built-in Kotlin support
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
@@ -97,6 +98,9 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.reflect)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.turbine)
+    testImplementation(libs.mockk)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
@@ -111,4 +115,10 @@ tasks.register("unitTestClasses") {
 
 tasks.register("androidTestClasses") {
     dependsOn("compileDebugAndroidTestSources")
+}
+
+detekt {
+    baseline = file("detekt-baseline.xml")
+    buildUponDefaultConfig = true
+    parallel = true
 }
