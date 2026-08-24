@@ -31,3 +31,4 @@ detekt {
     baseline = file("detekt-baseline.xml")
     buildUponDefaultConfig = true
 }
+
