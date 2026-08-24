@@ -63,10 +63,15 @@ interface PortfolioDao {
 
     @androidx.room.Transaction
     suspend fun insertSnapshot(header: PortfolioSnapshotHeaderEntity, items: List<PortfolioHoldingEntity>) {
+        deleteHoldingsByDate(header.snapshotDate)
         deleteByDate(header.snapshotDate)
         insertHeader(header)
         insertHoldings(items)
+        deleteSansFinanceHoldings()
     }
+
+    @Query("DELETE FROM portfolio_holdings WHERE LOWER(source) = 'sansfinance'")
+    suspend fun deleteSansFinanceHoldings()
 
     @Query("DELETE FROM portfolio_snapshot_headers WHERE snapshotDate = :date")
     suspend fun deleteByDate(date: Long)

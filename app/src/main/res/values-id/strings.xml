@@ -46,6 +46,33 @@
   <string name="recurring_expenses">Pengeluaran Berulang</string>
   <string name="back">Kembali</string>
   <string name="backup_to_downloads">Snapshot disimpan ke folder Unduhan</string>
+  <string name="transactions">Transaksi</string>
+  <string name="today">Hari Ini</string>
+  <string name="upcoming">Akan Datang</string>
+  <string name="widget_quick_add_name">Catat Cepat Pengeluaran</string>
+  <string name="widget_quick_add_description">Catat pengeluaran dengan cepat dan pantau pengeluaran hari ini.</string>
+  <string name="widget_add_expense_btn">Catat Pengeluaran</string>
+  <string name="widget_no_transactions_today">Belum ada pengeluaran hari ini</string>
+  <string name="widget_transactions_today_count">%1$d tercatat hari ini</string>
+  <string name="shortcut_add_transaction_short">Catat Transaksi</string>
+  <string name="shortcut_add_transaction_long">Catat Transaksi Baru</string>
+  <string name="shortcut_transactions_short">Transaksi</string>
+  <string name="shortcut_transactions_long">Lihat Semua Transaksi</string>
 
+  <!-- Quick Settings Tile -->
+  <string name="tile_quick_add_label">Catat Pengeluaran</string>
+
+  <!-- Category Preset Chips -->
+  <string name="category_food">Makanan</string>
+  <string name="category_transport">Transportasi</string>
+  <string name="category_groceries">Belanja</string>
+  <string name="category_bills">Tagihan</string>
+
+  <!-- Financial Summary Widget -->
+  <string name="widget_summary_name">Ringkasan Keuangan</string>
+  <string name="widget_summary_description">Kekayaan bersih, progres anggaran, dan pengeluaran hari ini.</string>
+  <string name="widget_summary_label">RINGKASAN KEUANGAN</string>
+  <string name="widget_summary_today_spent">Hari ini: %1$s (%2$d transaksi)</string>
+  <string name="widget_no_budget_set">Belum ada anggaran diatur</string>
 
 </resources>

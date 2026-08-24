@@ -30,7 +30,26 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import com.sans.finance.core.util.CurrencyFormatter
+import com.sans.finance.data.local.dao.CurrencyDao
+import com.sans.finance.domain.repository.BudgetRepository
+import java.util.Calendar
 import javax.inject.Inject
+
+data class CategoryBudgetStatus(
+    val hasBudget: Boolean = false,
+    val budgetAmount: Long = 0L,
+    val spentAmount: Long = 0L,
+    val remainingAmount: Long = 0L,
+    val isExceeded: Boolean = false,
+    val willExceed: Boolean = false
+)
+
+data class FxConversionInfo(
+    val isForeign: Boolean = false,
+    val rateFormatted: String = "",
+    val convertedAmountFormatted: String = ""
+)
 
 @OptIn(FlowPreview::class)
 @HiltViewModel
@@ -46,12 +65,20 @@ class AddTransactionViewModel @Inject constructor(
     private val installmentRepository: com.sans.finance.domain.repository.InstallmentRepository,
     private val expenseRepository: com.sans.finance.domain.repository.ExpenseRepository,
     private val accountRepository: com.sans.finance.domain.repository.AccountRepository,
+    private val budgetRepository: BudgetRepository,
+    private val currencyDao: CurrencyDao,
     private val checkDuplicateExpenseUseCase: CheckDuplicateExpenseUseCase,
     private val predictTransactionUseCase: com.sans.finance.domain.usecase.PredictTransactionUseCase,
     private val getFrequencyBasedSuggestionsUseCase: com.sans.finance.domain.usecase.GetFrequencyBasedSuggestionsUseCase,
     private val localeManager: com.sans.finance.data.util.LocaleManager,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
+
+    private val addTransactionRoute: Screen.AddTransaction? = try {
+        savedStateHandle.toRoute<Screen.AddTransaction>()
+    } catch (e: Exception) {
+        null
+    }
 
     private val editExpenseId: Long? = try {
         savedStateHandle.toRoute<Screen.EditExpense>().expenseId
@@ -67,7 +94,9 @@ class AddTransactionViewModel @Inject constructor(
         initialValue = emptyList()
     )
 
-    var transactionType by mutableStateOf("EXPENSE") // "EXPENSE", "INCOME", "TRANSFER"
+    var transactionType by mutableStateOf(
+        addTransactionRoute?.transactionType?.ifBlank { "EXPENSE" } ?: "EXPENSE"
+    )
 
     val categories = combine(allCategories, snapshotFlow { transactionType }) { cats, type ->
         cats.filter { it.type == type || type == "TRANSFER" }
@@ -78,9 +107,11 @@ class AddTransactionViewModel @Inject constructor(
     )
 
     var amount by mutableStateOf("")
-    var title by mutableStateOf("")
-    var details by mutableStateOf("")
-    var categoryId by mutableLongStateOf(1L)
+    var title by mutableStateOf(addTransactionRoute?.initialTitle ?: "")
+    var details by mutableStateOf(addTransactionRoute?.initialNotes ?: "")
+    var categoryId by mutableLongStateOf(
+        if (addTransactionRoute != null && addTransactionRoute.categoryId > 0) addTransactionRoute.categoryId else 1L
+    )
     var accountId by mutableLongStateOf(1L)
     var toAccountId by mutableLongStateOf(2L)
 
@@ -109,6 +140,87 @@ class AddTransactionViewModel @Inject constructor(
     var showDuplicateDialog by mutableStateOf(false)
     var detailsSuggestions by mutableStateOf(emptyList<String>())
         private set
+
+    val baseCurrency = localeManager.getCurrency()
+
+    val fxConversionInfo = combine(
+        currencyDao.getAllRates(),
+        snapshotFlow { currency },
+        snapshotFlow { amount }
+    ) { rates, curr, amtStr ->
+        if (curr == baseCurrency || amtStr.isBlank()) {
+            FxConversionInfo(isForeign = false)
+        } else {
+            val ratesMap = rates.associate { it.code to it.rateToIdr }
+            val rateToIdr = if (curr == "IDR") 1.0 else (ratesMap[curr] ?: 1.0)
+            val baseRateToIdr = if (baseCurrency == "IDR") 1.0 else (ratesMap[baseCurrency] ?: 1.0)
+            val multiplier = rateToIdr / baseRateToIdr
+
+            val parsedAmount = amtStr.replace(",", "").toDoubleOrNull() ?: 0.0
+            val convertedCents = (parsedAmount * 100 * multiplier).toLong()
+            val convertedFormatted = CurrencyFormatter.formatAmount(convertedCents, baseCurrency)
+            val rateFormatted = if (multiplier >= 100) {
+                String.format(java.util.Locale.US, "%,.0f", multiplier)
+            } else {
+                String.format(java.util.Locale.US, "%,.2f", multiplier)
+            }
+            FxConversionInfo(
+                isForeign = true,
+                rateFormatted = "1 $curr ≈ $rateFormatted $baseCurrency",
+                convertedAmountFormatted = "≈ $convertedFormatted"
+            )
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = FxConversionInfo()
+    )
+
+    val categoryBudgetStatus = combine(
+        budgetRepository.getAllBudgets(),
+        expenseRepository.getAllExpenses(),
+        snapshotFlow { categoryId },
+        snapshotFlow { amount },
+        snapshotFlow { selectedDate }
+    ) { budgets, allExpenses, catId, amtStr, dateMillis ->
+        val cal = Calendar.getInstance().apply {
+            timeInMillis = dateMillis
+            set(Calendar.DAY_OF_MONTH, 1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val startOfMonth = cal.timeInMillis
+        cal.add(Calendar.MONTH, 1)
+        val endOfMonth = cal.timeInMillis
+
+        val matchingBudget = budgets.find { it.categoryId == catId }
+        if (matchingBudget == null) {
+            CategoryBudgetStatus(hasBudget = false)
+        } else {
+            val spentInMonth = allExpenses
+                .filter { it.categoryId == catId && it.type == "EXPENSE" && !it.isInstallment && it.date in startOfMonth until endOfMonth }
+                .sumOf { it.amount }
+            val budgetCents = matchingBudget.amount
+            val remainingCents = budgetCents - spentInMonth
+            val parsedAmt = (amtStr.replace(",", "").toDoubleOrNull() ?: 0.0) * 100
+            val willExceed = (spentInMonth + parsedAmt.toLong()) > budgetCents
+
+            CategoryBudgetStatus(
+                hasBudget = true,
+                budgetAmount = budgetCents,
+                spentAmount = spentInMonth,
+                remainingAmount = remainingCents,
+                isExceeded = remainingCents < 0,
+                willExceed = willExceed && !isEditMode
+            )
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = CategoryBudgetStatus()
+    )
 
     var validationMessage by mutableStateOf<String?>(null)
         private set

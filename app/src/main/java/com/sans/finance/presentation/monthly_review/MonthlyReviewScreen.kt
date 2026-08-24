@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -49,6 +50,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sans.finance.core.util.CurrencyFormatter
+import com.sans.finance.presentation.components.AppTopBar
 import com.sans.finance.presentation.components.GlassCard
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -67,20 +69,42 @@ fun MonthlyReviewScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = { 
-                    Text(
-                        "Monthly Review", 
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.ExtraBold
-                    ) 
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
+            AppTopBar(
+                title = "Monthly Review",
+                onBack = onBack,
                 actions = {
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    IconButton(
+                        onClick = {
+                            val netSavings = state.income - state.expense
+                            val shareText = buildString {
+                                appendLine("✨ Sans Finance — ${state.monthLabel} Review")
+                                appendLine("━━━━━━━━━━━━━━━━━━━")
+                                appendLine("💰 Total Income: ${CurrencyFormatter.formatAmount(state.income, state.currencyCode)}")
+                                appendLine("💸 Total Spending: ${CurrencyFormatter.formatAmount(state.expense, state.currencyCode)}")
+                                appendLine("📈 Net Cash Flow: ${CurrencyFormatter.formatAmount(netSavings, state.currencyCode)}")
+                                appendLine("🎯 Savings Rate: ${String.format(java.util.Locale.US, "%.1f", state.savingsRate)}%")
+                                if (!state.topCategoryName.isNullOrBlank()) {
+                                    appendLine("🏷️ Top Category: ${state.topCategoryName} (${CurrencyFormatter.formatAmount(state.topCategoryAmount, state.currencyCode)})")
+                                }
+                                if (state.headline.isNotBlank()) {
+                                    appendLine("\n💡 ${state.headline}")
+                                }
+                                appendLine("━━━━━━━━━━━━━━━━━━━")
+                                appendLine("Tracked with Sans Finance")
+                            }
+                            val sendIntent = android.content.Intent().apply {
+                                action = android.content.Intent.ACTION_SEND
+                                putExtra(android.content.Intent.EXTRA_TEXT, shareText)
+                                type = "text/plain"
+                            }
+                            val shareIntent = android.content.Intent.createChooser(sendIntent, "Share Monthly Review")
+                            context.startActivity(shareIntent)
+                        },
+                        enabled = !state.isLoading && state.monthLabel.isNotEmpty()
+                    ) {
+                        Icon(androidx.compose.material.icons.Icons.Default.Share, contentDescription = "Share Review")
+                    }
                     IconButton(
                         onClick = { viewModel.refresh(dontCallAi = true) },
                         enabled = !state.isLoading

@@ -1,6 +1,9 @@
 package com.sans.finance.presentation.portfolio.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -60,6 +63,12 @@ fun PortfolioHealthView(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         DiversificationSummary(healthList)
+
+        DcaDepositRebalanceCard(
+            healthList = healthList,
+            isPrivacyModeEnabled = isPrivacyModeEnabled,
+            currentCurrency = currentCurrency
+        )
 
         if (rebalanceSuggestions.isNotEmpty()) {
             RebalanceSuggestionsSection(
@@ -365,5 +374,185 @@ fun RiskBadge(riskLevel: RiskLevel) {
             color = color,
             fontWeight = FontWeight.Bold
         )
+    }
+}
+
+@Composable
+fun DcaDepositRebalanceCard(
+    healthList: List<AssetClassHealth>,
+    isPrivacyModeEnabled: Boolean,
+    currentCurrency: String
+) {
+    val underweightList = healthList.filter { it.status == HealthStatus.UNDERWEIGHT }
+    if (underweightList.isEmpty()) return
+
+    val totalDeficit = underweightList.sumOf { Math.abs(it.diffPercentage) }
+    if (totalDeficit <= 0) return
+
+    var depositAmountIdr by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(5_000_000L) }
+    val presets = listOf(2_500_000L, 5_000_000L, 10_000_000L, 15_000_000L)
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "MONTHLY DCA DEPOSIT STRATEGY",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.primary,
+                        letterSpacing = 1.sp
+                    )
+                    Text(
+                        "Allocates new deposit without selling existing holdings",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f), MaterialTheme.shapes.small)
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                ) {
+                    Text(
+                        "DCA Calculator",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            // Interactive Deposit Selector
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f), MaterialTheme.shapes.medium)
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "Deposit Target:",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        "Rp ${String.format(java.util.Locale.US, "%,d", depositAmountIdr)}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                androidx.compose.material3.Slider(
+                    value = depositAmountIdr.toFloat(),
+                    onValueChange = { depositAmountIdr = ((it / 500_000f).toInt() * 500_000L).coerceIn(1_000_000L, 20_000_000L) },
+                    valueRange = 1_000_000f..20_000_000f,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    presets.forEach { preset ->
+                        val isSelected = depositAmountIdr == preset
+                        Surface(
+                            shape = CircleShape,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { depositAmountIdr = preset }
+                        ) {
+                            Text(
+                                text = "Rp ${preset / 1_000_000}M",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier
+                                    .padding(vertical = 6.dp)
+                                    .fillMaxWidth(),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    }
+                }
+            }
+
+            androidx.compose.material3.HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+            )
+
+            underweightList.forEachIndexed { index, item ->
+                val weightFraction = Math.abs(item.diffPercentage) / totalDeficit
+                val suggestedAllocation = (depositAmountIdr * 100 * weightFraction).toLong()
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = item.assetClass,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Target: ${String.format(java.util.Locale.US, "%.1f%%", item.targetPercentage)} (Current: ${String.format(java.util.Locale.US, "%.1f%%", item.currentPercentage)})",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Column(horizontalAlignment = Alignment.End) {
+                        com.sans.finance.presentation.components.PrivacyText(
+                            amount = suggestedAllocation,
+                            currencyCode = currentCurrency,
+                            isVisible = !isPrivacyModeEnabled,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Black,
+                            color = Color(0xFF4CAF50)
+                        )
+                        Text(
+                            text = "${(weightFraction * 100).toInt()}% of deposit",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF4CAF50),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                if (index < underweightList.size - 1) {
+                    androidx.compose.material3.HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
+                    )
+                }
+            }
+        }
     }
 }

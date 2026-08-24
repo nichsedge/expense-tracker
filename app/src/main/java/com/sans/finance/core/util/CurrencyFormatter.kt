@@ -33,7 +33,11 @@ object CurrencyFormatter {
      * Formats the amount in cents (Long) into a display string.
      * Rounds up to the nearest whole number and removes thousands separators.
      */
-    fun formatAmount(amountInCents: Long, currencyCode: String = "USD"): String {
+    fun formatAmount(amountInCents: Long, currencyCode: String = "USD", isPrivacyMode: Boolean = false): String {
+        if (isPrivacyMode) {
+            val symbol = if (currencyCode == "IDR") "Rp " else "$"
+            return "$symbol••••••••"
+        }
         val amount = ceil(amountInCents / 100.0).toLong()
         val formatter = getFormatter(currencyCode)
 

@@ -42,7 +42,7 @@ import com.sans.finance.data.local.entity.FxRateEntity
         com.sans.finance.data.local.entity.AccountTypeEntity::class,
         FxRateEntity::class
     ],
-    version = 33,
+    version = 34,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {

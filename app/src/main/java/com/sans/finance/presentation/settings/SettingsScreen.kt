@@ -78,6 +78,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.sans.finance.R
 import com.sans.finance.domain.model.Category
 import com.sans.finance.domain.model.Tag
+import com.sans.finance.presentation.components.AppTopBar
 import com.sans.finance.presentation.components.CategoryIcon
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
@@ -136,21 +137,9 @@ fun SettingsScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        stringResource(R.string.settings),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                },
-                navigationIcon = {
-                    if (onBack != null) {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                        }
-                    }
-                }
+            AppTopBar(
+                title = stringResource(R.string.settings),
+                onBack = onBack
             )
         }
     ) { paddingValues ->

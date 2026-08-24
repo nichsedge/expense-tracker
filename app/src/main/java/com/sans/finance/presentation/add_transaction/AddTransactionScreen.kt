@@ -55,6 +55,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -64,7 +65,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.sans.finance.R
+import com.sans.finance.core.util.CurrencyFormatter
 import com.sans.finance.core.util.DateFormatterUtils
+import com.sans.finance.presentation.components.AppTopBar
 import com.sans.finance.presentation.components.CategoryIcon
 import java.util.Date
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -82,6 +85,8 @@ fun AddTransactionScreen(
     var showDatePicker by remember { androidx.compose.runtime.mutableStateOf(false) }
     val dateFormatter = DateFormatterUtils.getStandardFormatter()
     val focusManager = LocalFocusManager.current
+    val focusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     var titleExpanded by remember { androidx.compose.runtime.mutableStateOf(false) }
     var detailsExpanded by remember { androidx.compose.runtime.mutableStateOf(false) }
     var accountExpanded by remember { androidx.compose.runtime.mutableStateOf(false) }
@@ -89,21 +94,18 @@ fun AddTransactionScreen(
     var recurrenceExpanded by remember { androidx.compose.runtime.mutableStateOf(false) }
     var showDeleteDialog by remember { androidx.compose.runtime.mutableStateOf(false) }
 
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        if (!viewModel.isEditMode) {
+            kotlinx.coroutines.delay(150)
+            focusRequester.requestFocus()
+        }
+    }
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        if (viewModel.isEditMode) stringResource(R.string.edit_transaction) else stringResource(
-                            R.string.add_transaction
-                        ), fontWeight = FontWeight.Bold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
+            AppTopBar(
+                title = if (viewModel.isEditMode) stringResource(R.string.edit_transaction) else stringResource(R.string.add_transaction),
+                onBack = onBack,
                 actions = {
                     if (viewModel.isEditMode) {
                         IconButton(onClick = { showDeleteDialog = true }) {
@@ -469,7 +471,7 @@ fun AddTransactionScreen(
                             )
                         }
                     } else null,
-                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp).focusRequester(focusRequester),
                     textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
                     singleLine = true,
                     visualTransformation = com.sans.finance.core.util.ThousandsSeparatorVisualTransformation(),
@@ -485,6 +487,33 @@ fun AddTransactionScreen(
                     ),
                     shape = MaterialTheme.shapes.small
                 )
+            }
+
+            val fxInfo by viewModel.fxConversionInfo.collectAsStateWithLifecycle()
+            if (fxInfo.isForeign) {
+                Surface(
+                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f),
+                    shape = MaterialTheme.shapes.small,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = fxInfo.rateFormatted,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                        Text(
+                            text = fxInfo.convertedAmountFormatted,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
             }
 
             // Date Picker Field
@@ -583,7 +612,10 @@ fun AddTransactionScreen(
                 items(categories) { category ->
                     FilterChip(
                         selected = viewModel.categoryId == category.id,
-                        onClick = { viewModel.categoryId = category.id },
+                        onClick = {
+                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                            viewModel.categoryId = category.id
+                        },
                         label = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 CategoryIcon(category.icon, fontSize = 14.sp)
@@ -594,6 +626,39 @@ fun AddTransactionScreen(
                         shape = androidx.compose.foundation.shape.CircleShape,
                         modifier = Modifier.height(32.dp)
                     )
+                }
+            }
+
+            val categoryBudget by viewModel.categoryBudgetStatus.collectAsStateWithLifecycle()
+            if (categoryBudget.hasBudget) {
+                val isWarn = categoryBudget.isExceeded || categoryBudget.willExceed
+                val budgetColor = if (isWarn) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                val containerColor = if (isWarn) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                val remainingText = CurrencyFormatter.formatAmount(categoryBudget.remainingAmount, viewModel.baseCurrency)
+                val label = if (categoryBudget.isExceeded) {
+                    "Exceeded by ${CurrencyFormatter.formatAmount(-categoryBudget.remainingAmount, viewModel.baseCurrency)}"
+                } else if (categoryBudget.willExceed) {
+                    "Will exceed budget! ($remainingText left)"
+                } else {
+                    "$remainingText remaining this month"
+                }
+
+                Surface(
+                    color = containerColor,
+                    shape = MaterialTheme.shapes.small,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Category Budget: $label",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = budgetColor
+                        )
+                    }
                 }
             }
 

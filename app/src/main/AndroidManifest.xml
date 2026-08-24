@@ -58,13 +58,66 @@
       android:name=".MainActivity"
       android:exported="true"
       android:label="@string/app_name"
+      android:launchMode="singleTask"
       android:theme="@style/Theme.SansFinance">
       <intent-filter>
         <action android:name="android.intent.action.MAIN" />
-
         <category android:name="android.intent.category.LAUNCHER" />
       </intent-filter>
+      <intent-filter>
+        <action android:name="com.sans.finance.action.ADD_TRANSACTION" />
+        <action android:name="com.sans.finance.action.VIEW_TRANSACTIONS" />
+        <action android:name="com.sans.finance.action.VIEW_BUDGETS" />
+        <action android:name="com.sans.finance.action.VIEW_WEALTH" />
+        <action android:name="com.sans.finance.action.SYNC_PORTFOLIO" />
+        <category android:name="android.intent.category.DEFAULT" />
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.SEND" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <data android:mimeType="text/plain" />
+        <data android:mimeType="image/*" />
+      </intent-filter>
+      <meta-data
+        android:name="android.app.shortcuts"
+        android:resource="@xml/shortcuts" />
     </activity>
+
+    <!-- Quick Settings Tile Service -->
+    <service
+      android:name=".presentation.service.QuickAddTileService"
+      android:exported="true"
+      android:icon="@drawable/ic_widget_add"
+      android:label="@string/tile_quick_add_label"
+      android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+      <intent-filter>
+        <action android:name="android.service.quicksettings.action.QS_TILE" />
+      </intent-filter>
+    </service>
+
+    <!-- Quick Add Expense Home Screen Widget Provider -->
+    <receiver
+      android:name=".presentation.widget.QuickAddWidgetProvider"
+      android:exported="true">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/widget_quick_add_info" />
+    </receiver>
+
+    <!-- Financial Summary Widget Provider -->
+    <receiver
+      android:name=".presentation.widget.FinancialSummaryWidgetProvider"
+      android:exported="true">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/widget_financial_summary_info" />
+    </receiver>
   </application>
 
 </manifest>

@@ -68,8 +68,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.sans.finance.data.local.entity.AccountEntity
-import com.sans.finance.presentation.components.PrivacyText
+import com.sans.finance.presentation.components.AppTopBar
 import com.sans.finance.presentation.components.GlassCard
+import com.sans.finance.presentation.components.PrivacyText
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 data class AccountUpdateParams(
@@ -99,19 +100,9 @@ fun AccountScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        "Accounts",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
+            AppTopBar(
+                title = "Accounts",
+                onBack = onBack,
                 actions = {
                     IconButton(onClick = { showMenu = true }) {
                         Icon(Icons.Default.MoreVert, contentDescription = "More options")

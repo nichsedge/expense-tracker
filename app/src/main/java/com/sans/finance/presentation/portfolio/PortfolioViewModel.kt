@@ -275,57 +275,72 @@ class PortfolioViewModel @Inject constructor(
             }
         } else emptyList()
 
-        val nonLiabilityAccounts = accounts.filter { it.type !in liabilityTypeNames && it.type != "Investment" }
-        val currentAccountBalances = nonLiabilityAccounts.associate { it.id to it.balance }
-
         val baseRate = if (currency == "IDR") 1.0 else (ratesMap[currency] ?: 1.0)
 
-        val netWorthHistory = history.map { snapshot ->
-            val snapshotDate = snapshot.snapshot_date
-            val balancesAtSnapshot = currentAccountBalances.toMutableMap()
+        val nonLiabilityAccounts = accounts.filter { it.type !in liabilityTypeNames && it.type != "Investment" }
+        val nonLiabilityAccountIds = nonLiabilityAccounts.map { it.id }.toSet()
+        val currentAccountBalances = nonLiabilityAccounts.associate { it.id to it.balance }
 
-            // Walk backward through transactions that occurred after snapshotDate
-            for (tx in allExpenses) {
-                if (tx.date > snapshotDate) {
+        val relevantTransactions = allExpenses
+            .filter { it.accountId in nonLiabilityAccountIds || (it.toAccountId != null && it.toAccountId in nonLiabilityAccountIds) }
+            .sortedByDescending { it.date }
+
+        val netWorthHistory = if (history.isEmpty()) {
+            emptyList()
+        } else {
+            val sortedSnapshots = history.sortedByDescending { it.snapshot_date }
+            val balancesRunning = currentAccountBalances.toMutableMap()
+            var txIndex = 0
+
+            val resultList = mutableListOf<SnapshotTotal>()
+            for (snapshot in sortedSnapshots) {
+                val snapshotDate = snapshot.snapshot_date
+                while (txIndex < relevantTransactions.size && relevantTransactions[txIndex].date > snapshotDate) {
+                    val tx = relevantTransactions[txIndex]
                     when (tx.type.uppercase()) {
                         "EXPENSE" -> {
-                            val cur = balancesAtSnapshot[tx.accountId]
-                            if (cur != null) balancesAtSnapshot[tx.accountId] = cur + tx.amount
+                            val cur = balancesRunning[tx.accountId]
+                            if (cur != null) balancesRunning[tx.accountId] = cur + tx.amount
                         }
                         "INCOME" -> {
-                            val cur = balancesAtSnapshot[tx.accountId]
-                            if (cur != null) balancesAtSnapshot[tx.accountId] = cur - tx.amount
+                            val cur = balancesRunning[tx.accountId]
+                            if (cur != null) balancesRunning[tx.accountId] = cur - tx.amount
                         }
                         "TRANSFER" -> {
-                            val fromBal = balancesAtSnapshot[tx.accountId]
-                            if (fromBal != null) balancesAtSnapshot[tx.accountId] = fromBal + tx.amount
+                            val fromBal = balancesRunning[tx.accountId]
+                            if (fromBal != null) balancesRunning[tx.accountId] = fromBal + tx.amount
                             val toAccId = tx.toAccountId
                             if (toAccId != null) {
-                                val toBal = balancesAtSnapshot[toAccId]
-                                if (toBal != null) balancesAtSnapshot[toAccId] = toBal - tx.amount
+                                val toBal = balancesRunning[toAccId]
+                                if (toBal != null) balancesRunning[toAccId] = toBal - tx.amount
                             }
                         }
                     }
+                    txIndex++
                 }
+
+                val totalCashAtSnapshotIdr = nonLiabilityAccounts.sumOf { account ->
+                    val balanceCents = balancesRunning[account.id] ?: 0L
+                    val amount = balanceCents / 100.0
+                    val rateToIdr = if (account.currency == "IDR") 1.0 else (ratesMap[account.currency] ?: 1.0)
+                    amount * rateToIdr
+                }
+
+                val totalNetWorthIdr = snapshot.totalIdr + totalCashAtSnapshotIdr
+                val totalNetWorthBase = if (baseRate > 0) totalNetWorthIdr / baseRate else totalNetWorthIdr
+                val rate = if (snapshot.totalUsd > 0) snapshot.totalIdr / snapshot.totalUsd else exchangeRate
+                val totalNetWorthUsd = totalNetWorthIdr / rate
+
+                resultList.add(
+                    SnapshotTotal(
+                        snapshot_date = snapshotDate,
+                        totalIdr = totalNetWorthBase,
+                        totalUsd = totalNetWorthUsd
+                    )
+                )
             }
-
-            val totalCashAtSnapshotIdr = nonLiabilityAccounts.sumOf { account ->
-                val balanceCents = balancesAtSnapshot[account.id] ?: 0L
-                val amount = balanceCents / 100.0
-                val rateToIdr = if (account.currency == "IDR") 1.0 else (ratesMap[account.currency] ?: 1.0)
-                amount * rateToIdr
-            }
-
-            val totalNetWorthIdr = snapshot.totalIdr + totalCashAtSnapshotIdr
-            val totalNetWorthBase = if (baseRate > 0) totalNetWorthIdr / baseRate else totalNetWorthIdr
-            val rate = if (snapshot.totalUsd > 0) snapshot.totalIdr / snapshot.totalUsd else exchangeRate
-            val totalNetWorthUsd = totalNetWorthIdr / rate
-
-            SnapshotTotal(
-                snapshot_date = snapshotDate,
-                totalIdr = totalNetWorthBase,
-                totalUsd = totalNetWorthUsd
-            )
+            val resultMap = resultList.associateBy { it.snapshot_date }
+            history.map { resultMap[it.snapshot_date] ?: it }
         }
 
         val totalValueIdr = assetClassTotals.sumOf { it.totalIdr }
@@ -377,8 +392,12 @@ class PortfolioViewModel @Inject constructor(
         _chartMode.value = mode
     }
 
+    private var lastCalculatedXirrDate: Long? = null
+
     private fun updateXirr(date: Long) {
-        viewModelScope.launch {
+        if (lastCalculatedXirrDate == date) return
+        lastCalculatedXirrDate = date
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.Default) {
             val value = repository.calculateXirr(date)
             _xirr.value = if (value.isNaN()) null else value
         }

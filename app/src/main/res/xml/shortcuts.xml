@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="add_transaction"
+        android:enabled="true"
+        android:icon="@drawable/ic_widget_add"
+        android:shortcutShortLabel="@string/shortcut_add_transaction_short"
+        android:shortcutLongLabel="@string/shortcut_add_transaction_long">
+        <intent
+            android:action="com.sans.finance.action.ADD_TRANSACTION"
+            android:targetPackage="com.sans.finance"
+            android:targetClass="com.sans.finance.MainActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="transactions"
+        android:enabled="true"
+        android:icon="@drawable/ic_widget_receipt"
+        android:shortcutShortLabel="@string/shortcut_transactions_short"
+        android:shortcutLongLabel="@string/shortcut_transactions_long">
+        <intent
+            android:action="com.sans.finance.action.VIEW_TRANSACTIONS"
+            android:targetPackage="com.sans.finance"
+            android:targetClass="com.sans.finance.MainActivity" />
+    </shortcut>
+</shortcuts>

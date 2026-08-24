@@ -13,6 +13,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+
+import com.sans.finance.presentation.widget.FinancialSummaryWidgetProvider
+import com.sans.finance.presentation.widget.QuickAddWidgetProvider
 
 class ExpenseRepositoryImpl(
     private val db: com.sans.finance.data.local.AppDatabase,
@@ -20,8 +24,24 @@ class ExpenseRepositoryImpl(
     private val tagDao: com.sans.finance.data.local.dao.TagDao,
     private val categoryDao: com.sans.finance.data.local.dao.CategoryDao,
     private val installmentDao: com.sans.finance.data.local.dao.InstallmentDao,
-    private val accountDao: com.sans.finance.data.local.dao.AccountDao
+    private val accountDao: com.sans.finance.data.local.dao.AccountDao,
+    private val context: android.content.Context? = null
 ) : ExpenseRepository {
+
+    private val widgetScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default + kotlinx.coroutines.SupervisorJob())
+    private var widgetDebounceJob: kotlinx.coroutines.Job? = null
+
+    private fun notifyWidgets() {
+        context?.let { ctx ->
+            widgetDebounceJob?.cancel()
+            widgetDebounceJob = widgetScope.launch {
+                kotlinx.coroutines.delay(200)
+                QuickAddWidgetProvider.updateAllWidgets(ctx)
+                FinancialSummaryWidgetProvider.updateAllWidgets(ctx)
+                com.sans.finance.presentation.util.DynamicShortcutManager.updateShortcuts(ctx)
+            }
+        }
+    }
 
     companion object {
         private const val INSTALLMENT_PAYMENT_ID_OFFSET = 100_000_000L
@@ -192,32 +212,39 @@ class ExpenseRepositoryImpl(
         }
     }
 
-    override suspend fun insertExpense(expense: Expense): Long = db.withTransaction {
-        val expenseId = dao.insertExpense(expense.toEntity())
-        syncTags(expenseId, expense.tags)
-        adjustAccountBalance(expense, isReverse = false)
-        expenseId
+    override suspend fun insertExpense(expense: Expense): Long {
+        val expenseId = db.withTransaction {
+            val id = dao.insertExpense(expense.toEntity())
+            syncTags(id, expense.tags)
+            adjustAccountBalance(expense, isReverse = false)
+            id
+        }
+        notifyWidgets()
+        return expenseId
     }
 
-    override suspend fun updateExpense(expense: Expense) = db.withTransaction {
-        if (expense.id >= INSTALLMENT_PAYMENT_ID_OFFSET) {
-            updateInstallmentPayment(expense)
-            return@withTransaction
+    override suspend fun updateExpense(expense: Expense) {
+        db.withTransaction {
+            if (expense.id >= INSTALLMENT_PAYMENT_ID_OFFSET) {
+                updateInstallmentPayment(expense)
+                return@withTransaction
+            }
+
+            val oldExpense = dao.getExpenseById(expense.id)?.toDomain()
+
+            if (oldExpense != null) {
+                // Reverse old balance effect
+                adjustAccountBalance(oldExpense, isReverse = true)
+
+                // Apply new balance effect
+                adjustAccountBalance(expense, isReverse = false)
+
+                // Update expense and tags
+                dao.updateExpense(expense.toEntity())
+                syncTags(expense.id, expense.tags)
+            }
         }
-
-        val oldExpense = dao.getExpenseById(expense.id)?.toDomain()
-
-        if (oldExpense != null) {
-            // Reverse old balance effect
-            adjustAccountBalance(oldExpense, isReverse = true)
-
-            // Apply new balance effect
-            adjustAccountBalance(expense, isReverse = false)
-
-            // Update expense and tags
-            dao.updateExpense(expense.toEntity())
-            syncTags(expense.id, expense.tags)
-        }
+        notifyWidgets()
     }
 
     private suspend fun updateInstallmentPayment(expense: Expense) {
@@ -309,29 +336,32 @@ class ExpenseRepositoryImpl(
         }
     }
 
-    override suspend fun deleteExpense(expense: Expense) = db.withTransaction {
-        if (expense.id >= INSTALLMENT_PAYMENT_ID_OFFSET) {
-            val itemId = expense.id - INSTALLMENT_PAYMENT_ID_OFFSET
-            installmentDao.getInstallmentItemById(itemId)?.let { item ->
-                // Mark as pending instead of deleting (since it's a scheduled payment)
-                installmentDao.updateInstallmentItemStatus(itemId, "Pending")
+    override suspend fun deleteExpense(expense: Expense) {
+        db.withTransaction {
+            if (expense.id >= INSTALLMENT_PAYMENT_ID_OFFSET) {
+                val itemId = expense.id - INSTALLMENT_PAYMENT_ID_OFFSET
+                installmentDao.getInstallmentItemById(itemId)?.let { item ->
+                    // Mark as pending instead of deleting (since it's a scheduled payment)
+                    installmentDao.updateInstallmentItemStatus(itemId, "Pending")
 
-                // Update installment status
-                val installment = installmentDao.getInstallmentById(item.installmentId)
-                if (installment != null) {
-                    installmentDao.updateInstallment(
-                        installment.copy(
-                            status = "Active"
+                    // Update installment status
+                    val installment = installmentDao.getInstallmentById(item.installmentId)
+                    if (installment != null) {
+                        installmentDao.updateInstallment(
+                            installment.copy(
+                                status = "Active"
+                            )
                         )
-                    )
+                    }
                 }
+            } else {
+                dao.deleteExpense(expense.toEntity())
             }
-        } else {
-            dao.deleteExpense(expense.toEntity())
-        }
 
-        // Update account balance (reverse the transaction)
-        adjustAccountBalance(expense, isReverse = true)
+            // Update account balance (reverse the transaction)
+            adjustAccountBalance(expense, isReverse = true)
+        }
+        notifyWidgets()
     }
 
     override fun getTotalSpentSince(since: Long): Flow<Long?> {

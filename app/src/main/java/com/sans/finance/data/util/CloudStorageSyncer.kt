@@ -69,11 +69,11 @@ object CloudStorageSyncer {
     }
 
     fun getActiveProvider(localeManager: LocaleManager?): CloudStorageProvider {
-        val key = localeManager?.getCloudBackupProvider() ?: "GCS"
-        return if (key.equals("CLOUDFLARE_R2", ignoreCase = true) || key.equals("R2", ignoreCase = true)) {
-            CloudStorageProvider.CLOUDFLARE_R2
-        } else {
+        val key = localeManager?.getCloudBackupProvider() ?: "CLOUDFLARE_R2"
+        return if (key.equals("GCS", ignoreCase = true) || key.equals("GOOGLE_CLOUD_STORAGE", ignoreCase = true)) {
             CloudStorageProvider.GCS
+        } else {
+            CloudStorageProvider.CLOUDFLARE_R2
         }
     }
 
@@ -115,6 +115,30 @@ object CloudStorageSyncer {
             secretAccessKey = localeManager?.getR2SecretAccessKey() ?: "",
             bucketName = localeManager?.getR2BucketName() ?: "ichsanul-dev"
         )
+    }
+
+    // =========================================================================
+    // Network Resilience Utilities
+    // =========================================================================
+
+    private suspend fun <T> retryWithExponentialBackoff(
+        times: Int = 3,
+        initialDelayMs: Long = 1000,
+        maxDelayMs: Long = 8000,
+        factor: Double = 2.0,
+        block: suspend () -> T
+    ): T {
+        var currentDelay = initialDelayMs
+        repeat(times - 1) {
+            try {
+                return block()
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                kotlinx.coroutines.delay(currentDelay)
+                currentDelay = (currentDelay * factor).toLong().coerceAtMost(maxDelayMs)
+            }
+        }
+        return block()
     }
 
     private suspend fun uploadDatabaseBackupToR2(
@@ -165,30 +189,32 @@ object CloudStorageSyncer {
                 service = "s3"
             )
 
-            val url = URL(endpointUrl)
-            val conn = (url.openConnection() as HttpURLConnection).apply {
-                requestMethod = "PUT"
-                doOutput = true
-                setRequestProperty("Authorization", authorization)
-                setRequestProperty("Content-Type", contentType)
-                setRequestProperty("Host", host)
-                setRequestProperty("x-amz-date", amzDate)
-                setRequestProperty("x-amz-content-sha256", payloadHash)
-                setFixedLengthStreamingMode(fileBytes.size)
-                connectTimeout = 15000
-                readTimeout = 30000
-            }
+            retryWithExponentialBackoff(times = 3) {
+                val url = URL(endpointUrl)
+                val conn = (url.openConnection() as HttpURLConnection).apply {
+                    requestMethod = "PUT"
+                    doOutput = true
+                    setRequestProperty("Authorization", authorization)
+                    setRequestProperty("Content-Type", contentType)
+                    setRequestProperty("Host", host)
+                    setRequestProperty("x-amz-date", amzDate)
+                    setRequestProperty("x-amz-content-sha256", payloadHash)
+                    setFixedLengthStreamingMode(fileBytes.size)
+                    connectTimeout = 15000
+                    readTimeout = 30000
+                }
 
-            conn.outputStream.use { os ->
-                os.write(fileBytes)
-            }
+                conn.outputStream.use { os ->
+                    os.write(fileBytes)
+                }
 
-            val responseCode = conn.responseCode
-            if (responseCode in 200..299) {
-                Result.success("Cloudflare R2 Backup Successful (r2://${r2Config.bucketName}/$objectKey)")
-            } else {
-                val err = conn.errorStream?.bufferedReader()?.readText() ?: ""
-                Result.failure(Exception("Cloudflare R2 upload failed ($responseCode): $err"))
+                val responseCode = conn.responseCode
+                if (responseCode in 200..299) {
+                    Result.success("Cloudflare R2 Backup Successful (r2://${r2Config.bucketName}/$objectKey)")
+                } else {
+                    val err = conn.errorStream?.bufferedReader()?.readText() ?: ""
+                    throw Exception("Cloudflare R2 upload failed ($responseCode): $err")
+                }
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -231,25 +257,27 @@ object CloudStorageSyncer {
             service = "s3"
         )
 
-        val url = URL(endpointUrl)
-        val conn = (url.openConnection() as HttpURLConnection).apply {
-            requestMethod = "GET"
-            setRequestProperty("Authorization", authorization)
-            setRequestProperty("Host", host)
-            setRequestProperty("x-amz-date", amzDate)
-            setRequestProperty("x-amz-content-sha256", emptyPayloadHash)
-            connectTimeout = 8000
-            readTimeout = 15000
-        }
+        retryWithExponentialBackoff(times = 3) {
+            val url = URL(endpointUrl)
+            val conn = (url.openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                setRequestProperty("Authorization", authorization)
+                setRequestProperty("Host", host)
+                setRequestProperty("x-amz-date", amzDate)
+                setRequestProperty("x-amz-content-sha256", emptyPayloadHash)
+                connectTimeout = 8000
+                readTimeout = 15000
+            }
 
-        val responseCode = conn.responseCode
-        if (responseCode != 200) {
-            val errStream = conn.errorStream?.bufferedReader()?.readText() ?: ""
-            throw Exception("Failed to download snapshots/latest.json from Cloudflare R2: $responseCode - $errStream")
-        }
+            val responseCode = conn.responseCode
+            if (responseCode != 200) {
+                val errStream = conn.errorStream?.bufferedReader()?.readText() ?: ""
+                throw Exception("Failed to download snapshots/latest.json from Cloudflare R2: $responseCode - $errStream")
+            }
 
-        val jsonString = conn.inputStream.bufferedReader().use { it.readText() }
-        PortfolioJsonImporter.parseContent(jsonString)
+            val jsonString = conn.inputStream.bufferedReader().use { it.readText() }
+            PortfolioJsonImporter.parseContent(jsonString)
+        }
     }
 
     // =========================================================================
@@ -392,32 +420,36 @@ object CloudStorageSyncer {
     }
 
     private suspend fun getGcsAccessToken(context: Context): String = withContext(Dispatchers.IO) {
-        val creds = loadGcsCredentials(context)
-        val clientEmail = creds.getString("client_email")
-        val privateKey = creds.getString("private_key")
+        retryWithExponentialBackoff(times = 3) {
+            val creds = loadGcsCredentials(context)
+            val clientEmail = creds.getString("client_email")
+            val privateKey = creds.getString("private_key")
 
-        val assertion = generateGcsJwt(clientEmail, privateKey)
-        val params = "grant_type=" + URLEncoder.encode("urn:ietf:params:oauth:grant-type:jwt-bearer", "UTF-8") +
-                "&assertion=" + URLEncoder.encode(assertion, "UTF-8")
+            val assertion = generateGcsJwt(clientEmail, privateKey)
+            val params = "grant_type=" + URLEncoder.encode("urn:ietf:params:oauth:grant-type:jwt-bearer", "UTF-8") +
+                    "&assertion=" + URLEncoder.encode(assertion, "UTF-8")
 
-        val url = URL(GCS_OAUTH_TOKEN_URL)
-        val conn = url.openConnection() as HttpURLConnection
-        conn.requestMethod = "POST"
-        conn.doOutput = true
-        conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
+            val url = URL(GCS_OAUTH_TOKEN_URL)
+            val conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "POST"
+            conn.doOutput = true
+            conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
+            conn.connectTimeout = 8000
+            conn.readTimeout = 15000
 
-        conn.outputStream.use { os ->
-            os.write(params.toByteArray(Charsets.UTF_8))
+            conn.outputStream.use { os ->
+                os.write(params.toByteArray(Charsets.UTF_8))
+            }
+
+            if (conn.responseCode != 200) {
+                val errStream = conn.errorStream?.bufferedReader()?.readText() ?: ""
+                throw Exception("Failed to get OAuth token from Google: ${conn.responseCode} - $errStream")
+            }
+
+            val response = conn.inputStream.bufferedReader().use { it.readText() }
+            val json = JSONObject(response)
+            json.getString("access_token")
         }
-
-        if (conn.responseCode != 200) {
-            val errStream = conn.errorStream?.bufferedReader()?.readText() ?: ""
-            throw Exception("Failed to get OAuth token from Google: ${conn.responseCode} - $errStream")
-        }
-
-        val response = conn.inputStream.bufferedReader().use { it.readText() }
-        val json = JSONObject(response)
-        json.getString("access_token")
     }
 
     private suspend fun downloadLatestSnapshotFromGcs(
@@ -427,19 +459,21 @@ object CloudStorageSyncer {
         val bucketName = localeManager?.getGcsBucketName()?.ifBlank { "ichsanul-portfolio-snapshots" } ?: "ichsanul-portfolio-snapshots"
         val token = getGcsAccessToken(context)
 
-        val latestUrl = URL("https://storage.googleapis.com/storage/v1/b/$bucketName/o/snapshots%2Flatest.json?alt=media")
-        val conn = latestUrl.openConnection() as HttpURLConnection
-        conn.setRequestProperty("Authorization", "Bearer $token")
-        conn.connectTimeout = 5000
-        conn.readTimeout = 10000
+        retryWithExponentialBackoff(times = 3) {
+            val latestUrl = URL("https://storage.googleapis.com/storage/v1/b/$bucketName/o/snapshots%2Flatest.json?alt=media")
+            val conn = latestUrl.openConnection() as HttpURLConnection
+            conn.setRequestProperty("Authorization", "Bearer $token")
+            conn.connectTimeout = 8000
+            conn.readTimeout = 15000
 
-        if (conn.responseCode != 200) {
-            val errStream = conn.errorStream?.bufferedReader()?.readText() ?: ""
-            throw Exception("Failed to download snapshots/latest.json from GCS: ${conn.responseCode} - $errStream")
+            if (conn.responseCode != 200) {
+                val errStream = conn.errorStream?.bufferedReader()?.readText() ?: ""
+                throw Exception("Failed to download snapshots/latest.json from GCS: ${conn.responseCode} - $errStream")
+            }
+
+            val jsonString = conn.inputStream.bufferedReader().use { it.readText() }
+            PortfolioJsonImporter.parseContent(jsonString)
         }
-
-        val jsonString = conn.inputStream.bufferedReader().use { it.readText() }
-        PortfolioJsonImporter.parseContent(jsonString)
     }
 
     private suspend fun uploadDatabaseBackupToGcs(
@@ -458,26 +492,28 @@ object CloudStorageSyncer {
             val encodedName = URLEncoder.encode(objectName, "UTF-8")
             val uploadUrl = URL("https://storage.googleapis.com/upload/storage/v1/b/$bucketName/o?uploadType=media&name=$encodedName")
 
-            val conn = uploadUrl.openConnection() as HttpURLConnection
-            conn.requestMethod = "POST"
-            conn.doOutput = true
-            conn.setRequestProperty("Authorization", "Bearer $token")
-            conn.setRequestProperty("Content-Type", "application/x-sqlite3")
-            conn.setFixedLengthStreamingMode(dbFile.length())
-            conn.connectTimeout = 10000
-            conn.readTimeout = 30000
+            retryWithExponentialBackoff(times = 3) {
+                val conn = uploadUrl.openConnection() as HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.doOutput = true
+                conn.setRequestProperty("Authorization", "Bearer $token")
+                conn.setRequestProperty("Content-Type", "application/x-sqlite3")
+                conn.setFixedLengthStreamingMode(dbFile.length())
+                conn.connectTimeout = 15000
+                conn.readTimeout = 30000
 
-            dbFile.inputStream().use { input ->
-                conn.outputStream.use { output ->
-                    input.copyTo(output)
+                dbFile.inputStream().use { input ->
+                    conn.outputStream.use { output ->
+                        input.copyTo(output)
+                    }
                 }
-            }
 
-            if (conn.responseCode in 200..299) {
-                Result.success("Google Cloud Storage Backup Successful (gs://$bucketName/$objectName)")
-            } else {
-                val errStream = conn.errorStream?.bufferedReader()?.readText() ?: ""
-                Result.failure(Exception("GCS Upload failed (${conn.responseCode}): $errStream"))
+                if (conn.responseCode in 200..299) {
+                    Result.success("Google Cloud Storage Backup Successful (gs://$bucketName/$objectName)")
+                } else {
+                    val errStream = conn.errorStream?.bufferedReader()?.readText() ?: ""
+                    throw Exception("GCS Upload failed (${conn.responseCode}): $errStream")
+                }
             }
         } catch (e: Exception) {
             Result.failure(e)

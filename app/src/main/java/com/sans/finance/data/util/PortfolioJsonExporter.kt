@@ -41,7 +41,7 @@ object PortfolioJsonExporter {
             )
         }
 
-        val snapshot = PortfolioSnapshotJson(metadata, holdingsJson)
+        val snapshot = PortfolioSnapshotJson(metadata = metadata, holdings = holdingsJson)
         return json.encodeToString(snapshot)
     }
 }

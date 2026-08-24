@@ -9,7 +9,7 @@ class CurrencyFormatterTest {
 
     @Before
     fun setup() {
-        Locale.setDefault(Locale("id", "ID"))
+        Locale.setDefault(Locale.forLanguageTag("id-ID"))
     }
 
     @Test

@@ -39,6 +39,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.sans.finance.R
 import com.sans.finance.core.util.CurrencyFormatter
 import com.sans.finance.domain.model.Expense
+import com.sans.finance.presentation.components.AppTopBar
 import com.sans.finance.presentation.components.ExpenseItem
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
@@ -57,21 +58,9 @@ fun RecurringExpensesScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        stringResource(R.string.recurring_expenses),
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.back)
-                        )
-                    }
-                }
+            AppTopBar(
+                title = stringResource(R.string.recurring_expenses),
+                onBack = onNavigateBack
             )
         }
     ) { padding ->

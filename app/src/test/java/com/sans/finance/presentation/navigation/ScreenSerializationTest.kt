@@ -52,7 +52,7 @@ class ScreenSerializationTest {
         Screen.Main,
         Screen.Dashboard,
         Screen.ExpenseList,
-        Screen.AddTransaction,
+        Screen.AddTransaction(),
         Screen.ExpenseDetail(expenseId = 77L),
         Screen.EditExpense(expenseId = 78L),
         Screen.Installments,

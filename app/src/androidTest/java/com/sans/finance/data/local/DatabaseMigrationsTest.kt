@@ -121,6 +121,19 @@ class DatabaseMigrationsTest {
         assertHasColumn(db, "tags", "isVisible")
     }
 
+    @Test
+    fun migration32To33_createsFxRatesTable() {
+        val db = openDatabase("migration_32_33_test.db")
+
+        DatabaseMigrations.MIGRATION_32_33.migrate(db)
+
+        assertTableExists(db, "fx_rates")
+        assertHasColumn(db, "fx_rates", "currency_pair")
+        assertHasColumn(db, "fx_rates", "date")
+        assertHasColumn(db, "fx_rates", "rate")
+        assertHasColumn(db, "fx_rates", "created_at")
+    }
+
     private fun openDatabase(name: String): SupportSQLiteDatabase {
         openedNames += name
         val configuration = androidx.sqlite.db.SupportSQLiteOpenHelper.Configuration.builder(context)

@@ -15,6 +15,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 class CurrencyRepositoryImpl @Inject constructor(
@@ -26,8 +28,25 @@ class CurrencyRepositoryImpl @Inject constructor(
         timeZone = TimeZone.getTimeZone("Asia/Jakarta")
     }
 
+    private val fastMemoryCache = ConcurrentHashMap<String, Double>()
+
+    private val fastHttpClient by lazy {
+        httpClient.newBuilder()
+            .connectTimeout(1500, TimeUnit.MILLISECONDS)
+            .readTimeout(1500, TimeUnit.MILLISECONDS)
+            .callTimeout(2000, TimeUnit.MILLISECONDS)
+            .build()
+    }
+
     override suspend fun getRateToIdr(code: String): Double? {
-        return currencyDao.getRate(code.uppercase().trim())?.rateToIdr
+        val upper = code.uppercase().trim()
+        if (upper == "IDR") return 1.0
+        fastMemoryCache["RATE_TO_IDR:$upper"]?.let { return it }
+        val rate = currencyDao.getRate(upper)?.rateToIdr
+        if (rate != null) {
+            fastMemoryCache["RATE_TO_IDR:$upper"] = rate
+        }
+        return rate
     }
 
     override suspend fun getHistoricalRate(
@@ -51,20 +70,38 @@ class CurrencyRepositoryImpl @Inject constructor(
 
         if (from == to) return@withContext 1.0
 
-        // 1. Try local room database lookup
+        val cacheKey = "$from:$to:$date"
+        fastMemoryCache[cacheKey]?.let { return@withContext it }
+
+        // 1. Try local room database lookup for exact date (<1ms)
         val localRate = findLocalFxRate(from, to, date)
-        if (localRate != null) return@withContext localRate
+        if (localRate != null) {
+            fastMemoryCache[cacheKey] = localRate
+            return@withContext localRate
+        }
 
-        // 2. Fallback to online fetch for that date
-        val fetchedRate = fetchAndCacheHistoricalRates(from, to, date)
-        if (fetchedRate != null) return@withContext fetchedRate
-
-        // 3. Fallback to nearest previous available date in DB (for weekends/holidays)
+        // 2. Fallback to nearest previous available date in DB (<1ms) (for weekends/holidays)
         val nearestRate = findNearestLocalFxRate(from, to, date)
-        if (nearestRate != null) return@withContext nearestRate
+        if (nearestRate != null) {
+            fastMemoryCache[cacheKey] = nearestRate
+            return@withContext nearestRate
+        }
 
-        // 4. Fallback to latest exchange rates table
-        fallbackToLatestExchangeRate(from, to)
+        // 3. Fallback to latest exchange rates table in local DB (<1ms)
+        val latestRate = fallbackToLatestExchangeRate(from, to)
+        if (latestRate != null) {
+            fastMemoryCache[cacheKey] = latestRate
+            return@withContext latestRate
+        }
+
+        // 4. Fallback to fast online fetch if missing from DB entirely
+        val fetchedRate = fetchAndCacheHistoricalRates(from, to, date)
+        if (fetchedRate != null) {
+            fastMemoryCache[cacheKey] = fetchedRate
+            return@withContext fetchedRate
+        }
+
+        null
     }
 
     private suspend fun findLocalFxRate(from: String, to: String, date: String): Double? {
@@ -124,7 +161,7 @@ class CurrencyRepositoryImpl @Inject constructor(
         for (url in urls) {
             try {
                 val request = Request.Builder().url(url).build()
-                val response = httpClient.newCall(request).execute()
+                val response = fastHttpClient.newCall(request).execute()
                 if (response.isSuccessful) {
                     val body = response.body.string()
                     val json = JSONObject(body)
@@ -191,7 +228,7 @@ class CurrencyRepositoryImpl @Inject constructor(
         try {
             val fallbackUrl = "https://open.er-api.com/v6/latest/USD"
             val request = Request.Builder().url(fallbackUrl).build()
-            val response = httpClient.newCall(request).execute()
+            val response = fastHttpClient.newCall(request).execute()
             if (response.isSuccessful) {
                 val body = response.body.string()
                 val json = JSONObject(body)

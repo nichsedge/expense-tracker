@@ -2,6 +2,7 @@ package com.sans.finance
 
 import android.app.Application
 import android.content.Context
+import androidx.work.BackoffPolicy
 import androidx.work.Configuration
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -29,7 +30,35 @@ class SansFinanceApp : Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
         scheduleSync()
+        scheduleDailyRecap()
         rescheduleBackupWork(this, localeManager)
+    }
+
+    private fun scheduleDailyRecap() {
+        val currentCal = java.util.Calendar.getInstance()
+        val targetCal = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, 21)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }
+        if (targetCal.before(currentCal)) {
+            targetCal.add(java.util.Calendar.DAY_OF_MONTH, 1)
+        }
+        val initialDelayMillis = targetCal.timeInMillis - currentCal.timeInMillis
+
+        val recapRequest =
+            PeriodicWorkRequestBuilder<com.sans.finance.data.worker.SpendingRecapWorker>(
+                1, TimeUnit.DAYS
+            )
+                .setInitialDelay(initialDelayMillis, TimeUnit.MILLISECONDS)
+                .build()
+
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "DailySpendingRecap",
+            ExistingPeriodicWorkPolicy.KEEP,
+            recapRequest
+        )
     }
 
     private fun scheduleSync() {
@@ -40,7 +69,10 @@ class SansFinanceApp : Application(), Configuration.Provider {
         val syncRatesRequest =
             PeriodicWorkRequestBuilder<com.sans.finance.data.worker.SyncExchangeRatesWorker>(
                 24, TimeUnit.HOURS
-            ).setConstraints(constraints).build()
+            )
+                .setConstraints(constraints)
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 15, TimeUnit.MINUTES)
+                .build()
 
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             "SyncExchangeRates",
@@ -80,7 +112,10 @@ class SansFinanceApp : Application(), Configuration.Provider {
             val cloudSyncRequest =
                 PeriodicWorkRequestBuilder<com.sans.finance.data.worker.CloudSyncAndBackupWorker>(
                     intervalDays, TimeUnit.DAYS
-                ).setConstraints(constraints).build()
+                )
+                    .setConstraints(constraints)
+                    .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.MINUTES)
+                    .build()
 
             workManager.enqueueUniquePeriodicWork(
                 "CloudSyncAndBackup",

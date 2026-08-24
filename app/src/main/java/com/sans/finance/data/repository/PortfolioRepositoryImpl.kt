@@ -49,7 +49,8 @@ class PortfolioRepositoryImpl(
         items: List<PortfolioHoldingEntity>,
         exchangeRate: Double?
     ) {
-        val normalizedItems = items.map { item ->
+        val filteredItems = items.filterNot { it.source.equals("SansFinance", ignoreCase = true) }
+        val normalizedItems = filteredItems.map { item ->
             val accountKey = item.accountKey?.trim().takeUnless { it.isNullOrEmpty() }
             val accountName =
                 item.accountName?.trim().takeUnless { it.isNullOrEmpty() }

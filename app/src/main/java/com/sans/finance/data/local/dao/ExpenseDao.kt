@@ -10,8 +10,20 @@ import androidx.room.Update
 import com.sans.finance.data.local.entity.ExpenseEntity
 import kotlinx.coroutines.flow.Flow
 
+data class TodaySpentSummary(
+    val count: Int,
+    val totalAmount: Long?
+)
+
 @Dao
 interface ExpenseDao {
+    @Transaction
+    @Query("SELECT * FROM expenses ORDER BY date DESC LIMIT :limit")
+    suspend fun getRecentExpenses(limit: Int): List<com.sans.finance.data.local.entity.ExpenseWithTags>
+
+    @Query("SELECT COUNT(*) as count, SUM(amount) as totalAmount FROM expenses WHERE date >= :since AND date < :until AND type = 'EXPENSE' AND is_installment = 0")
+    suspend fun getTodaySpentSummary(since: Long, until: Long): TodaySpentSummary
+
     @Transaction
     @Query("SELECT * FROM expenses ORDER BY date DESC")
     fun getAllExpenses(): Flow<List<com.sans.finance.data.local.entity.ExpenseWithTags>>

@@ -58,6 +58,30 @@
   <string name="transactions">Transactions</string>
   <string name="today">Today</string>
   <string name="upcoming">Upcoming</string>
+  <string name="widget_quick_add_name">Quick Add Expense</string>
+  <string name="widget_quick_add_description">Quickly record expenses and track today\'s spending.</string>
+  <string name="widget_add_expense_btn">Add Expense</string>
+  <string name="widget_no_transactions_today">No expenses recorded today</string>
+  <string name="widget_transactions_today_count">%1$d recorded today</string>
+  <string name="shortcut_add_transaction_short">Add Expense</string>
+  <string name="shortcut_add_transaction_long">Record New Transaction</string>
+  <string name="shortcut_transactions_short">Transactions</string>
+  <string name="shortcut_transactions_long">View All Transactions</string>
 
+  <!-- Quick Settings Tile -->
+  <string name="tile_quick_add_label">Record Expense</string>
+
+  <!-- Category Preset Chips -->
+  <string name="category_food">Food</string>
+  <string name="category_transport">Transport</string>
+  <string name="category_groceries">Groceries</string>
+  <string name="category_bills">Bills</string>
+
+  <!-- Financial Summary Widget -->
+  <string name="widget_summary_name">Financial Summary</string>
+  <string name="widget_summary_description">Net worth, budget progress, and today\'s spending at a glance.</string>
+  <string name="widget_summary_label">FINANCIAL SUMMARY</string>
+  <string name="widget_summary_today_spent">Today: %1$s (%2$d txns)</string>
+  <string name="widget_no_budget_set">No budget configured</string>
 
 </resources>

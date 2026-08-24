@@ -1,25 +1,40 @@
-.PHONY: help run build release test test-unit test-android backup restore sync push-portfolio backfill-portfolio prune-portfolio clean
+.PHONY: help run logs devices build release test test-unit test-android backup restore sync push-portfolio backfill-portfolio prune-portfolio clean
+
+DEVICE ?=
 
 help:
-	@echo "Usage: make [target]"
+	@echo "Sans Finance Makefile"
+	@echo "Usage: make [target] [DEVICE=<serial_or_ip_port>]"
 	@echo ""
-	@echo "Targets:"
-	@echo "  run                Build and run on connected device"
+	@echo "Device Targets:"
+	@echo "  run                Build, install, and run on connected device"
+	@echo "  logs               Stream live logs filtered for SansFinance"
+	@echo "  devices            List all connected USB, Wireless, and Tailscale devices"
+	@echo ""
+	@echo "Build & Test Targets:"
 	@echo "  build              Build debug APK"
 	@echo "  release            Build and package release APK"
 	@echo "  test               Run all tests"
 	@echo "  test-unit          Run JVM unit tests"
 	@echo "  test-android       Run instrumentation tests"
-	@echo "  backup             Run backup script"
-	@echo "  restore            Run restore script"
-	@echo "  sync               Run sync script"
-	@echo "  push-portfolio     Run portfolio push script"
+	@echo ""
+	@echo "Data & Sync Targets:"
+	@echo "  backup             Extract database snapshot from phone"
+	@echo "  restore            Restore database snapshot to phone"
+	@echo "  sync               Run sync script (App -> PC -> App)"
+	@echo "  push-portfolio     Push portfolio JSON snapshots to phone"
 	@echo "  backfill-portfolio Run portfolio backfill script"
 	@echo "  prune-portfolio    Run portfolio monthly pruning script"
 	@echo "  clean              Clean build artifacts"
 
 run:
-	bash scripts/run_on_device.sh
+	bash scripts/run_on_device.sh $(DEVICE)
+
+logs:
+	bash scripts/device_logs.sh $(DEVICE)
+
+devices:
+	bash scripts/list_devices.sh
 
 build:
 	./gradlew assembleDebug
@@ -30,28 +45,30 @@ release:
 test: test-unit test-android
 
 test-unit:
-	./gradlew testDebugUnitTest
+	./gradlew testDebugUnitTest --no-configuration-cache
 
 test-android:
 	./gradlew connectedDebugAndroidTest
 
 backup:
-	bash scripts/backup.sh
+	bash scripts/backup.sh $(DEVICE)
 
 restore:
-	bash scripts/restore.sh
+	bash scripts/restore.sh $(DEVICE)
 
 sync:
-	bash scripts/sync.sh
+	bash scripts/sync.sh $(DEVICE)
 
 push-portfolio:
-	bash scripts/push_portfolio.sh
+	bash scripts/push_portfolio.sh $(DEVICE) $(ARGS)
 
 backfill-portfolio:
 	bash scripts/backfill_portfolio.sh
 
 prune-portfolio:
 	bash scripts/prune_portfolio.sh $(ARGS)
+
+compact: prune-portfolio
 
 clean:
 	./gradlew clean

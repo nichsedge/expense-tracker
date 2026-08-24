@@ -14,7 +14,16 @@ sealed class Screen {
     object ExpenseList : Screen()
 
     @Serializable
-    object AddTransaction : Screen()
+    data class AddTransaction(
+        val categoryId: Long = -1L,
+        val transactionType: String = "EXPENSE",
+        val initialTitle: String = "",
+        val initialNotes: String = ""
+    ) : Screen() {
+        companion object {
+            operator fun invoke(): AddTransaction = AddTransaction(-1L, "EXPENSE", "", "")
+        }
+    }
 
     @Serializable
     data class ExpenseDetail(val expenseId: Long) : Screen()

@@ -56,6 +56,32 @@
   <string name="select_date_range">选择日期范围</string>
   <string name="no_data_available">此期间无可用数据</string>
   <string name="transactions">交易</string>
+  <string name="today">今日</string>
+  <string name="upcoming">即将发生</string>
+  <string name="widget_quick_add_name">快捷记账</string>
+  <string name="widget_quick_add_description">快捷记录支出并查看今日消费。</string>
+  <string name="widget_add_expense_btn">记一笔</string>
+  <string name="widget_no_transactions_today">今日暂无支出记录</string>
+  <string name="widget_transactions_today_count">今日已记录 %1$d 笔</string>
+  <string name="shortcut_add_transaction_short">记账</string>
+  <string name="shortcut_add_transaction_long">记录新交易</string>
+  <string name="shortcut_transactions_short">交易记录</string>
+  <string name="shortcut_transactions_long">查看所有交易</string>
 
+  <!-- Quick Settings Tile -->
+  <string name="tile_quick_add_label">记一笔</string>
+
+  <!-- Category Preset Chips -->
+  <string name="category_food">餐饮</string>
+  <string name="category_transport">交通</string>
+  <string name="category_groceries">购物</string>
+  <string name="category_bills">账单</string>
+
+  <!-- Financial Summary Widget -->
+  <string name="widget_summary_name">财务概览</string>
+  <string name="widget_summary_description">净资产、预算进度和今日支出一目了然。</string>
+  <string name="widget_summary_label">财务概览</string>
+  <string name="widget_summary_today_spent">今日: %1$s (%2$d 笔)</string>
+  <string name="widget_no_budget_set">未配置预算</string>
 
 </resources>

@@ -13,7 +13,17 @@ import java.util.TimeZone
 @Serializable
 data class PortfolioSnapshotJson(
     val metadata: SnapshotMetadata,
-    val holdings: List<HoldingJson>
+    val totals: SnapshotTotals? = null,
+    val holdings: List<HoldingJson> = emptyList(),
+    @SerialName("liquid_cash_accounts") val liquidCashAccounts: List<HoldingJson> = emptyList()
+)
+
+@Serializable
+data class SnapshotTotals(
+    @SerialName("net_worth_idr") val netWorthIdr: Double = 0.0,
+    @SerialName("net_worth_usd") val netWorthUsd: Double = 0.0,
+    @SerialName("investments_idr") val investmentsIdr: Double = 0.0,
+    @SerialName("bank_cash_idr") val bankCashIdr: Double = 0.0
 )
 
 @Serializable
@@ -68,7 +78,9 @@ object PortfolioJsonImporter {
             System.currentTimeMillis()
         }
 
-        val entities = snapshot.holdings.map { holding ->
+        val entities = snapshot.holdings
+            .filterNot { it.source.equals("SansFinance", ignoreCase = true) }
+            .map { holding ->
             PortfolioHoldingEntity(
                 snapshotDate = snapshotDate,
                 source = holding.source,

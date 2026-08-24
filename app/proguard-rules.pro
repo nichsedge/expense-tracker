@@ -39,3 +39,10 @@
 # Keep WorkManager Workers
 -keep class com.sans.finance.data.worker.** { *; }
 -keep class androidx.hilt.work.** { *; }
+
+# Keep AppWidget Providers and Services
+-keep class com.sans.finance.presentation.widget.** { *; }
+-keep class com.sans.finance.presentation.service.** { *; }
+-keep class * extends android.appwidget.AppWidgetProvider { *; }
+-keep class * extends android.widget.RemoteViewsService { *; }
+-keep class * extends android.service.quicksettings.TileService { *; }

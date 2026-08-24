@@ -43,6 +43,24 @@ object AppModule {
                         WHERE NOT EXISTS (SELECT 1 FROM account_types)
                         """.trimIndent()
                     )
+
+                    // Purge duplicate SansFinance accounts from portfolio_holdings and recompute header totals
+                    db.execSQL("DELETE FROM portfolio_holdings WHERE LOWER(source) = 'sansfinance'")
+                    db.execSQL(
+                        """
+                        UPDATE portfolio_snapshot_headers
+                        SET totalValueIdr = (
+                            SELECT COALESCE(SUM(value_idr), 0)
+                            FROM portfolio_holdings
+                            WHERE portfolio_holdings.snapshot_date = portfolio_snapshot_headers.snapshotDate
+                        ),
+                        totalValueUsd = (
+                            SELECT COALESCE(SUM(value_idr), 0)
+                            FROM portfolio_holdings
+                            WHERE portfolio_holdings.snapshot_date = portfolio_snapshot_headers.snapshotDate
+                        ) / exchangeRateUsd
+                        """.trimIndent()
+                    )
                 }
             })
             .build()
@@ -73,8 +91,11 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideAccountRepository(dao: com.sans.finance.data.local.dao.AccountDao): com.sans.finance.domain.repository.AccountRepository =
-        com.sans.finance.data.repository.AccountRepositoryImpl(dao)
+    fun provideAccountRepository(
+        app: Application,
+        dao: com.sans.finance.data.local.dao.AccountDao
+    ): com.sans.finance.domain.repository.AccountRepository =
+        com.sans.finance.data.repository.AccountRepositoryImpl(dao, app)
 
     @Provides
     @Singleton
@@ -91,8 +112,11 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideBudgetRepository(dao: com.sans.finance.data.local.dao.BudgetDao): com.sans.finance.domain.repository.BudgetRepository =
-        com.sans.finance.data.repository.BudgetRepositoryImpl(dao)
+    fun provideBudgetRepository(
+        app: Application,
+        dao: com.sans.finance.data.local.dao.BudgetDao
+    ): com.sans.finance.domain.repository.BudgetRepository =
+        com.sans.finance.data.repository.BudgetRepositoryImpl(dao, app)
 
     @Provides
     @Singleton
@@ -145,6 +169,7 @@ object AppModule {
     @Provides
     @Singleton
     fun provideExpenseRepository(
+        app: Application,
         db: AppDatabase,
         dao: ExpenseDao,
         tagDao: com.sans.finance.data.local.dao.TagDao,
@@ -152,7 +177,7 @@ object AppModule {
         installmentDao: com.sans.finance.data.local.dao.InstallmentDao,
         accountDao: com.sans.finance.data.local.dao.AccountDao
     ): ExpenseRepository =
-        ExpenseRepositoryImpl(db, dao, tagDao, categoryDao, installmentDao, accountDao)
+        ExpenseRepositoryImpl(db, dao, tagDao, categoryDao, installmentDao, accountDao, app)
 
     @Provides
     @Singleton

@@ -68,6 +68,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sans.finance.data.local.entity.PortfolioHoldingEntity
+import com.sans.finance.presentation.components.AppTopBar
 import com.sans.finance.presentation.components.GlassCard
 import com.sans.finance.presentation.components.PrivacyText
 import com.sans.finance.presentation.portfolio.components.AllocationDonutChart
@@ -101,22 +102,9 @@ fun PortfolioScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
-                    }
-                },
-                title = {
-                    Text(
-                        "Portfolio",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                },
+            AppTopBar(
+                title = "Portfolio",
+                onBack = onBack,
                 actions = {
                     Box {
                         IconButton(onClick = { showMenu = true }) {
@@ -740,7 +728,7 @@ fun PortfolioHeader(state: PortfolioScreenState, onForecastingClick: () -> Unit)
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                "Consolidated Portfolio Value",
+                "Portfolio Value",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
