@@ -112,7 +112,7 @@ fun WealthDistributionCard(
                     .padding(4.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                WealthDistributionTab.values().forEach { tab ->
+                WealthDistributionTab.entries.forEach { tab ->
                     val isSelected = tab == selectedTab
                     Box(
                         modifier = Modifier

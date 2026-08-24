@@ -296,7 +296,7 @@ fun PeriodTypeSelector(
     selectedType: TransactionStatsPeriodType,
     onTypeSelected: (TransactionStatsPeriodType) -> Unit
 ) {
-    val types = TransactionStatsPeriodType.values()
+    val types = TransactionStatsPeriodType.entries
     val options = listOf(
         stringResource(R.string.weekly),
         stringResource(R.string.monthly),
