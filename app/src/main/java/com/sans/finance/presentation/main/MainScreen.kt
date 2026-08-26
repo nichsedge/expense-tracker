@@ -72,14 +72,8 @@ fun MainScreen(
                     onAddTransactionClick = {
                         rootNavController.navigate(Screen.AddTransaction())
                     },
-                    onInstallmentsClick = {
-                        rootNavController.navigate(Screen.Installments)
-                    },
                     onStatsClick = {
                         rootNavController.navigate(Screen.TransactionStats)
-                    },
-                    onRecurringExpensesClick = {
-                        rootNavController.navigate(Screen.RecurringExpenses)
                     },
                     onSearchClick = {
                         rootNavController.navigate(Screen.Search)

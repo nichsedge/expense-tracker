@@ -43,8 +43,14 @@ class ExpenseRepositoryImpl(
         }
     }
 
+    init {
+        widgetScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            dao.deleteSyntheticDuplicateExpenses(INSTALLMENT_PAYMENT_ID_OFFSET)
+        }
+    }
+
     companion object {
-        private const val INSTALLMENT_PAYMENT_ID_OFFSET = 100_000_000L
+        private const val INSTALLMENT_PAYMENT_ID_OFFSET = Expense.SYNTHETIC_INSTALLMENT_OFFSET
     }
 
     override fun getAllExpenses(): Flow<List<Expense>> {
@@ -213,8 +219,13 @@ class ExpenseRepositoryImpl(
     }
 
     override suspend fun insertExpense(expense: Expense): Long {
+        val expenseToInsert = if (expense.id >= INSTALLMENT_PAYMENT_ID_OFFSET) {
+            expense.copy(id = 0)
+        } else {
+            expense
+        }
         val expenseId = db.withTransaction {
-            val id = dao.insertExpense(expense.toEntity())
+            val id = dao.insertExpense(expenseToInsert.toEntity())
             syncTags(id, expense.tags)
             adjustAccountBalance(expense, isReverse = false)
             id

@@ -14,21 +14,23 @@ class UpdateExpenseUseCase @Inject constructor(
         val oldExpense = repository.getExpenseById(expense.id)
         repository.updateExpense(expense)
 
-        // Handle installment transitions
-        if (oldExpense?.isInstallment == true && !expense.isInstallment) {
-            // Case: Installment -> Regular
-            installmentRepository.deleteInstallmentByExpenseId(expense.id)
-        } else if (expense.isInstallment) {
-            // Case: Either already installment or switching to it
-            // We delete existing and re-create to keep it simple and avoid duplicates or inconsistent states
-            if (durationMonths != null && durationMonths > 0) {
+        // Handle installment transitions for parent transactions (not synthetic payment IDs)
+        if (!expense.isSyntheticInstallmentPayment) {
+            if (oldExpense?.isInstallment == true && !expense.isInstallment) {
+                // Case: Installment -> Regular
                 installmentRepository.deleteInstallmentByExpenseId(expense.id)
-                createInstallmentPlanUseCase(
-                    expenseId = expense.id,
-                    totalAmount = expense.amount,
-                    durationMonths = durationMonths,
-                    startDate = expense.date
-                )
+            } else if (expense.isInstallment) {
+                // Case: Either already installment or switching to it
+                // We delete existing and re-create to keep it simple and avoid duplicates or inconsistent states
+                if (durationMonths != null && durationMonths > 0) {
+                    installmentRepository.deleteInstallmentByExpenseId(expense.id)
+                    createInstallmentPlanUseCase(
+                        expenseId = expense.id,
+                        totalAmount = expense.amount,
+                        durationMonths = durationMonths,
+                        startDate = expense.date
+                    )
+                }
             }
         }
     }

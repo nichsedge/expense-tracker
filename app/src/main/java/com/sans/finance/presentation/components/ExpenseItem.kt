@@ -80,25 +80,27 @@ fun ExpenseItem(
             Column(modifier = Modifier.weight(1f)) {
                 val noteText = expense.title.ifBlank { expense.details ?: "" }
                 val annotatedNote = remember(noteText, searchQuery) {
-                    if (searchQuery.isEmpty()) {
+                    val cleanQuery = searchQuery.trim()
+                    if (cleanQuery.isEmpty() || noteText.isEmpty()) {
                         androidx.compose.ui.text.AnnotatedString(noteText)
                     } else {
                         val builder = androidx.compose.ui.text.AnnotatedString.Builder(noteText)
-                        val lowerNote = noteText.lowercase()
-                        val lowerQuery = searchQuery.lowercase()
                         var start = 0
-                        while (start < lowerNote.length) {
-                            val index = lowerNote.indexOf(lowerQuery, start)
+                        while (start < noteText.length) {
+                            val index = noteText.indexOf(cleanQuery, startIndex = start, ignoreCase = true)
                             if (index == -1) break
-                            builder.addStyle(
-                                style = androidx.compose.ui.text.SpanStyle(
-                                    background = Color.Yellow.copy(alpha = 0.4f),
-                                    fontWeight = FontWeight.Bold
-                                ),
-                                start = index,
-                                end = index + lowerQuery.length
-                            )
-                            start = index + lowerQuery.length
+                            val end = (index + cleanQuery.length).coerceAtMost(noteText.length)
+                            if (index < end) {
+                                builder.addStyle(
+                                    style = androidx.compose.ui.text.SpanStyle(
+                                        background = Color.Yellow.copy(alpha = 0.4f),
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    start = index,
+                                    end = end
+                                )
+                            }
+                            start = index + cleanQuery.length.coerceAtLeast(1)
                         }
                         builder.toAnnotatedString()
                     }

@@ -61,7 +61,8 @@ class ExpenseListViewModelTest {
         every { accountRepository.getAllAccounts() } returns flowOf(emptyList())
 
         installmentRepository = mockk(relaxed = true)
-        every { installmentRepository.getTotalPaidAmountBetween(any(), any()) } returns flowOf(null)
+        every { installmentRepository.getActiveInstallments() } returns flowOf(emptyList())
+        every { expenseRepository.getRecurringExpenses() } returns flowOf(emptyList())
 
         getCategoriesUseCase = mockk()
         every { getCategoriesUseCase.invoke() } returns flowOf(emptyList<Category>())
@@ -92,14 +93,18 @@ class ExpenseListViewModelTest {
     private fun expense(
         id: Long,
         amount: Long,
-        type: String = "EXPENSE"
+        type: String = "EXPENSE",
+        isInstallmentPayment: Boolean = false,
+        isRecurring: Boolean = false
     ) = Expense(
         id = id,
         date = 1_700_000_000_000L,
         title = "Tx $id",
         amount = amount,
         categoryId = 1,
-        type = type
+        type = type,
+        isInstallmentPayment = isInstallmentPayment,
+        isRecurring = isRecurring
     )
 
     @Test
@@ -110,6 +115,7 @@ class ExpenseListViewModelTest {
         val state = viewModel.state.value
         assertEquals("IDR", state.currentCurrency)
         assertFalse(state.isLoading)
+        assertEquals(TimelineCommitmentFilter.ALL, state.activeCommitmentFilter)
     }
 
     @Test
@@ -133,6 +139,33 @@ class ExpenseListViewModelTest {
         assertEquals(50_000L, state.totalFilteredIncome)
         assertEquals(15_000L, state.totalFilteredAmount)
         assertEquals(35_000L, state.dailySpending[1_700_000_000_000L])
+    }
+
+    @Test
+    fun `setCommitmentFilter filters groupedExpenses to installments or recurring`() = runTest {
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        filteredResult.value = FilteredExpensesData(
+            expenses = listOf(
+                expense(id = 1, amount = 10_000),
+                expense(id = 2, amount = 25_000, isInstallmentPayment = true),
+                expense(id = 3, amount = 50_000, isRecurring = true)
+            ),
+            dailySpending = emptyList()
+        )
+        advanceUntilIdle()
+
+        viewModel.setCommitmentFilter(TimelineCommitmentFilter.INSTALLMENTS)
+        assertEquals(1, viewModel.state.value.groupedExpenses.values.flatten().size)
+        assertEquals(2L, viewModel.state.value.groupedExpenses.values.flatten().first().id)
+
+        viewModel.setCommitmentFilter(TimelineCommitmentFilter.RECURRING)
+        assertEquals(1, viewModel.state.value.groupedExpenses.values.flatten().size)
+        assertEquals(3L, viewModel.state.value.groupedExpenses.values.flatten().first().id)
+
+        viewModel.setCommitmentFilter(TimelineCommitmentFilter.ALL)
+        assertEquals(3, viewModel.state.value.groupedExpenses.values.flatten().size)
     }
 
     @Test

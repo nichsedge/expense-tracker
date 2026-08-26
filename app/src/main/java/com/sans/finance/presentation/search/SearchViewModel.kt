@@ -6,8 +6,11 @@ import com.sans.finance.core.util.CalendarUtils
 import com.sans.finance.data.util.LocaleManager
 import com.sans.finance.domain.model.Category
 import com.sans.finance.domain.model.Expense
+import com.sans.finance.domain.model.Installment
+import com.sans.finance.domain.model.InstallmentItem
 import com.sans.finance.domain.repository.AccountRepository
 import com.sans.finance.domain.repository.ExpenseRepository
+import com.sans.finance.domain.repository.InstallmentRepository
 import com.sans.finance.domain.usecase.GetCategoriesUseCase
 import com.sans.finance.presentation.expense_list.DateRangeFilter
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -16,6 +19,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
@@ -46,13 +50,17 @@ data class SearchState(
     val availableTags: List<String> = emptyList(),
     val isPrivacyModeEnabled: Boolean = false,
     val categories: List<Category> = emptyList(),
-    val accounts: List<com.sans.finance.data.local.entity.AccountEntity> = emptyList()
+    val accounts: List<com.sans.finance.data.local.entity.AccountEntity> = emptyList(),
+    val selectedInstallment: Installment? = null,
+    val selectedInstallmentItems: List<InstallmentItem> = emptyList(),
+    val selectedRecurringExpense: Expense? = null
 )
 
 @HiltViewModel
 class SearchViewModel @Inject constructor(
     private val repository: ExpenseRepository,
     private val accountRepository: AccountRepository,
+    private val installmentRepository: InstallmentRepository,
     private val getCategoriesUseCase: GetCategoriesUseCase,
     private val localeManager: LocaleManager
 ) : ViewModel() {
@@ -97,41 +105,41 @@ class SearchViewModel @Inject constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun observeFilters() {
         _state
-            .map {
-                listOf(
-                    it.searchQuery,
-                    it.selectedCategoryIds,
-                    it.selectedAccountIds,
-                    it.minAmount,
-                    it.maxAmount,
-                    it.selectedTags,
-                    it.selectedTypes,
-                    it.startDate,
-                    it.endDate
+            .map { state ->
+                com.sans.finance.domain.model.ExpenseFilter(
+                    query = state.searchQuery,
+                    categoryIds = state.selectedCategoryIds,
+                    accountIds = state.selectedAccountIds,
+                    since = state.startDate,
+                    until = state.endDate,
+                    minAmount = state.minAmount,
+                    maxAmount = state.maxAmount,
+                    tags = state.selectedTags,
+                    types = state.selectedTypes
                 )
             }
             .distinctUntilChanged()
-            .flatMapLatest { _ ->
-                val s = _state.value
+            .flatMapLatest { filter ->
                 repository.getFilteredExpenses(
-                    query = s.searchQuery,
-                    categoryIds = s.selectedCategoryIds.toList(),
-                    accountIds = s.selectedAccountIds.toList(),
-                    since = s.startDate,
-                    until = s.endDate,
-                    minAmount = s.minAmount,
-                    maxAmount = s.maxAmount,
-                    tags = s.selectedTags.toList(),
-                    types = s.selectedTypes.toList()
+                    query = filter.query,
+                    categoryIds = filter.categoryIds.toList(),
+                    accountIds = filter.accountIds.toList(),
+                    since = filter.since,
+                    until = filter.until,
+                    minAmount = filter.minAmount,
+                    maxAmount = filter.maxAmount,
+                    tags = filter.tags.toList(),
+                    types = filter.types.toList()
                 )
             }
             .onEach { expenses ->
-                val grouped = groupExpensesByDate(expenses)
-                val income = expenses.filter { it.type == "INCOME" }.sumOf { it.amount }
-                val expense = expenses.filter { it.type == "EXPENSE" }.sumOf { it.amount }
+                val validExpenses = expenses.filter { !it.isInstallment || it.isInstallmentPayment }
+                val grouped = groupExpensesByDate(validExpenses)
+                val income = validExpenses.filter { it.type == "INCOME" }.sumOf { it.amount }
+                val expense = validExpenses.filter { it.type == "EXPENSE" }.sumOf { it.amount }
                 _state.update {
                     it.copy(
-                        expenses = expenses,
+                        expenses = validExpenses,
                         groupedExpenses = grouped,
                         totalIncome = income,
                         totalExpense = expense,
@@ -288,5 +296,63 @@ class SearchViewModel @Inject constructor(
             calendar.set(Calendar.MILLISECOND, 0)
             calendar.timeInMillis
         }.toSortedMap(compareByDescending { it })
+    }
+
+    fun openInstallmentDetail(expense: Expense) {
+        viewModelScope.launch {
+            val all = installmentRepository.getAllInstallments().first()
+            val installment = all.firstOrNull { it.expenseId == expense.id || it.expenseName == expense.title }
+                ?: (if (expense.isInstallmentPayment) all.firstOrNull { it.expenseName == expense.title } else null)
+                ?: installmentRepository.getInstallmentByExpenseId(expense.id)
+
+            if (installment != null) {
+                val items = installmentRepository.getInstallmentItems(installment.id).first()
+                _state.update {
+                    it.copy(
+                        selectedInstallment = installment,
+                        selectedInstallmentItems = items
+                    )
+                }
+            }
+        }
+    }
+
+    fun closeInstallmentDetail() {
+        _state.update { it.copy(selectedInstallment = null, selectedInstallmentItems = emptyList()) }
+    }
+
+    fun openRecurringDetail(expense: Expense) {
+        _state.update { it.copy(selectedRecurringExpense = expense) }
+    }
+
+    fun closeRecurringDetail() {
+        _state.update { it.copy(selectedRecurringExpense = null) }
+    }
+
+    fun toggleInstallmentItemStatus(itemId: Long, currentStatus: String) {
+        viewModelScope.launch {
+            val nextStatus = if (currentStatus == "Paid") "Pending" else "Paid"
+            installmentRepository.updateInstallmentItemStatus(itemId, nextStatus)
+            _state.value.selectedInstallment?.let { inst ->
+                val updatedItems = installmentRepository.getInstallmentItems(inst.id).first()
+                _state.update { it.copy(selectedInstallmentItems = updatedItems) }
+            }
+        }
+    }
+
+    fun deleteInstallmentPlan(installment: Installment) {
+        viewModelScope.launch {
+            repository.getExpenseById(installment.expenseId)?.let { expense ->
+                repository.deleteExpense(expense)
+            }
+            closeInstallmentDetail()
+        }
+    }
+
+    fun deleteRecurringExpense(expense: Expense) {
+        viewModelScope.launch {
+            repository.deleteExpense(expense)
+            closeRecurringDetail()
+        }
     }
 }

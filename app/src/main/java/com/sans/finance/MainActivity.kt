@@ -162,15 +162,8 @@ fun AppNavigation(
                 onAddTransactionClick = {
                     navController.navigate(Screen.AddTransaction())
                 },
-
-                onInstallmentsClick = {
-                    navController.navigate(Screen.Installments)
-                },
                 onStatsClick = {
                     navController.navigate(Screen.TransactionStats)
-                },
-                onRecurringExpensesClick = {
-                    navController.navigate(Screen.RecurringExpenses)
                 },
                 onSearchClick = {
                     navController.navigate(Screen.Search)

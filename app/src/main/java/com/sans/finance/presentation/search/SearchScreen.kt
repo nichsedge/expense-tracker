@@ -65,6 +65,8 @@ import com.sans.finance.core.util.CalendarUtils
 import com.sans.finance.presentation.components.ExpenseItem
 import com.sans.finance.presentation.components.SummaryCard
 import com.sans.finance.presentation.expense_list.DateRangeFilter
+import com.sans.finance.presentation.installments.InstallmentDetailBottomSheet
+import com.sans.finance.presentation.recurring.RecurringDetailBottomSheet
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -111,16 +113,21 @@ fun SearchScreen(
                                 ),
                                 cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary),
                                 decorationBox = { innerTextField ->
-                                    if (state.searchQuery.isEmpty()) {
-                                        Text(
-                                            "Search...",
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                                                alpha = 0.6f
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        contentAlignment = Alignment.CenterStart
+                                    ) {
+                                        if (state.searchQuery.isEmpty()) {
+                                            Text(
+                                                "Search...",
+                                                style = MaterialTheme.typography.bodyLarge,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                                    alpha = 0.6f
+                                                )
                                             )
-                                        )
+                                        }
+                                        innerTextField()
                                     }
-                                    innerTextField()
                                 }
                             )
                             if (state.searchQuery.isNotEmpty()) {
@@ -246,21 +253,33 @@ fun SearchScreen(
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     state.groupedExpenses.forEach { (dateMillis, expenses) ->
-                        stickyHeader {
+                        stickyHeader(key = "header-$dateMillis") {
                             DateHeader(dateMillis)
                         }
-                        items(expenses, key = { it.id }) { expense ->
+                        items(
+                            items = expenses,
+                            key = { "exp_${it.id}_${it.installmentMonth}_${it.date}_${it.amount}" },
+                            contentType = { "expense" }
+                        ) { expense ->
                             val category = state.categories.find { it.id == expense.categoryId }
                             val account = state.accounts.find { it.id == expense.accountId }
                             ExpenseItem(
                                 expense = expense,
-                                categoryName = category?.name,
-                                categoryIcon = category?.icon
+                                categoryName = category?.name ?: expense.categoryName,
+                                categoryIcon = category?.icon ?: expense.categoryIcon
                                     ?: (if (expense.isInstallmentPayment) "💳" else "📁"),
                                 accountName = account?.name,
                                 isPrivacyModeEnabled = state.isPrivacyModeEnabled,
                                 searchQuery = state.searchQuery,
-                                onClick = { onExpenseClick(expense.id) },
+                                onClick = {
+                                    if (expense.isInstallment || expense.isInstallmentPayment) {
+                                        viewModel.openInstallmentDetail(expense)
+                                    } else if (expense.isRecurring) {
+                                        viewModel.openRecurringDetail(expense)
+                                    } else {
+                                        onExpenseClick(expense.id)
+                                    }
+                                },
                                 onLongClick = {
                                     expenseToDelete = expense
                                     showDeleteDialog = true
@@ -271,6 +290,37 @@ fun SearchScreen(
                 }
             }
         }
+    }
+
+    if (state.selectedInstallment != null) {
+        InstallmentDetailBottomSheet(
+            context = com.sans.finance.presentation.installments.InstallmentDetailContext(
+                installment = state.selectedInstallment!!,
+                items = state.selectedInstallmentItems,
+                currencyCode = state.currentCurrency
+            ),
+            onDismiss = viewModel::closeInstallmentDetail,
+            onToggleStatus = viewModel::toggleInstallmentItemStatus,
+            onEditExpense = onExpenseClick,
+            onDeletePlan = viewModel::deleteInstallmentPlan
+        )
+    }
+
+    if (state.selectedRecurringExpense != null) {
+        val recurringExpense = state.selectedRecurringExpense!!
+        val cat = state.categories.find { it.id == recurringExpense.categoryId }
+        val acc = state.accounts.find { it.id == recurringExpense.accountId }
+        RecurringDetailBottomSheet(
+            context = com.sans.finance.presentation.recurring.RecurringExpenseContext(
+                expense = recurringExpense,
+                categoryName = cat?.name ?: recurringExpense.categoryName,
+                accountName = acc?.name,
+                currencyCode = state.currentCurrency
+            ),
+            onDismiss = viewModel::closeRecurringDetail,
+            onEditExpense = onExpenseClick,
+            onDeleteExpense = viewModel::deleteRecurringExpense
+        )
     }
 
     if (showFilterSheet) {

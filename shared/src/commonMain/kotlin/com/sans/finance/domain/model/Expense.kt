@@ -29,4 +29,11 @@ data class Expense(
     val monthlyPayment: Long = 0L,
     val categoryName: String? = null,
     val categoryIcon: String? = null
-)
+) {
+    val isSyntheticInstallmentPayment: Boolean
+        get() = isInstallmentPayment || id >= SYNTHETIC_INSTALLMENT_OFFSET
+
+    companion object {
+        const val SYNTHETIC_INSTALLMENT_OFFSET = 100_000_000L
+    }
+}

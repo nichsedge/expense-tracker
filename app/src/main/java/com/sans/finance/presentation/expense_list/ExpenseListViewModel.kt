@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -34,6 +35,12 @@ enum class DateRangeFilter {
     CUSTOM
 }
 
+enum class TimelineCommitmentFilter {
+    ALL,
+    INSTALLMENTS,
+    RECURRING
+}
+
 data class ExpenseListState(
     val expenses: List<Expense> = emptyList(),
     val groupedExpenses: Map<Long, List<Expense>> = emptyMap(),
@@ -44,6 +51,12 @@ data class ExpenseListState(
     val startDate: Long = 0L,
     val endDate: Long = Long.MAX_VALUE,
     val activeDateFilter: DateRangeFilter = DateRangeFilter.THIS_MONTH,
+    val activeCommitmentFilter: TimelineCommitmentFilter = TimelineCommitmentFilter.ALL,
+    val activeInstallmentCount: Int = 0,
+    val recurringExpenseCount: Int = 0,
+    val selectedInstallment: com.sans.finance.domain.model.Installment? = null,
+    val selectedInstallmentItems: List<com.sans.finance.domain.model.InstallmentItem> = emptyList(),
+    val selectedRecurringExpense: Expense? = null,
     val isLoading: Boolean = true,
     val error: String? = null,
     val accounts: List<com.sans.finance.data.local.entity.AccountEntity> = emptyList(),
@@ -90,7 +103,22 @@ class ExpenseListViewModel @Inject constructor(
         loadAccounts()
         loadTags()
         loadBudget()
+        loadCommitmentCounts()
         observePrivacyMode()
+    }
+
+    private fun loadCommitmentCounts() {
+        installmentRepository.getActiveInstallments()
+            .onEach { active ->
+                _state.update { it.copy(activeInstallmentCount = active.size) }
+            }
+            .launchIn(viewModelScope)
+
+        repository.getRecurringExpenses()
+            .onEach { recurring ->
+                _state.update { it.copy(recurringExpenseCount = recurring.size) }
+            }
+            .launchIn(viewModelScope)
     }
 
     private fun observePrivacyMode() {
@@ -157,10 +185,16 @@ class ExpenseListViewModel @Inject constructor(
                 val expenses = result.expenses
                 val dailySpending = result.dailySpending
                 val dailyMap = dailySpending.associate { it.day to it.amount }
-                val grouped = groupExpensesByDate(expenses)
-                // Filtered item totals: normal items + installment payments (already in the list)
-                // We only exclude 'parent' installment plans to avoid double counting with their sub-payments
                 val validExpenses = expenses.filter { !it.isInstallment || it.isInstallmentPayment }
+                val currentCommitmentFilter = _state.value.activeCommitmentFilter
+                val displayedExpenses = when (currentCommitmentFilter) {
+                    TimelineCommitmentFilter.ALL -> validExpenses
+                    TimelineCommitmentFilter.INSTALLMENTS -> expenses.filter {
+                        it.isInstallment || it.isInstallmentPayment
+                    }
+                    TimelineCommitmentFilter.RECURRING -> validExpenses.filter { it.isRecurring }
+                }
+                val grouped = groupExpensesByDate(displayedExpenses)
                 val income = validExpenses.filter { it.type == "INCOME" }.sumOf { it.amount }
                 val expense = validExpenses.filter { it.type == "EXPENSE" }.sumOf { it.amount }
                 val periodTotal = income - expense
@@ -517,6 +551,82 @@ class ExpenseListViewModel @Inject constructor(
                 activeDateFilter = DateRangeFilter.CUSTOM,
                 isLoading = true
             )
+        }
+    }
+
+    fun setCommitmentFilter(filter: TimelineCommitmentFilter) {
+        _state.update { currentState ->
+            val allExpenses = currentState.expenses
+            val validExpenses = allExpenses.filter { !it.isInstallment || it.isInstallmentPayment }
+            val displayedExpenses = when (filter) {
+                TimelineCommitmentFilter.ALL -> validExpenses
+                TimelineCommitmentFilter.INSTALLMENTS -> allExpenses.filter {
+                    it.isInstallment || it.isInstallmentPayment
+                }
+                TimelineCommitmentFilter.RECURRING -> validExpenses.filter { it.isRecurring }
+            }
+            currentState.copy(
+                activeCommitmentFilter = filter,
+                groupedExpenses = groupExpensesByDate(displayedExpenses)
+            )
+        }
+    }
+
+    fun openInstallmentDetail(expense: Expense) {
+        viewModelScope.launch {
+            val all = installmentRepository.getAllInstallments().first()
+            val installment = all.firstOrNull { it.expenseId == expense.id || it.expenseName == expense.title }
+                ?: (if (expense.isInstallmentPayment) all.firstOrNull { it.expenseName == expense.title } else null)
+                ?: installmentRepository.getInstallmentByExpenseId(expense.id)
+
+            if (installment != null) {
+                val items = installmentRepository.getInstallmentItems(installment.id).first()
+                _state.update {
+                    it.copy(
+                        selectedInstallment = installment,
+                        selectedInstallmentItems = items
+                    )
+                }
+            }
+        }
+    }
+
+    fun closeInstallmentDetail() {
+        _state.update { it.copy(selectedInstallment = null, selectedInstallmentItems = emptyList()) }
+    }
+
+    fun openRecurringDetail(expense: Expense) {
+        _state.update { it.copy(selectedRecurringExpense = expense) }
+    }
+
+    fun closeRecurringDetail() {
+        _state.update { it.copy(selectedRecurringExpense = null) }
+    }
+
+    fun toggleInstallmentItemStatus(itemId: Long, currentStatus: String) {
+        viewModelScope.launch {
+            val nextStatus = if (currentStatus == "Paid") "Pending" else "Paid"
+            installmentRepository.updateInstallmentItemStatus(itemId, nextStatus)
+            _state.value.selectedInstallment?.let { inst ->
+                val updatedItems = installmentRepository.getInstallmentItems(inst.id).first()
+                _state.update { it.copy(selectedInstallmentItems = updatedItems) }
+            }
+        }
+    }
+
+    fun deleteInstallmentPlan(installment: com.sans.finance.domain.model.Installment) {
+        viewModelScope.launch {
+            repository.getExpenseById(installment.expenseId)?.let { expense ->
+                repository.deleteExpense(expense)
+            }
+            closeInstallmentDetail()
+        }
+    }
+
+    fun deleteRecurringExpense(expense: Expense) {
+        viewModelScope.launch {
+            repository.deleteExpense(expense)
+            closeRecurringDetail()
         }
     }
 }

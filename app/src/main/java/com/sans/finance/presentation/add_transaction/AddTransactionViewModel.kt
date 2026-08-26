@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
@@ -270,9 +271,25 @@ class AddTransactionViewModel @Inject constructor(
                     accountId = expense.accountId
                     toAccountId = expense.toAccountId ?: 2L
                     transactionType = expense.type
-                    if (expense.isInstallment) paymentType = "INSTALLMENT"
-                    else if (expense.isRecurring) paymentType = "RECURRING"
-                    else paymentType = "ONE_TIME"
+                    if (expense.isInstallment || expense.isInstallmentPayment) {
+                        paymentType = "INSTALLMENT"
+                        val allInstallments = installmentRepository
+                            .getAllInstallments().firstOrNull() ?: emptyList()
+                        val matchedInstallment = allInstallments.firstOrNull {
+                            it.expenseId == expense.id || it.expenseName == expense.title
+                        } ?: installmentRepository.getInstallmentByExpenseId(id)
+
+                        durationMonths = matchedInstallment?.durationMonths?.toString()
+                            ?: if (expense.installmentTotalMonths > 0) {
+                                expense.installmentTotalMonths.toString()
+                            } else {
+                                ""
+                            }
+                    } else if (expense.isRecurring) {
+                        paymentType = "RECURRING"
+                    } else {
+                        paymentType = "ONE_TIME"
+                    }
 
                     recurrenceInterval = expense.recurrenceInterval ?: "MONTHLY"
                     selectedDate = expense.date
@@ -282,12 +299,6 @@ class AddTransactionViewModel @Inject constructor(
                     installmentTotalMonths = expense.installmentTotalMonths
                     status = expense.status
                     selectedTags = expense.tags
-
-                    if (expense.isRecurring) {
-                        installmentRepository.getInstallmentByExpenseId(id)?.let { installment ->
-                            durationMonths = installment.durationMonths.toString()
-                        }
-                    }
                 }
             }
         }

@@ -21,15 +21,24 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses ORDER BY date DESC LIMIT :limit")
     suspend fun getRecentExpenses(limit: Int): List<com.sans.finance.data.local.entity.ExpenseWithTags>
 
-    @Query("SELECT COUNT(*) as count, SUM(amount) as totalAmount FROM expenses WHERE date >= :since AND date < :until AND type = 'EXPENSE' AND is_installment = 0")
+    @Query(
+        "SELECT COUNT(*) as count, SUM(amount) as totalAmount " +
+            "FROM expenses WHERE date >= :since AND date < :until AND type = 'EXPENSE' AND is_installment = 0"
+    )
     suspend fun getTodaySpentSummary(since: Long, until: Long): TodaySpentSummary
 
     @Transaction
-    @Query("SELECT * FROM expenses ORDER BY date DESC")
+    @Query(
+        "SELECT * FROM expenses WHERE is_installment = 0 " +
+            "AND id NOT IN (SELECT expense_id FROM installments) ORDER BY date DESC"
+    )
     fun getAllExpenses(): Flow<List<com.sans.finance.data.local.entity.ExpenseWithTags>>
 
     @Transaction
-    @Query("SELECT * FROM expenses WHERE date >= :since AND date < :until ORDER BY date DESC")
+    @Query(
+        "SELECT * FROM expenses WHERE date >= :since AND date < :until AND is_installment = 0 " +
+            "AND id NOT IN (SELECT expense_id FROM installments) ORDER BY date DESC"
+    )
     fun getExpensesBetween(
         since: Long,
         until: Long
@@ -38,6 +47,9 @@ interface ExpenseDao {
     @Transaction
     @Query("SELECT * FROM expenses WHERE is_recurring = 1 ORDER BY date DESC")
     fun getRecurringExpenses(): Flow<List<com.sans.finance.data.local.entity.ExpenseWithTags>>
+
+    @Query("DELETE FROM expenses WHERE id >= :idOffset AND (id - :idOffset) IN (SELECT id FROM installment_items)")
+    suspend fun deleteSyntheticDuplicateExpenses(idOffset: Long)
 
     @Transaction
     @Query(
@@ -50,6 +62,7 @@ interface ExpenseDao {
         AND (:accountCount = 0 OR e.account_id IN (:accountIds))
         AND (e.date >= :since AND e.date < :until)
         AND e.is_installment = 0
+        AND e.id NOT IN (SELECT expense_id FROM installments)
         AND (:minAmount IS NULL OR e.amount >= :minAmount)
         AND (:maxAmount IS NULL OR e.amount <= :maxAmount)
         AND (:tagCount = 0 OR t.name IN (:tags))
