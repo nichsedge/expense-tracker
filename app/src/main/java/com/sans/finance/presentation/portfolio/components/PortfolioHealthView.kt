@@ -7,12 +7,16 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -45,6 +49,7 @@ import com.sans.finance.domain.model.RiskLevel
 fun PortfolioHealthView(
     healthList: List<AssetClassHealth>,
     rebalanceSuggestions: List<com.sans.finance.domain.model.RebalanceAction>,
+    currencyBreakdowns: List<com.sans.finance.domain.model.CurrencyValuationSummary>,
     isPrivacyModeEnabled: Boolean,
     currentCurrency: String,
     modifier: Modifier = Modifier,
@@ -62,6 +67,10 @@ fun PortfolioHealthView(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         DiversificationSummary(healthList)
+
+        CurrencyExposureCard(currencyBreakdowns, currentCurrency)
+
+        AllocationDriftChart(healthList)
 
         DcaDepositRebalanceCard(
             healthList = healthList,
@@ -141,6 +150,210 @@ fun DiversificationSummary(healthList: List<AssetClassHealth>) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun CurrencyExposureCard(
+    summaries: List<com.sans.finance.domain.model.CurrencyValuationSummary>,
+    baseCurrency: String
+) {
+    if (summaries.isEmpty()) return
+
+    val totalInBase = summaries.sumOf { it.totalInBaseCurrency }
+    if (totalInBase <= 0) return
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "CURRENCY EXPOSURE & FX RISK",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Black,
+                    color = MaterialTheme.colorScheme.primary,
+                    letterSpacing = 1.sp
+                )
+
+                // Risk Warning for concentration
+                val highConcentration = summaries.find { (it.totalInBaseCurrency / totalInBase) > 0.85 }
+                if (highConcentration != null) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.error.copy(alpha = 0.1f),
+                        shape = CircleShape
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                "High ${highConcentration.currency} Risk",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.error,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // Stacked Bar using Row & Weight
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(20.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+            ) {
+                summaries.sortedByDescending { it.totalInBaseCurrency }.forEachIndexed { index, summary ->
+                    val weight = (summary.totalInBaseCurrency / totalInBase).toFloat()
+                    if (weight > 0.001f) {
+                        val color = when (index % 4) {
+                            0 -> MaterialTheme.colorScheme.primary
+                            1 -> MaterialTheme.colorScheme.tertiary
+                            2 -> MaterialTheme.colorScheme.secondary
+                            else -> MaterialTheme.colorScheme.outline
+                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .weight(weight)
+                                .background(color)
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            // Legend
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                summaries.sortedByDescending { it.totalInBaseCurrency }.forEachIndexed { index, summary ->
+                    val pct = (summary.totalInBaseCurrency / totalInBase) * 100.0
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        val color = when (index % 4) {
+                            0 -> MaterialTheme.colorScheme.primary
+                            1 -> MaterialTheme.colorScheme.tertiary
+                            2 -> MaterialTheme.colorScheme.secondary
+                            else -> MaterialTheme.colorScheme.outline
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(color)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = "${summary.currency}: ${String.format(java.util.Locale.US, "%.2f%%", pct)}",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AllocationDriftChart(healthList: List<AssetClassHealth>) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                "ALLOCATION DRIFT (TARGET VS ACTUAL)",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Black,
+                color = MaterialTheme.colorScheme.primary,
+                letterSpacing = 1.sp
+            )
+            Spacer(Modifier.height(16.dp))
+
+            healthList.forEach { health ->
+                Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            health.assetClass,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            "${String.format(java.util.Locale.US, "%.2f%%", health.currentPercentage)} / ${String.format(java.util.Locale.US, "%.2f%%", health.targetPercentage)}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    BoxWithConstraints(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(24.dp)
+                            .clip(MaterialTheme.shapes.small)
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                    ) {
+                        val maxWidth = maxWidth
+                        // Actual Bar (Bottom)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(fraction = (health.currentPercentage / 100f).toFloat().coerceIn(0f, 1f))
+                                .fillMaxHeight()
+                                .background(
+                                    if (health.status == HealthStatus.HEALTHY) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                                    else if (health.status == HealthStatus.OVERWEIGHT) MaterialTheme.colorScheme.error.copy(alpha = 0.6f)
+                                    else MaterialTheme.colorScheme.tertiary.copy(alpha = 0.6f)
+                                )
+                        )
+
+                        // Target Indicator (Line)
+                        val targetOffset = maxWidth * (health.targetPercentage.toFloat() / 100f)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .width(2.5.dp)
+                                .padding(start = targetOffset)
+                                .background(MaterialTheme.colorScheme.onSurface)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun AssetHealthCard(health: AssetClassHealth, isPrivacyModeEnabled: Boolean, onClick: () -> Unit) {
     val statusColor = when (health.status) {
@@ -201,7 +414,7 @@ fun AssetHealthCard(health: AssetClassHealth, isPrivacyModeEnabled: Boolean, onC
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        "${String.format("%.1f", health.currentPercentage)}%",
+                        "${String.format(java.util.Locale.US, "%.2f", health.currentPercentage)}%",
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -213,7 +426,7 @@ fun AssetHealthCard(health: AssetClassHealth, isPrivacyModeEnabled: Boolean, onC
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        "${String.format("%.1f", health.targetPercentage)}%",
+                        "${String.format(java.util.Locale.US, "%.2f", health.targetPercentage)}%",
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -252,7 +465,8 @@ fun AssetHealthCard(health: AssetClassHealth, isPrivacyModeEnabled: Boolean, onC
                 Text(
                     text = "$action this asset class by ≈${
                         String.format(
-                            "%.1f",
+                            java.util.Locale.US,
+                            "%.2f",
                             diff
                         )
                     }% to reach target.",
@@ -325,7 +539,7 @@ fun RebalanceSuggestionsSection(
                                 )
                                 Spacer(Modifier.width(8.dp))
                                 Text(
-                                    "Adjust by ${String.format("%.1f%%", suggestion.percentageToAdjust)}",
+                                    "Adjust by ${String.format(java.util.Locale.US, "%.2f%%", suggestion.percentageToAdjust)}",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -522,7 +736,7 @@ fun DcaDepositRebalanceCard(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Target: ${String.format(java.util.Locale.US, "%.1f%%", item.targetPercentage)} (Current: ${String.format(java.util.Locale.US, "%.1f%%", item.currentPercentage)})",
+                            text = "Target: ${String.format(java.util.Locale.US, "%.2f%%", item.targetPercentage)} (Current: ${String.format(java.util.Locale.US, "%.2f%%", item.currentPercentage)})",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -538,7 +752,7 @@ fun DcaDepositRebalanceCard(
                             color = Color(0xFF4CAF50)
                         )
                         Text(
-                            text = "${(weightFraction * 100).toInt()}% of deposit",
+                            text = "${String.format(java.util.Locale.US, "%.2f", weightFraction * 100f)}% of deposit",
                             style = MaterialTheme.typography.labelSmall,
                             color = Color(0xFF4CAF50),
                             fontWeight = FontWeight.Bold

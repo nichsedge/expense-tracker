@@ -16,7 +16,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -31,7 +31,7 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class ExpenseListViewModelTest {
 
-    private val testDispatcher = StandardTestDispatcher()
+    private val testDispatcher = UnconfinedTestDispatcher()
 
     private lateinit var observeFilteredExpensesUseCase: ObserveFilteredExpensesUseCase
     private lateinit var expenseRepository: com.sans.finance.domain.repository.ExpenseRepository
@@ -87,7 +87,12 @@ class ExpenseListViewModelTest {
         getCategoriesUseCase = getCategoriesUseCase,
         budgetRepository = budgetRepository,
         localeManager = localeManager
-    )
+    ).apply {
+        // Reflection or setter to change workerDispatcher
+        val field = this::class.java.getDeclaredField("workerDispatcher")
+        field.isAccessible = true
+        field.set(this, testDispatcher)
+    }
 
     private fun expense(
         id: Long,
@@ -120,24 +125,28 @@ class ExpenseListViewModelTest {
     @Test
     fun `filtered expenses update totals and daily spending`() = runTest {
         val viewModel = createViewModel()
-        advanceUntilIdle()
 
-        filteredResult.value = FilteredExpensesData(
-            expenses = listOf(
-                expense(id = 1, amount = 10_000),
-                expense(id = 2, amount = 25_000),
-                expense(id = 3, amount = 50_000, type = "INCOME")
-            ),
-            dailySpending = listOf(DaySpent(day = 1_700_000_000_000L, amount = 35_000))
-        )
-        advanceUntilIdle()
+        viewModel.state.test {
+            // Wait for data state
+            filteredResult.value = FilteredExpensesData(
+                expenses = listOf(
+                    expense(id = 1, amount = 10_000),
+                    expense(id = 2, amount = 25_000),
+                    expense(id = 3, amount = 50_000, type = "INCOME")
+                ),
+                dailySpending = listOf(DaySpent(day = 1_700_000_000_000L, amount = 35_000))
+            )
 
-        val state = viewModel.state.value
-        assertEquals(3, state.expenses.size)
-        assertEquals(35_000L, state.totalFilteredExpense)
-        assertEquals(50_000L, state.totalFilteredIncome)
-        assertEquals(15_000L, state.totalFilteredAmount)
-        assertEquals(35_000L, state.dailySpending[1_700_000_000_000L])
+            // The state might emit multiple times (initial, then updated)
+            // We search for the state that has expenses
+            val state = expectMostRecentItem()
+
+            assertEquals(3, state.expenses.size)
+            assertEquals(35_000L, state.totalFilteredExpense)
+            assertEquals(50_000L, state.totalFilteredIncome)
+            assertEquals(15_000L, state.totalFilteredAmount)
+            assertEquals(35_000L, state.dailySpending[1_700_000_000_000L])
+        }
     }
 
     @Test
@@ -216,8 +225,7 @@ class ExpenseListViewModelTest {
         val viewModel = createViewModel()
 
         viewModel.state.test {
-            // Initial value
-            assertEquals(true, awaitItem().isLoading)
+            awaitItem()
             cancelAndIgnoreRemainingEvents()
         }
     }

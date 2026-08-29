@@ -400,7 +400,7 @@ fun EmergencyRunwayCard(
                             maxLines = 1
                         )
                         Text(
-                            text = if (runwayMonths >= 99.0) "Over 99 months coverage" else "${String.format(java.util.Locale.US, "%.1f", runwayMonths)} months of living expenses",
+                            text = if (runwayMonths >= 99.0) "Over 99 months coverage" else "${String.format(java.util.Locale.US, "%.2f", runwayMonths)} months of living expenses",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1
@@ -651,7 +651,7 @@ fun FinancialIndependenceMilestoneCard(
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        text = "${String.format(java.util.Locale.US, "%.1f", fiCoveragePct)}% Covered",
+                        text = "${String.format(java.util.Locale.US, "%.2f", fiCoveragePct)}% Covered",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Black,
                         color = MaterialTheme.colorScheme.primary,
@@ -701,12 +701,12 @@ fun FinancialIndependenceMilestoneCard(
                 )
                 MilestoneRowItem(
                     title = "2. Lean FI (50% Living Burn)",
-                    status = if (isLeanFi) "Achieved" else "${String.format(java.util.Locale.US, "%.1f", fiCoveragePct)}% / 50%",
+                    status = if (isLeanFi) "Achieved" else "${String.format(java.util.Locale.US, "%.2f", fiCoveragePct)}% / 50%",
                     isComplete = isLeanFi
                 )
                 MilestoneRowItem(
                     title = "3. Full FI (100% Living Burn)",
-                    status = if (isFullFi) "Achieved" else "${String.format(java.util.Locale.US, "%.1f", fiCoveragePct)}% / 100%",
+                    status = if (isFullFi) "Achieved" else "${String.format(java.util.Locale.US, "%.2f", fiCoveragePct)}% / 100%",
                     isComplete = isFullFi
                 )
             }

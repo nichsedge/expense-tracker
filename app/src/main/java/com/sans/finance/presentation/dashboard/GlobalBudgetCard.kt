@@ -10,6 +10,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.TrendingFlat
+import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
@@ -29,6 +34,7 @@ fun GlobalBudgetCard(
     budget: Long,
     spent: Long,
     daysLeft: Int,
+    spendingVelocity: Float,
     currencyCode: String,
     isPrivacyModeEnabled: Boolean
 ) {
@@ -98,6 +104,48 @@ fun GlobalBudgetCard(
             )
 
             Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val velocityText = when {
+                    spendingVelocity > 1.1f -> "Spending too fast"
+                    spendingVelocity > 0.9f -> "On track"
+                    else -> "Spending slowly"
+                }
+                val velocityColor = when {
+                    spendingVelocity > 1.1f -> MaterialTheme.colorScheme.error
+                    spendingVelocity > 0.9f -> MaterialTheme.colorScheme.tertiary
+                    else -> MaterialTheme.colorScheme.primary
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    androidx.compose.material3.Icon(
+                        imageVector = if (spendingVelocity > 1.1f) Icons.Default.TrendingUp else Icons.Default.TrendingFlat,
+                        contentDescription = null,
+                        tint = velocityColor.copy(alpha = 0.8f),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = velocityText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = velocityColor,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Text(
+                    text = "${(spendingVelocity * 100).toInt()}% Velocity",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),

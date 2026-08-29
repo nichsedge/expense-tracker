@@ -120,9 +120,26 @@ fun DashboardScreen(
                         budget = state.globalBudget,
                         spent = state.globalSpent,
                         daysLeft = state.daysLeftInMonth,
+                        spendingVelocity = state.spendingVelocity,
                         currencyCode = state.currentCurrency,
                         isPrivacyModeEnabled = state.isPrivacyModeEnabled
                     )
+                }
+            }
+
+            if (state.categoryBudgets.isNotEmpty()) {
+                item {
+                    SectionHeader("CATEGORY BUDGETS")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        state.categoryBudgets.forEach { budget ->
+                            CategoryBudgetItem(
+                                budget = budget,
+                                currencyCode = state.currentCurrency,
+                                isPrivacyModeEnabled = state.isPrivacyModeEnabled
+                            )
+                        }
+                    }
                 }
             }
 

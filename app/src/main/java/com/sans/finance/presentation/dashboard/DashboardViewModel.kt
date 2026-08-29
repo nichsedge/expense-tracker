@@ -8,14 +8,20 @@ import com.sans.finance.data.local.entity.BudgetEntity
 import com.sans.finance.data.local.entity.GoalEntity
 import com.sans.finance.data.local.entity.PortfolioHoldingEntity
 import com.sans.finance.domain.model.Expense
+import com.sans.finance.domain.repository.AccountRepository
 import com.sans.finance.domain.repository.ExpenseRepository
 import com.sans.finance.domain.repository.GoalRepository
 import com.sans.finance.domain.repository.PortfolioRepository
+import com.sans.finance.domain.repository.AccountTypeRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
@@ -49,7 +55,9 @@ data class DashboardState(
     val financialFreedomScore: Float = 0f,
     val isFireManualEnabled: Boolean = false,
     val manualFireAnnualExpense: Long = 0L,
-    val recentTransactions: List<Expense> = emptyList()
+    val recentTransactions: List<Expense> = emptyList(),
+    val spendingVelocity: Float = 0f,
+    val categoryBudgets: List<com.sans.finance.domain.model.CategoryBudgetProgress> = emptyList()
 )
 
 enum class WealthDistributionTab {
@@ -58,6 +66,8 @@ enum class WealthDistributionTab {
 
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
+    private val accountRepository: AccountRepository,
+    private val accountTypeRepository: AccountTypeRepository,
     private val expenseRepository: ExpenseRepository,
     private val goalRepository: GoalRepository,
     private val portfolioRepository: PortfolioRepository,
@@ -76,9 +86,26 @@ class DashboardViewModel @Inject constructor(
         expenseRepository.getRecurringExpenses(),
         goalRepository.getAllGoals(),
         portfolioRepository.getLatestSnapshot(),
+        accountRepository.getAllAccounts(),
+        accountTypeRepository.getAllAccountTypes(),
         currencyDao.getAllRates()
-    ) { txns, recurring, goals, holdings, rates ->
-        ItemContext(txns, recurring, goals, holdings, rates.associate { it.code to it.rateToIdr })
+    ) { args ->
+        @Suppress("UNCHECKED_CAST")
+        val txns = args[0] as List<Expense>
+        @Suppress("UNCHECKED_CAST")
+        val recurring = args[1] as List<Expense>
+        @Suppress("UNCHECKED_CAST")
+        val goals = args[2] as List<GoalEntity>
+        @Suppress("UNCHECKED_CAST")
+        val holdings = args[3] as List<PortfolioHoldingEntity>
+        @Suppress("UNCHECKED_CAST")
+        val accounts = args[4] as List<com.sans.finance.data.local.entity.AccountEntity>
+        @Suppress("UNCHECKED_CAST")
+        val types = args[5] as List<com.sans.finance.data.local.entity.AccountTypeEntity>
+        @Suppress("UNCHECKED_CAST")
+        val rates = args[6] as List<com.sans.finance.data.local.entity.ExchangeRateEntity>
+
+        ItemContext(txns, recurring, goals, holdings, accounts, types, rates.associate { it.code to it.rateToIdr })
     }
 
     private val settingsContext = combine(
@@ -103,7 +130,7 @@ class DashboardViewModel @Inject constructor(
         val trend = calculateTrend(portfolioHistory, baseRate)
 
         // Wealth Distribution
-        val distribution = calculateDistribution(items.holdings, settings.wealthDistributionTab, baseRate)
+        val distribution = calculateDistribution(items.holdings, items.accounts, items.accountTypes, settings.wealthDistributionTab, baseRate, items.rates)
 
         // AI Suggestions
         val suggestions = generateAiSuggestions(summary, freedom, items.recurring, items.goals)
@@ -147,7 +174,9 @@ class DashboardViewModel @Inject constructor(
             financialFreedomScore = freedom.freedomScore,
             isFireManualEnabled = freedom.annualExpense > 0, // Placeholder, should ideally come from UseCase/Settings
             manualFireAnnualExpense = freedom.annualExpense,
-            recentTransactions = items.transactions.filter { it.date <= now }.sortedByDescending { it.date }.take(5)
+            recentTransactions = items.transactions.filter { it.date <= now }.sortedByDescending { it.date }.take(5),
+            spendingVelocity = summary.spendingVelocity,
+            categoryBudgets = summary.categoryBudgetProgress
         )
     }.flowOn(Dispatchers.Default)
     .stateIn(
@@ -174,16 +203,74 @@ class DashboardViewModel @Inject constructor(
         return trend.reversed()
     }
 
-    private fun calculateDistribution(holdings: List<PortfolioHoldingEntity>, tab: WealthDistributionTab, baseRate: Double): Map<String, Long> {
-        val grouped = when (tab) {
-            WealthDistributionTab.CURRENCY -> holdings.groupBy { it.currency }
-            WealthDistributionTab.ASSET_CLASS -> holdings.groupBy { it.assetClass }
-            WealthDistributionTab.CATEGORY -> holdings.groupBy { it.category }
+    private fun calculateDistribution(
+        holdings: List<PortfolioHoldingEntity>,
+        accounts: List<com.sans.finance.data.local.entity.AccountEntity>,
+        accountTypes: List<com.sans.finance.data.local.entity.AccountTypeEntity>,
+        tab: WealthDistributionTab,
+        baseRate: Double,
+        ratesMap: Map<String, Double>
+    ): Map<String, Long> {
+        val liabilityTypeNames = accountTypes.filter { it.isLiability }.map { it.name }.toSet()
+        val nonLiabilityAccounts = accounts.filter { it.type !in liabilityTypeNames && it.type != "Investment" }
+
+        val distribution = when (tab) {
+            WealthDistributionTab.CURRENCY -> {
+                val hGroup = holdings.groupBy { it.currency }
+                    .mapValues { it.value.sumOf { h -> h.valueIdr } }
+
+                val aGroup = nonLiabilityAccounts.groupBy { it.currency }
+                    .mapValues { entry ->
+                        entry.value.sumOf { a ->
+                            val rateToIdr = if (a.currency == "IDR") 1.0 else (ratesMap[a.currency] ?: 1.0)
+                            (a.balance / 100.0) * rateToIdr
+                        }
+                    }
+
+                (hGroup.keys + aGroup.keys).associateWith { key ->
+                    val idrValue = (hGroup[key] ?: 0.0) + (aGroup[key] ?: 0.0)
+                    if (baseRate > 0) ((idrValue / baseRate) * 100).toLong() else (idrValue * 100).toLong()
+                }
+            }
+
+            WealthDistributionTab.ASSET_CLASS -> {
+                val hGroup = holdings.groupBy { it.assetClass }
+                    .mapValues { it.value.sumOf { h -> h.valueIdr } }
+
+                val aValue = nonLiabilityAccounts.sumOf { a ->
+                    val rateToIdr = if (a.currency == "IDR") 1.0 else (ratesMap[a.currency] ?: 1.0)
+                    (a.balance / 100.0) * rateToIdr
+                }
+
+                val combined = hGroup.toMutableMap()
+                combined["Cash & Equivalents"] = (combined["Cash & Equivalents"] ?: 0.0) + aValue
+
+                combined.mapValues { entry ->
+                    val idrValue = entry.value
+                    if (baseRate > 0) ((idrValue / baseRate) * 100).toLong() else (idrValue * 100).toLong()
+                }
+            }
+
+            WealthDistributionTab.CATEGORY -> {
+                val hGroup = holdings.groupBy { it.category }
+                    .mapValues { it.value.sumOf { h -> h.valueIdr } }
+
+                val aGroup = nonLiabilityAccounts.groupBy { it.type }
+                    .mapValues { entry ->
+                        entry.value.sumOf { a ->
+                            val rateToIdr = if (a.currency == "IDR") 1.0 else (ratesMap[a.currency] ?: 1.0)
+                            (a.balance / 100.0) * rateToIdr
+                        }
+                    }
+
+                (hGroup.keys + aGroup.keys).associateWith { key ->
+                    val idrValue = (hGroup[key] ?: 0.0) + (aGroup[key] ?: 0.0)
+                    if (baseRate > 0) ((idrValue / baseRate) * 100).toLong() else (idrValue * 100).toLong()
+                }
+            }
         }
-        return grouped.mapValues { entry ->
-            val idrValue = entry.value.sumOf { it.valueIdr }
-            if (baseRate > 0) ((idrValue / baseRate) * 100).toLong() else (idrValue * 100).toLong()
-        }.toList()
+
+        return distribution.toList()
             .sortedByDescending { kotlin.math.abs(it.second) }
             .toMap()
     }
@@ -226,6 +313,8 @@ private data class ItemContext(
     val recurring: List<Expense>,
     val goals: List<GoalEntity>,
     val holdings: List<PortfolioHoldingEntity>,
+    val accounts: List<com.sans.finance.data.local.entity.AccountEntity>,
+    val accountTypes: List<com.sans.finance.data.local.entity.AccountTypeEntity>,
     val rates: Map<String, Double>
 )
 

@@ -130,7 +130,7 @@ fun WealthDistributionCard(
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 distribution.entries.forEachIndexed { index, entry ->
                     val entryValue = kotlin.math.abs(entry.value)
-                    val percentage = (entryValue.toFloat() / total.toFloat() * 100).toInt()
+                    val percentage = (entryValue.toDouble() / total.toDouble() * 100.0)
 
                     val color = when (index % 4) {
                         0 -> MaterialTheme.colorScheme.primary
@@ -152,7 +152,7 @@ fun WealthDistributionCard(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                "$percentage%",
+                                "${String.format(java.util.Locale.US, "%.2f", percentage)}%",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

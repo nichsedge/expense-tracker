@@ -579,7 +579,7 @@ class PortfolioViewModel @Inject constructor(
                     assetAllocation = currentState.assetClassTotals.map { it.assetClass to (it.totalIdr / currentState.totalValueIdr * 100.0) },
                     healthStatus = currentState.healthList.map { "${it.assetClass}: ${it.status}" },
                     xirr = currentState.xirr,
-                    goals = currentState.goals.map { "${it.goal.name}: ${String.format("%.1f%%", (it.currentAmount / it.goal.targetAmount * 100))}" },
+                    goals = currentState.goals.map { "${it.goal.name}: ${String.format("%.2f%%", (it.currentAmount / it.goal.targetAmount * 100))}" },
                     notes = "Portfolio rebalancing target check."
                 )
 

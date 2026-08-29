@@ -11,13 +11,9 @@ import com.sans.finance.MainActivity
 import com.sans.finance.R
 import com.sans.finance.core.util.CurrencyFormatter
 import com.sans.finance.core.util.DateFormatterUtils
-import com.sans.finance.data.local.dao.AccountDao
-import com.sans.finance.data.local.dao.AccountTypeDao
-import com.sans.finance.data.local.dao.BudgetDao
-import com.sans.finance.data.local.dao.CurrencyDao
-import com.sans.finance.data.local.dao.ExpenseDao
-import com.sans.finance.data.local.dao.PortfolioDao
 import com.sans.finance.data.util.LocaleManager
+import com.sans.finance.domain.usecase.GetDashboardSummaryUseCase
+import com.sans.finance.domain.usecase.GetWealthMetricsUseCase
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -26,7 +22,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.util.Calendar
 import java.util.Date
 
 class FinancialSummaryWidgetProvider : AppWidgetProvider() {
@@ -34,12 +29,8 @@ class FinancialSummaryWidgetProvider : AppWidgetProvider() {
     @EntryPoint
     @InstallIn(SingletonComponent::class)
     interface SummaryEntryPoint {
-        fun expenseDao(): ExpenseDao
-        fun budgetDao(): BudgetDao
-        fun accountDao(): AccountDao
-        fun accountTypeDao(): AccountTypeDao
-        fun portfolioDao(): PortfolioDao
-        fun currencyDao(): CurrencyDao
+        fun getDashboardSummaryUseCase(): GetDashboardSummaryUseCase
+        fun getWealthMetricsUseCase(): GetWealthMetricsUseCase
         fun localeManager(): LocaleManager
     }
 
@@ -57,102 +48,38 @@ class FinancialSummaryWidgetProvider : AppWidgetProvider() {
                     context.applicationContext,
                     SummaryEntryPoint::class.java
                 )
-                val expenseDao = entryPoint.expenseDao()
-                val budgetDao = entryPoint.budgetDao()
-                val accountDao = entryPoint.accountDao()
-                val accountTypeDao = entryPoint.accountTypeDao()
-                val portfolioDao = entryPoint.portfolioDao()
-                val currencyDao = entryPoint.currencyDao()
-                val localeManager = entryPoint.localeManager()
+                val getDashboardSummaryUseCase = entryPoint.getDashboardSummaryUseCase()
+                val getWealthMetricsUseCase = entryPoint.getWealthMetricsUseCase()
 
-                val baseCurrency = localeManager.getCurrency()
+                val summary = getDashboardSummaryUseCase().first()
+                val metrics = getWealthMetricsUseCase().first()
+                val baseCurrency = summary.currentCurrency
 
-                // --- Net Worth Calculation ---
-                val accounts = accountDao.getAllAccounts().first()
-                val types = accountTypeDao.getAllAccountTypes().first()
-                val rates = currencyDao.getAllRates().first()
-                val ratesMap = rates.associate { it.code to it.rateToIdr }
-                val baseRate = if (baseCurrency == "IDR") 1.0 else (ratesMap[baseCurrency] ?: 1.0)
+                // --- Net Worth ---
+                val formattedNetWorth = CurrencyFormatter.formatAmount(summary.netWorth, baseCurrency)
 
-                fun convertToBase(amount: Long, from: String): Long {
-                    if (from == baseCurrency) return amount
-                    val amountInIdr = if (from == "IDR") amount.toDouble() else amount * (ratesMap[from] ?: 1.0)
-                    return (amountInIdr / baseRate).toLong()
-                }
-
-                val liabilityTypeNames = types.filter { it.isLiability }.map { it.name }.toSet()
-                var cashTotal = 0L
-                var liabilitiesTotal = 0L
-                accounts.forEach { account ->
-                    val converted = convertToBase(account.balance, account.currency)
-                    if (account.type in liabilityTypeNames) {
-                        liabilitiesTotal += converted
-                    } else {
-                        cashTotal += converted
-                    }
-                }
-
-                val latestHeader = portfolioDao.getLatestSnapshotHeader().first()
-                val portfolioTotal = if (latestHeader != null) {
-                    val portfolioIdr = (latestHeader.totalValueIdr * 100).toLong()
-                    convertToBase(portfolioIdr, "IDR")
-                } else {
-                    0L
-                }
-                val netWorthTotal = cashTotal - liabilitiesTotal + portfolioTotal
-                val formattedNetWorth = CurrencyFormatter.formatAmount(netWorthTotal, baseCurrency)
-
-                // --- Budget Calculation ---
-                val calendar = Calendar.getInstance().apply {
-                    set(Calendar.DAY_OF_MONTH, 1)
-                    set(Calendar.HOUR_OF_DAY, 0)
-                    set(Calendar.MINUTE, 0)
-                    set(Calendar.SECOND, 0)
-                    set(Calendar.MILLISECOND, 0)
-                }
-                val startOfMonth = calendar.timeInMillis
-                calendar.add(Calendar.MONTH, 1)
-                val endOfMonth = calendar.timeInMillis
-
-                val budgets = budgetDao.getAllBudgets().first()
-                val totalBudgetCents = budgets.sumOf { it.amount }
-                val totalSpentCents = expenseDao.getTotalSpentBetween(startOfMonth, endOfMonth).first() ?: 0L
-
-                val budgetPct = if (totalBudgetCents > 0) {
-                    ((totalSpentCents.toDouble() / totalBudgetCents) * 100).toInt()
+                // --- Budget & Runway ---
+                val budgetPct = if (summary.globalBudget > 0) {
+                    ((summary.globalSpent.toDouble() / summary.globalBudget) * 100).toInt()
                 } else {
                     0
                 }
 
-                val budgetText = if (budgets.isEmpty()) {
+                val budgetText = if (summary.globalBudget == 0L) {
                     context.getString(R.string.widget_no_budget_set)
                 } else {
-                    val formattedSpent = CurrencyFormatter.formatAmountCompact(totalSpentCents, baseCurrency)
-                    val formattedBudget = CurrencyFormatter.formatAmountCompact(totalBudgetCents, baseCurrency)
+                    val formattedSpent = CurrencyFormatter.formatAmountCompact(summary.globalSpent, baseCurrency)
+                    val formattedBudget = CurrencyFormatter.formatAmountCompact(summary.globalBudget, baseCurrency)
                     "$formattedSpent / $formattedBudget"
                 }
 
-                val budgetPctText = if (budgets.isNotEmpty()) "$budgetPct%" else ""
+                val budgetPctText = if (summary.globalBudget > 0L) "$budgetPct%" else ""
 
-                // --- Today's Spending ---
-                val todayCal = Calendar.getInstance().apply {
-                    set(Calendar.HOUR_OF_DAY, 0)
-                    set(Calendar.MINUTE, 0)
-                    set(Calendar.SECOND, 0)
-                    set(Calendar.MILLISECOND, 0)
-                }
-                val startOfDay = todayCal.timeInMillis
-                todayCal.add(Calendar.DAY_OF_YEAR, 1)
-                val endOfDay = todayCal.timeInMillis
-
-                val todaySummary = expenseDao.getTodaySpentSummary(startOfDay, endOfDay)
-                val todaySpent = todaySummary.totalAmount ?: 0L
-
-                val todayText = if (todaySummary.count == 0) {
-                    context.getString(R.string.widget_no_transactions_today)
-                } else {
-                    val formattedToday = CurrencyFormatter.formatAmountCompact(todaySpent, baseCurrency)
-                    context.getString(R.string.widget_summary_today_spent, formattedToday, todaySummary.count)
+                // --- Status Row (Velocity & Runway) ---
+                val statusText = when {
+                    summary.spendingVelocity > 1.1f -> "⚠️ Spending too fast"
+                    metrics.runwayMonths > 0 -> "🛡️ ${String.format(java.util.Locale.US, "%.2f", metrics.runwayMonths)} mo runway"
+                    else -> context.getString(R.string.widget_no_transactions_today)
                 }
 
                 val dateStr = DateFormatterUtils.getDayMonthFormatter().format(Date())
@@ -164,7 +91,7 @@ class FinancialSummaryWidgetProvider : AppWidgetProvider() {
                         setTextViewText(R.id.widget_summary_budget_text, budgetText)
                         setTextViewText(R.id.widget_summary_budget_pct, budgetPctText)
                         setProgressBar(R.id.widget_summary_progress, 100, budgetPct.coerceIn(0, 100), false)
-                        setTextViewText(R.id.widget_summary_today, todayText)
+                        setTextViewText(R.id.widget_summary_today, statusText)
                         setTextViewText(R.id.widget_summary_date, dateStr)
 
                         // 1. Add Transaction PendingIntent

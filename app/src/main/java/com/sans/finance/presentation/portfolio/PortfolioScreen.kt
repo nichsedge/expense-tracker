@@ -470,6 +470,7 @@ fun PortfolioScreen(
                                 PortfolioHealthView(
                                     healthList = state.healthList,
                                     rebalanceSuggestions = state.rebalanceSuggestions,
+                                    currencyBreakdowns = state.currencyBreakdowns,
                                     isPrivacyModeEnabled = state.isPrivacyModeEnabled,
                                     currentCurrency = state.currentCurrency,
                                     onTargetClick = { editingTarget = it }
@@ -778,7 +779,7 @@ fun PortfolioHeader(state: PortfolioScreenState, onForecastingClick: () -> Unit)
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        text = "Total Return: $gainSign${com.sans.finance.core.util.CurrencyFormatter.formatAmountCompact((state.totalGainInBase * 100).toLong(), state.currentCurrency)} (${String.format(Locale.US, "%+.1f%%", state.totalGainPercentage)})",
+                        text = "Total Return: $gainSign${com.sans.finance.core.util.CurrencyFormatter.formatAmountCompact((state.totalGainInBase * 100).toLong(), state.currentCurrency)} (${String.format(Locale.US, "%+.2f%%", state.totalGainPercentage)})",
                         style = MaterialTheme.typography.labelSmall,
                         color = gainColor,
                         fontWeight = FontWeight.Black

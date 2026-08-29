@@ -108,6 +108,8 @@ class ExpenseListViewModel @Inject constructor(
     private val _state = MutableStateFlow(ExpenseListState())
     val state: StateFlow<ExpenseListState> = _state.asStateFlow()
 
+    private var workerDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.Default
+
     init {
         val initialCurrency = localeManager.getCurrency()
         val initialRange = calculateDateRange(DateRangeFilter.THIS_MONTH)
@@ -280,7 +282,7 @@ class ExpenseListViewModel @Inject constructor(
                     )
                 }
             }
-            .flowOn(Dispatchers.Default)
+            .flowOn(workerDispatcher)
             .onEach { processed ->
                 _state.update {
                     it.copy(

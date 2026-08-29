@@ -288,9 +288,9 @@ fun FinancialFreedomCard(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        if (isPrivacyModeEnabled) "••.• years" else String.format(
-                            Locale.US,
-                            "%.1f years",
+                        if (isPrivacyModeEnabled) "••.•• years" else String.format(
+                            java.util.Locale.US,
+                            "%.2f years",
                             yearsOfCover
                         ),
                         style = MaterialTheme.typography.headlineSmall,
@@ -332,7 +332,7 @@ fun FinancialFreedomCard(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        "${(fireProgress * 100).toInt()}%",
+                        "${String.format(java.util.Locale.US, "%.2f", fireProgress * 100f)}%",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Black,
                         color = MaterialTheme.colorScheme.primary
@@ -434,7 +434,7 @@ fun FinancialFreedomCard(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                "Spending: ${(expenseMultiplier * 100).toInt()}% (${String.format(Locale.US, "%.1f", simulatedYearsOfCover)} yrs)",
+                                "Spending: ${(expenseMultiplier * 100).toInt()}% (${String.format(Locale.US, "%.2f", simulatedYearsOfCover)} yrs)",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

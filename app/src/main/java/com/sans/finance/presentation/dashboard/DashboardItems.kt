@@ -50,7 +50,7 @@ fun DashboardGoalItem(goal: DashboardGoal, currencyCode: String, isPrivacyModeEn
                 )
                 if (!isPrivacyModeEnabled) {
                     Text(
-                        "${(progress * 100).toInt()}%",
+                        "${String.format(java.util.Locale.US, "%.2f", progress * 100f)}%",
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Black
                     )
@@ -224,6 +224,65 @@ fun RecentTransactionItem(
                     fontWeight = FontWeight.Medium
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun CategoryBudgetItem(
+    budget: com.sans.finance.domain.model.CategoryBudgetProgress,
+    currencyCode: String,
+    isPrivacyModeEnabled: Boolean
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+        shape = MaterialTheme.shapes.large
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .background(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                            MaterialTheme.shapes.small
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CategoryIcon(icon = budget.categoryIcon ?: "📁", fontSize = 12.sp)
+                }
+                Text(
+                    text = budget.categoryName,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+                PrivacyText(
+                    amount = budget.budgetAmount - budget.spentAmount,
+                    currencyCode = currencyCode,
+                    isVisible = !isPrivacyModeEnabled,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Black,
+                    color = if (budget.spentAmount > budget.budgetAmount) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            LinearProgressIndicator(
+                progress = { budget.progress.coerceIn(0f, 1f) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(CircleShape),
+                color = if (budget.progress > 0.9f) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
+            )
         }
     }
 }

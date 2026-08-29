@@ -55,10 +55,10 @@ fun CircularGauge(
         }
 
         Text(
-            text = if (isPrivacyModeEnabled) "••%" else "${(progress * 100).toInt()}%",
+            text = if (isPrivacyModeEnabled) "••%" else "${String.format(java.util.Locale.US, "%.2f", progress * 100f)}%",
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Black,
-            fontSize = (size.value * 0.25f).sp
+            fontSize = (size.value * 0.20f).sp
         )
     }
 }

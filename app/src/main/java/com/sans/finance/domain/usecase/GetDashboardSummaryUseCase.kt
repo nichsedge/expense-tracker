@@ -57,9 +57,10 @@ class GetDashboardSummaryUseCase @Inject constructor(
         val monthlyFlow = combine(
             expenseRepository.getTotalAmountByTypeBetween(monthStart, nextMonthStart, "INCOME"),
             expenseRepository.getTotalAmountByTypeBetween(monthStart, nextMonthStart, "EXPENSE"),
-            budgetRepository.getAllBudgets()
-        ) { incomeIdr, expenseIdr, budgets ->
-            MonthlyData(incomeIdr, expenseIdr, budgets)
+            budgetRepository.getAllBudgets(),
+            expenseRepository.getSpendingByCategoryBetween(monthStart, nextMonthStart)
+        ) { incomeIdr, expenseIdr, budgets, categorySpents ->
+            MonthlyData(incomeIdr, expenseIdr, budgets, categorySpents)
         }
 
         return combine(financeFlow, monthlyFlow) { finance, monthly ->
@@ -98,6 +99,29 @@ class GetDashboardSummaryUseCase @Inject constructor(
 
             val globalBudget = monthly.budgets.find { it.categoryId == null }?.amount ?: 0L
 
+            // Spending Velocity Calculation
+            val totalDays = todayCal.getActualMaximum(Calendar.DAY_OF_MONTH)
+            val currentDay = todayCal.get(Calendar.DAY_OF_MONTH)
+            val expectedProgress = currentDay.toFloat() / totalDays.toFloat()
+            val actualProgress = if (globalBudget > 0) monthlyExpense.toFloat() / globalBudget.toFloat() else 0f
+            val velocity = if (expectedProgress > 0) actualProgress / expectedProgress else 0f
+
+            // Category Budget Progress
+            val categoryBudgets = monthly.budgets.filter { it.categoryId != null }.mapNotNull { budget ->
+                val spentIdr = monthly.categorySpents.find { it.categoryId == budget.categoryId }?.totalAmount ?: 0L
+                val spentInBase = if (baseRate > 0) (spentIdr.toDouble() / baseRate).toLong() else 0L
+                val category = monthly.categorySpents.find { it.categoryId == budget.categoryId } // Reuse for icon/name
+
+                com.sans.finance.domain.model.CategoryBudgetProgress(
+                    categoryId = budget.categoryId!!,
+                    categoryName = category?.categoryName ?: "Category",
+                    categoryIcon = category?.categoryIcon,
+                    budgetAmount = budget.amount,
+                    spentAmount = spentInBase,
+                    progress = if (budget.amount > 0) spentInBase.toFloat() / budget.amount.toFloat() else 0f
+                )
+            }.sortedByDescending { it.spentAmount }
+
             DashboardSummary(
                 netWorth = totalAssets - totalLiabilities,
                 totalAssets = totalAssets,
@@ -109,7 +133,9 @@ class GetDashboardSummaryUseCase @Inject constructor(
                 globalBudget = globalBudget,
                 globalSpent = monthlyExpense,
                 currentCurrency = baseCurrency,
-                daysLeftInMonth = daysLeft
+                daysLeftInMonth = daysLeft,
+                spendingVelocity = velocity,
+                categoryBudgetProgress = categoryBudgets
             )
         }
     }
@@ -124,6 +150,7 @@ class GetDashboardSummaryUseCase @Inject constructor(
     private data class MonthlyData(
         val incomeIdr: Long?,
         val expenseIdr: Long?,
-        val budgets: List<BudgetEntity>
+        val budgets: List<BudgetEntity>,
+        val categorySpents: List<com.sans.finance.domain.model.CategorySpent>
     )
 }
