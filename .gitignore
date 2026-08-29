@@ -33,7 +33,8 @@ Thumbs.db
 # Project specific
 sans_finance_db*
 app/src/main/assets/seed_transactions.csv
-app/src/main/assets/SA_cred_general.json
+SA_cred_general.json
+r2_cred.json
 backup.sh.bak
 restore.sh.bak
 sync.sh.bak

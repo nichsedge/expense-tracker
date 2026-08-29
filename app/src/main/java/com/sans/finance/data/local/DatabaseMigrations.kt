@@ -159,6 +159,14 @@ object DatabaseMigrations {
         }
     }
 
+    val MIGRATION_35_36 = object : Migration(35, 36) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_installment_items_due_date_status` ON `installment_items` (`due_date`, `status`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_installment_items_status_due_date` ON `installment_items` (`status`, `due_date`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_expenses_is_recurring_date` ON `expenses` (`is_recurring`, `date`)")
+        }
+    }
+
     val ALL = arrayOf(
         MIGRATION_25_27,
         MIGRATION_27_28,
@@ -168,6 +176,7 @@ object DatabaseMigrations {
         MIGRATION_31_32,
         MIGRATION_32_33,
         MIGRATION_33_34,
-        MIGRATION_34_35
+        MIGRATION_34_35,
+        MIGRATION_35_36
     )
 }

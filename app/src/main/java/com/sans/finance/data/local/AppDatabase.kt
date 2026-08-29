@@ -43,7 +43,7 @@ import com.sans.finance.data.local.entity.TagEntity
         com.sans.finance.data.local.entity.InvestmentMetadataEntity::class,
         FxRateEntity::class
     ],
-    version = 35,
+    version = 36,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {

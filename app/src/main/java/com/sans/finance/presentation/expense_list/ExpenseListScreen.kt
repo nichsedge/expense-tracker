@@ -98,6 +98,13 @@ fun ExpenseListScreen(
         }
     }
 
+    val categoriesMap = remember(state.categories) {
+        state.categories.associateBy { it.id }
+    }
+    val accountsMap = remember(state.accounts) {
+        state.accounts.associateBy { it.id }
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -314,11 +321,11 @@ fun ExpenseListScreen(
                     state.timelineItems.forEach { item ->
                         when (item) {
                             is TimelineItem.TodaySeparator -> {
-                                item(key = item.key) { TodaySeparator() }
+                                item(key = item.key, contentType = "TodaySeparator") { TodaySeparator() }
                             }
 
                             is TimelineItem.Header -> {
-                                stickyHeader(key = item.key) {
+                                stickyHeader(key = item.key, contentType = "Header") {
                                     TimelineHeader(
                                         header = item,
                                         currentCurrency = state.currentCurrency,
@@ -328,16 +335,16 @@ fun ExpenseListScreen(
                             }
 
                             is TimelineItem.ExpenseItem -> {
-                                item(key = item.key) {
+                                item(key = item.key, contentType = "ExpenseItem") {
                                     val expense = item.expense
-                                    val category = state.categories.find { it.id == expense.categoryId }
+                                    val category = categoriesMap[expense.categoryId]
                                     val fallbackIcon = if (expense.isInstallmentPayment) "💳" else "📁"
                                     val icon = category?.icon ?: expense.categoryIcon ?: fallbackIcon
                                     ExpenseItem(
                                         expense = expense,
                                         categoryName = category?.name ?: expense.categoryName,
                                         categoryIcon = icon,
-                                        accountName = state.accounts.find { it.id == expense.accountId }?.name,
+                                        accountName = accountsMap[expense.accountId]?.name,
                                         isPrivacyModeEnabled = state.isPrivacyModeEnabled,
                                         onClick = {
                                             if (expense.isInstallment || expense.isInstallmentPayment) {
@@ -379,8 +386,8 @@ fun ExpenseListScreen(
 
     if (state.selectedRecurringExpense != null) {
         val recurringExpense = state.selectedRecurringExpense!!
-        val cat = state.categories.find { it.id == recurringExpense.categoryId }
-        val acc = state.accounts.find { it.id == recurringExpense.accountId }
+        val cat = categoriesMap[recurringExpense.categoryId]
+        val acc = accountsMap[recurringExpense.accountId]
         RecurringDetailBottomSheet(
             context = com.sans.finance.presentation.recurring.RecurringExpenseContext(
                 expense = recurringExpense,

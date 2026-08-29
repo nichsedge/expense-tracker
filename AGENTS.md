@@ -72,7 +72,8 @@ The project follows **Clean Architecture** with a Kotlin Multiplatform core.
 
 ## Database
 
-Room database is at **version 33**. It includes:
+Room database is at **version 36**. It includes:
+- Compound indices on `installment_items` (`due_date`, `status`) and `expenses` (`is_recurring`, `date`)
 - Multi-currency valuation with historical FX rates (`fx_rates` table via `FxRateEntity`)
 - Configurable tag visibility and ordering (`tags` table via `TagEntity`)
 - Custom account ordering and liability classifications (`account_types` and `accounts`)

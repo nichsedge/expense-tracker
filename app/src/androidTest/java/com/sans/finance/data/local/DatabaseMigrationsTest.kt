@@ -177,6 +177,43 @@ class DatabaseMigrationsTest {
         assertIndexExists(db, "index_expenses_title")
     }
 
+    @Test
+    fun migration35To36_createsOptimizedIndices() {
+        val db = openDatabase("migration_35_36_test.db")
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `installment_items` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `installment_id` INTEGER NOT NULL,
+                `amount` INTEGER NOT NULL,
+                `due_date` INTEGER NOT NULL,
+                `status` TEXT NOT NULL,
+                `month_number` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `expenses` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `date` INTEGER NOT NULL,
+                `title` TEXT NOT NULL,
+                `amount` INTEGER NOT NULL,
+                `category_id` INTEGER NOT NULL,
+                `is_recurring` INTEGER NOT NULL,
+                `is_installment` INTEGER NOT NULL,
+                `type` TEXT NOT NULL DEFAULT 'EXPENSE'
+            )
+            """.trimIndent()
+        )
+
+        DatabaseMigrations.MIGRATION_35_36.migrate(db)
+
+        assertIndexExists(db, "index_installment_items_due_date_status")
+        assertIndexExists(db, "index_installment_items_status_due_date")
+        assertIndexExists(db, "index_expenses_is_recurring_date")
+    }
+
     private fun openDatabase(name: String): SupportSQLiteDatabase {
         openedNames += name
         val configuration = androidx.sqlite.db.SupportSQLiteOpenHelper.Configuration.builder(context)

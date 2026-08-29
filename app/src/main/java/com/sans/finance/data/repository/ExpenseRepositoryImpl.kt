@@ -14,6 +14,8 @@ import com.sans.finance.presentation.widget.QuickAddWidgetProvider
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
@@ -52,42 +54,74 @@ class ExpenseRepositoryImpl(
         private const val INSTALLMENT_PAYMENT_ID_OFFSET = Expense.SYNTHETIC_INSTALLMENT_OFFSET
     }
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     override fun getAllExpenses(): Flow<List<Expense>> {
+        val expensesFlow = dao.getAllExpenses()
+        val installmentPaymentsFlow = installmentDao.getInstallmentPaymentsBetween(0, Long.MAX_VALUE)
+
         return combine(
-            dao.getAllExpenses(),
-            installmentDao.getInstallmentPaymentsBetween(0, Long.MAX_VALUE),
-            installmentDao.getAllInstallmentItems()
-        ) { expenseEntities, installmentRows, items ->
-            val itemsByInstallment = items.groupBy { it.installmentId }
-            val expenses = expenseEntities.map { it.toDomain(itemsByInstallment) }
-            val installmentPayments = installmentRows.map { it.toDomain() }
-            (expenses + installmentPayments).sortedByDescending { it.date }
+            expensesFlow,
+            installmentPaymentsFlow
+        ) { e, i -> Pair(e, i) }.flatMapLatest { (expenseEntities, installmentRows) ->
+            val installmentIds = expenseEntities.mapNotNull { it.installment?.id }.distinct()
+            val itemsFlow = if (installmentIds.isEmpty()) {
+                flowOf(emptyList<com.sans.finance.data.local.entity.InstallmentItemEntity>())
+            } else {
+                installmentDao.getItemsByInstallmentIds(installmentIds)
+            }
+
+            itemsFlow.map { items ->
+                val itemsByInstallment = items.groupBy { it.installmentId }
+                val expenses = expenseEntities.map { it.toDomain(itemsByInstallment) }
+                val installmentPayments = installmentRows.map { it.toDomain() }
+                (expenses + installmentPayments).sortedByDescending { it.date }
+            }
         }
     }
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     override fun getExpensesBetween(since: Long, until: Long): Flow<List<Expense>> {
+        val expensesFlow = dao.getExpensesBetween(since, until)
+        val installmentPaymentsFlow = installmentDao.getInstallmentPaymentsBetween(since, until)
+
         return combine(
-            dao.getExpensesBetween(since, until),
-            installmentDao.getInstallmentPaymentsBetween(since, until),
-            installmentDao.getAllInstallmentItems()
-        ) { expenseEntities, installmentRows, items ->
-            val itemsByInstallment = items.groupBy { it.installmentId }
-            val expenses = expenseEntities.map { it.toDomain(itemsByInstallment) }
-            val installmentPayments = installmentRows.map { it.toDomain() }
-            (expenses + installmentPayments).sortedByDescending { it.date }
+            expensesFlow,
+            installmentPaymentsFlow
+        ) { e, i -> Pair(e, i) }.flatMapLatest { (expenseEntities, installmentRows) ->
+            val installmentIds = expenseEntities.mapNotNull { it.installment?.id }.distinct()
+            val itemsFlow = if (installmentIds.isEmpty()) {
+                flowOf(emptyList<com.sans.finance.data.local.entity.InstallmentItemEntity>())
+            } else {
+                installmentDao.getItemsByInstallmentIds(installmentIds)
+            }
+
+            itemsFlow.map { items ->
+                val itemsByInstallment = items.groupBy { it.installmentId }
+                val expenses = expenseEntities.map { it.toDomain(itemsByInstallment) }
+                val installmentPayments = installmentRows.map { it.toDomain() }
+                (expenses + installmentPayments).sortedByDescending { it.date }
+            }
         }
     }
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     override fun getRecurringExpenses(): Flow<List<Expense>> {
-        return combine(
-            dao.getRecurringExpenses(),
-            installmentDao.getAllInstallmentItems()
-        ) { entities, items ->
-            val itemsByInstallment = items.groupBy { it.installmentId }
-            entities.map { it.toDomain(itemsByInstallment) }
+        return dao.getRecurringExpenses().flatMapLatest { entities ->
+            val installmentIds = entities.mapNotNull { it.installment?.id }.distinct()
+            val itemsFlow = if (installmentIds.isEmpty()) {
+                flowOf(emptyList<com.sans.finance.data.local.entity.InstallmentItemEntity>())
+            } else {
+                installmentDao.getItemsByInstallmentIds(installmentIds)
+            }
+
+            itemsFlow.map { items ->
+                val itemsByInstallment = items.groupBy { it.installmentId }
+                entities.map { it.toDomain(itemsByInstallment) }
+            }
         }
     }
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     override fun getFilteredExpenses(
         query: String?,
         categoryIds: List<Long>,
@@ -135,13 +169,21 @@ class ExpenseRepositoryImpl(
 
         return combine(
             expensesFlow,
-            installmentsFlow,
-            installmentDao.getAllInstallmentItems()
-        ) { expenseEntities, installmentRows, items ->
-            val itemsByInstallment = items.groupBy { it.installmentId }
-            val expenses = expenseEntities.map { it.toDomain(itemsByInstallment) }
-            val installmentPayments = installmentRows.map { it.toDomain() }
-            (expenses + installmentPayments).sortedByDescending { it.date }
+            installmentsFlow
+        ) { e, i -> Pair(e, i) }.flatMapLatest { (expenseEntities, installmentRows) ->
+            val installmentIds = expenseEntities.mapNotNull { it.installment?.id }.distinct()
+            val itemsFlow = if (installmentIds.isEmpty()) {
+                flowOf(emptyList<com.sans.finance.data.local.entity.InstallmentItemEntity>())
+            } else {
+                installmentDao.getItemsByInstallmentIds(installmentIds)
+            }
+
+            itemsFlow.map { items ->
+                val itemsByInstallment = items.groupBy { it.installmentId }
+                val expenses = expenseEntities.map { it.toDomain(itemsByInstallment) }
+                val installmentPayments = installmentRows.map { it.toDomain() }
+                (expenses + installmentPayments).sortedByDescending { it.date }
+            }
         }
     }
 

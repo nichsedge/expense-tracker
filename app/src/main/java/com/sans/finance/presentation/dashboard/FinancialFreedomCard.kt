@@ -289,7 +289,7 @@ fun FinancialFreedomCard(
                     )
                     Text(
                         if (isPrivacyModeEnabled) "••.•• years" else String.format(
-                            java.util.Locale.US,
+                            Locale.US,
                             "%.2f years",
                             yearsOfCover
                         ),
@@ -332,7 +332,7 @@ fun FinancialFreedomCard(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        "${String.format(java.util.Locale.US, "%.2f", fireProgress * 100f)}%",
+                        "${String.format(Locale.US, "%.2f", fireProgress * 100f)}%",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Black,
                         color = MaterialTheme.colorScheme.primary

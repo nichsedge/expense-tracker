@@ -12,7 +12,8 @@ import androidx.room.PrimaryKey
         Index(value = ["category_id"]),
         Index(value = ["account_id"]),
         Index(value = ["title"]),
-        Index(value = ["date", "type", "is_installment"])
+        Index(value = ["date", "type", "is_installment"]),
+        Index(value = ["is_recurring", "date"])
     ]
 )
 data class ExpenseEntity(

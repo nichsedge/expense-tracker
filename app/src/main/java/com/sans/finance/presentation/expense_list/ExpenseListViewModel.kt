@@ -401,16 +401,20 @@ class ExpenseListViewModel @Inject constructor(
     }
 
     private fun groupExpensesByDate(expenses: List<Expense>): Map<Long, List<Expense>> {
+        if (expenses.isEmpty()) return emptyMap()
         val calendar = CalendarUtils.getInstance()
+        val grouped = LinkedHashMap<Long, MutableList<Expense>>()
 
-        return expenses.groupBy { expense ->
+        for (expense in expenses) {
             calendar.timeInMillis = expense.date
             calendar.set(Calendar.HOUR_OF_DAY, 0)
             calendar.set(Calendar.MINUTE, 0)
             calendar.set(Calendar.SECOND, 0)
             calendar.set(Calendar.MILLISECOND, 0)
-            calendar.timeInMillis
+            val dayStart = calendar.timeInMillis
+            grouped.getOrPut(dayStart) { ArrayList() }.add(expense)
         }
+        return grouped
     }
 
     fun updateCustomDateRange(start: Long, end: Long) {

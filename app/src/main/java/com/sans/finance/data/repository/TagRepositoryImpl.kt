@@ -51,7 +51,7 @@ class TagRepositoryImpl(
         val crossRefs = tagNames.map { tagName ->
             val existingTag = tagDao.getTagByName(tagName)
             val tagId = existingTag?.id
-                ?: tagDao.insertTag(com.sans.finance.data.local.entity.TagEntity(name = tagName))
+                ?: tagDao.insertTag(TagEntity(name = tagName))
             com.sans.finance.data.local.entity.ExpenseTagCrossRef(expenseId, tagId)
         }
         if (crossRefs.isNotEmpty()) {

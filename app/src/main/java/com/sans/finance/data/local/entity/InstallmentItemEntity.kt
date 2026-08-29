@@ -16,7 +16,11 @@ import androidx.room.PrimaryKey
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index(value = ["installment_id"])]
+    indices = [
+        Index(value = ["installment_id"]),
+        Index(value = ["due_date", "status"]),
+        Index(value = ["status", "due_date"])
+    ]
 )
 data class InstallmentItemEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,

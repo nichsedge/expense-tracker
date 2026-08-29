@@ -6,35 +6,55 @@ import com.sans.finance.domain.model.Installment
 import com.sans.finance.domain.repository.InstallmentRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
 class InstallmentRepositoryImpl(
     private val dao: InstallmentDao
 ) : InstallmentRepository {
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     override fun getAllInstallments(): Flow<List<Installment>> {
-        return combine(
-            dao.getAllInstallments(),
-            dao.getAllInstallmentItems()
-        ) { installments: List<com.sans.finance.data.local.entity.InstallmentWithExpense>, items: List<com.sans.finance.data.local.entity.InstallmentItemEntity> ->
-            installments.map { it.toDomainModel(items) }
+        return dao.getAllInstallments().flatMapLatest { installments ->
+            val installmentIds = installments.map { it.installment.id }
+            val itemsFlow = if (installmentIds.isEmpty()) {
+                flowOf(emptyList<com.sans.finance.data.local.entity.InstallmentItemEntity>())
+            } else {
+                dao.getItemsByInstallmentIds(installmentIds)
+            }
+            itemsFlow.map { items ->
+                installments.map { it.toDomainModel(items) }
+            }
         }
     }
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     override fun getActiveInstallments(): Flow<List<Installment>> {
-        return combine(
-            dao.getActiveInstallments(),
-            dao.getAllInstallmentItems()
-        ) { installments: List<com.sans.finance.data.local.entity.InstallmentWithExpense>, items: List<com.sans.finance.data.local.entity.InstallmentItemEntity> ->
-            installments.map { it.toDomainModel(items) }
+        return dao.getActiveInstallments().flatMapLatest { installments ->
+            val installmentIds = installments.map { it.installment.id }
+            val itemsFlow = if (installmentIds.isEmpty()) {
+                flowOf(emptyList<com.sans.finance.data.local.entity.InstallmentItemEntity>())
+            } else {
+                dao.getItemsByInstallmentIds(installmentIds)
+            }
+            itemsFlow.map { items ->
+                installments.map { it.toDomainModel(items) }
+            }
         }
     }
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     override fun getCompletedInstallments(): Flow<List<Installment>> {
-        return combine(
-            dao.getCompletedInstallments(),
-            dao.getAllInstallmentItems()
-        ) { installments: List<com.sans.finance.data.local.entity.InstallmentWithExpense>, items: List<com.sans.finance.data.local.entity.InstallmentItemEntity> ->
-            installments.map { it.toDomainModel(items) }
+        return dao.getCompletedInstallments().flatMapLatest { installments ->
+            val installmentIds = installments.map { it.installment.id }
+            val itemsFlow = if (installmentIds.isEmpty()) {
+                flowOf(emptyList<com.sans.finance.data.local.entity.InstallmentItemEntity>())
+            } else {
+                dao.getItemsByInstallmentIds(installmentIds)
+            }
+            itemsFlow.map { items ->
+                installments.map { it.toDomainModel(items) }
+            }
         }
     }
 

@@ -122,6 +122,12 @@ interface InstallmentDao {
     @Query("SELECT * FROM installment_items")
     fun getAllInstallmentItems(): Flow<List<com.sans.finance.data.local.entity.InstallmentItemEntity>>
 
+    @Query("SELECT * FROM installment_items WHERE installment_id IN (:installmentIds)")
+    fun getItemsByInstallmentIds(installmentIds: List<Long>): Flow<List<com.sans.finance.data.local.entity.InstallmentItemEntity>>
+
+    @Query("SELECT * FROM installment_items WHERE installment_id IN (:installmentIds)")
+    suspend fun getItemsByInstallmentIdsSync(installmentIds: List<Long>): List<com.sans.finance.data.local.entity.InstallmentItemEntity>
+
     @Update
     suspend fun updateInstallment(installment: InstallmentEntity)
 
