@@ -24,6 +24,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "Sans Finance"
 include(":app")
-include(":shared")
-include(":server")
- 

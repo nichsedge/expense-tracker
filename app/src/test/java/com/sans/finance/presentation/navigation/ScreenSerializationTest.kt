@@ -2,18 +2,16 @@ package com.sans.finance.presentation.navigation
 
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.serializer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import kotlin.reflect.KClass
 import kotlin.reflect.full.isSubclassOf
 
 class ScreenSerializationTest {
 
     private val json = Json {
         encodeDefaults = true
-        // Navigation uses a specific configuration internally, 
+        // Navigation uses a specific configuration internally,
         // but for general safety, we test with standard polymorphic serialization.
         classDiscriminator = "type"
     }
@@ -23,13 +21,13 @@ class ScreenSerializationTest {
     fun verifyAllScreenSubclassesAreTested() {
         val testedScreens = getTestScreens()
         val testedClasses = testedScreens.map { it::class }.toSet()
-        
+
         val screenSubclasses = Screen::class.sealedSubclasses
-        
+
         val missingSubclasses = screenSubclasses.filter { subclass ->
             testedClasses.none { it.isSubclassOf(subclass) }
         }
-        
+
         assertTrue(
             "The following Screen subclasses are not covered by tests: ${missingSubclasses.map { it.simpleName }}",
             missingSubclasses.isEmpty()
@@ -53,7 +51,6 @@ class ScreenSerializationTest {
         Screen.Dashboard,
         Screen.ExpenseList,
         Screen.AddTransaction(),
-        Screen.ExpenseDetail(expenseId = 77L),
         Screen.EditExpense(expenseId = 78L),
         Screen.Installments,
         Screen.TransactionStats,

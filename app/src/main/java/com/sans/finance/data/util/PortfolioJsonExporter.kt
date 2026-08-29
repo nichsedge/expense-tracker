@@ -1,7 +1,6 @@
 package com.sans.finance.data.util
 
 import com.sans.finance.data.local.entity.PortfolioHoldingEntity
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.text.SimpleDateFormat
 import java.util.Date

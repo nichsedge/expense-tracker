@@ -10,8 +10,8 @@ import com.sans.finance.data.ai.MonthlyReviewInput
 import com.sans.finance.data.ai.MonthlyReviewInsight
 import com.sans.finance.data.ai.MonthlyReviewResult
 import com.sans.finance.data.util.LocaleManager
-import com.sans.finance.domain.usecase.GetCategoriesUseCase
 import com.sans.finance.domain.repository.ExpenseRepository
+import com.sans.finance.domain.usecase.GetCategoriesUseCase
 import com.sans.finance.presentation.navigation.Screen
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow

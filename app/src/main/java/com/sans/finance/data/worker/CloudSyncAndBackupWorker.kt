@@ -6,7 +6,6 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.sans.finance.data.local.AppDatabase
-import com.sans.finance.data.util.GcsPortfolioSyncer
 import com.sans.finance.domain.repository.PortfolioRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject

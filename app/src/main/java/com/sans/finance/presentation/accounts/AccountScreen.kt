@@ -21,16 +21,15 @@ import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.Insights
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.SwapVert
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -50,11 +49,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -67,11 +64,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sans.finance.data.local.entity.AccountEntity
 import com.sans.finance.presentation.components.AppTopBar
 import com.sans.finance.presentation.components.GlassCard
 import com.sans.finance.presentation.components.PrivacyText
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 data class AccountUpdateParams(
     val account: AccountEntity,
@@ -235,8 +232,8 @@ fun AccountScreen(
         if (showAddDialog || accountToEdit != null) {
             val isEditing = accountToEdit != null
             var name by remember(accountToEdit) { mutableStateOf(accountToEdit?.name ?: "") }
-            var type by remember(accountToEdit, state.accountTypes) { 
-                mutableStateOf(accountToEdit?.type ?: state.accountTypes.firstOrNull()?.name ?: "") 
+            var type by remember(accountToEdit, state.accountTypes) {
+                mutableStateOf(accountToEdit?.type ?: state.accountTypes.firstOrNull()?.name ?: "")
             }
             var balance by remember(accountToEdit) {
                 mutableStateOf(accountToEdit?.balance?.let { (it / 100).toString() } ?: "")

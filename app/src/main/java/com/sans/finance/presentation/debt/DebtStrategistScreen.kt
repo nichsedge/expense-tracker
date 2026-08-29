@@ -10,27 +10,21 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,10 +34,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sans.finance.core.util.CurrencyFormatter
 import com.sans.finance.presentation.components.AppTopBar
 import com.sans.finance.presentation.components.GlassCard
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -175,8 +169,8 @@ fun DebtStrategistScreen(
                 }
 
                 Text(
-                    "ACTIVE DEBTS", 
-                    style = MaterialTheme.typography.labelMedium, 
+                    "ACTIVE DEBTS",
+                    style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.secondary,
                     letterSpacing = 1.sp
@@ -205,7 +199,7 @@ fun DebtStrategistScreen(
                         }
                     }
                 }
-                
+
                 Spacer(modifier = Modifier.height(32.dp))
             }
         }
@@ -222,20 +216,20 @@ fun StrategyCard(result: DebtStrategyResult, modifier: Modifier, accentColor: Co
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                result.strategyName.uppercase(), 
-                style = MaterialTheme.typography.labelSmall, 
-                fontWeight = FontWeight.Black, 
+                result.strategyName.uppercase(),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Black,
                 color = accentColor,
                 letterSpacing = 1.sp
             )
             Spacer(Modifier.height(12.dp))
             Text(
-                "${result.monthsToDebtFree}", 
-                style = MaterialTheme.typography.headlineMedium, 
+                "${result.monthsToDebtFree}",
+                style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Black
             )
             Text(
-                "MONTHS", 
+                "MONTHS",
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -245,8 +239,8 @@ fun StrategyCard(result: DebtStrategyResult, modifier: Modifier, accentColor: Co
             Column {
                 Text("TOTAL INTEREST", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(
-                    CurrencyFormatter.formatAmount(result.totalInterestPaid.toLong(), "IDR"), 
-                    style = MaterialTheme.typography.bodySmall, 
+                    CurrencyFormatter.formatAmount(result.totalInterestPaid.toLong(), "IDR"),
+                    style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Black,
                     color = MaterialTheme.colorScheme.onSurface
                 )

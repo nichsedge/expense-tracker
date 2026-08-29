@@ -1,7 +1,6 @@
 package com.sans.finance.presentation.installments
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -32,7 +31,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SheetState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -50,7 +48,6 @@ import androidx.compose.ui.unit.sp
 import com.sans.finance.R
 import com.sans.finance.core.util.CurrencyFormatter
 import com.sans.finance.core.util.DateFormatterUtils
-import com.sans.finance.domain.model.Expense
 import com.sans.finance.domain.model.Installment
 import com.sans.finance.domain.model.InstallmentItem
 import java.text.SimpleDateFormat

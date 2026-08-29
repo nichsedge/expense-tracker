@@ -3,20 +3,19 @@ package com.sans.finance.data.repository
 import androidx.room.withTransaction
 import com.sans.finance.domain.model.AccountSyncDryRunResult
 import com.sans.finance.domain.model.Category
-import com.sans.finance.domain.model.ReSyncMode
 import com.sans.finance.domain.model.CategorySpent
 import com.sans.finance.domain.model.DaySpent
 import com.sans.finance.domain.model.Expense
+import com.sans.finance.domain.model.ReSyncMode
 import com.sans.finance.domain.model.Tag
 import com.sans.finance.domain.repository.ExpenseRepository
+import com.sans.finance.presentation.widget.FinancialSummaryWidgetProvider
+import com.sans.finance.presentation.widget.QuickAddWidgetProvider
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-
-import com.sans.finance.presentation.widget.FinancialSummaryWidgetProvider
-import com.sans.finance.presentation.widget.QuickAddWidgetProvider
 
 class ExpenseRepositoryImpl(
     private val db: com.sans.finance.data.local.AppDatabase,
@@ -514,7 +513,7 @@ class ExpenseRepositoryImpl(
                 dryRunResults.forEach { result ->
                     if (result.isDifferenceExist) {
                         val delta = result.delta // calculated - current
-                        
+
                         // Check if an adjustment transaction already exists for this account on the target date
                         val existingAdjustment = dao.getAllExpenseEntities().firstOrNull { exp ->
                             exp.accountId == result.accountId &&
@@ -585,9 +584,7 @@ class ExpenseRepositoryImpl(
         since: Long,
         until: Long
     ): Flow<List<CategorySpent>> {
-        return dao.getSpendingByCategoryBetween(since, until).map { entities ->
-            entities.map { it.toDomain() }
-        }
+        return dao.getSpendingByCategoryBetween(since, until)
     }
 
     override fun getBreakdownByCategoryBetween(
@@ -595,9 +592,7 @@ class ExpenseRepositoryImpl(
         until: Long,
         type: String
     ): Flow<List<CategorySpent>> {
-        return dao.getBreakdownByCategoryBetween(since, until, type).map { entities ->
-            entities.map { it.toDomain() }
-        }
+        return dao.getBreakdownByCategoryBetween(since, until, type)
     }
 
     override fun getTotalAmountByTypeBetween(
@@ -612,9 +607,7 @@ class ExpenseRepositoryImpl(
         since: Long,
         until: Long
     ): Flow<List<DaySpent>> {
-        return dao.getDailySpendingBetween(since, until).map { entities ->
-            entities.map { it.toDomain() }
-        }
+        return dao.getDailySpendingBetween(since, until)
     }
 
     override fun getDailyBreakdownByCategoryBetween(
@@ -624,18 +617,13 @@ class ExpenseRepositoryImpl(
         type: String
     ): Flow<List<DaySpent>> {
         return dao.getDailyBreakdownByCategoryBetween(since, until, categoryId, type)
-            .map { entities ->
-                entities.map { it.toDomain() }
-            }
     }
 
     override fun getMonthlyBreakdownByCategory(
         categoryId: Long,
         type: String
     ): Flow<List<DaySpent>> {
-        return dao.getMonthlyBreakdownByCategory(categoryId, type).map { entities ->
-            entities.map { it.toDomain() }
-        }
+        return dao.getMonthlyBreakdownByCategory(categoryId, type)
     }
 
     // Internal mapping extension
@@ -744,17 +732,5 @@ class ExpenseRepositoryImpl(
         name = name,
         orderIndex = orderIndex,
         isVisible = isVisible
-    )
-
-    private fun com.sans.finance.data.local.entity.CategorySpent.toDomain() = CategorySpent(
-        categoryId = categoryId,
-        categoryName = categoryName,
-        categoryIcon = categoryIcon,
-        totalAmount = totalAmount
-    )
-
-    private fun com.sans.finance.data.local.entity.DaySpent.toDomain() = DaySpent(
-        day = day,
-        amount = amount
     )
 }

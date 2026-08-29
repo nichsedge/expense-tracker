@@ -4,19 +4,19 @@ import android.app.Application
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.sans.finance.data.ai.AiSettingsRepository
+import com.sans.finance.data.ai.SecureAiSettingsRepository
 import com.sans.finance.data.local.AppDatabase
 import com.sans.finance.data.local.DatabaseMigrations
 import com.sans.finance.data.local.dao.ExpenseDao
 import com.sans.finance.data.repository.ExpenseRepositoryImpl
 import com.sans.finance.domain.repository.ExpenseRepository
-import com.sans.finance.data.ai.AiSettingsRepository
-import com.sans.finance.data.ai.SecureAiSettingsRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import javax.inject.Singleton
 import okhttp3.OkHttpClient
+import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -138,7 +138,7 @@ object AppModule {
     fun providePortfolioRepository(
         dao: com.sans.finance.data.local.dao.PortfolioDao,
         targetDao: com.sans.finance.data.local.dao.PortfolioTargetDao,
-        expenseDao: com.sans.finance.data.local.dao.ExpenseDao,
+        expenseDao: ExpenseDao,
         accountDao: com.sans.finance.data.local.dao.AccountDao
     ): com.sans.finance.domain.repository.PortfolioRepository =
         com.sans.finance.data.repository.PortfolioRepositoryImpl(dao, targetDao, expenseDao, accountDao)

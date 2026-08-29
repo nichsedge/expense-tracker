@@ -10,7 +10,6 @@ import com.sans.finance.domain.repository.AccountRepository
 import com.sans.finance.domain.repository.InstallmentRepository
 import com.sans.finance.domain.usecase.GetCategoriesUseCase
 import com.sans.finance.domain.usecase.ObserveFilteredExpensesUseCase
-import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers

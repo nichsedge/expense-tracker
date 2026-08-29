@@ -1,6 +1,5 @@
 package com.sans.finance.presentation.search
 
-import app.cash.turbine.test
 import com.sans.finance.data.util.LocaleManager
 import com.sans.finance.domain.model.Category
 import com.sans.finance.domain.model.Expense

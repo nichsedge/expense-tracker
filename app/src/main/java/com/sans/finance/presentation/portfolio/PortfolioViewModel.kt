@@ -3,8 +3,8 @@ package com.sans.finance.presentation.portfolio
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.sans.finance.data.local.dao.AssetClassTotal
 import com.sans.finance.data.local.dao.AccountAliasDao
+import com.sans.finance.data.local.dao.AssetClassTotal
 import com.sans.finance.data.local.dao.CategoryTotal
 import com.sans.finance.data.local.dao.CurrencyDao
 import com.sans.finance.data.local.dao.SnapshotTotal
@@ -12,7 +12,6 @@ import com.sans.finance.data.local.entity.PortfolioHoldingEntity
 import com.sans.finance.data.util.LocaleManager
 import com.sans.finance.data.util.PortfolioJsonExporter
 import com.sans.finance.data.util.PortfolioJsonImporter
-import com.sans.finance.data.util.GcsPortfolioSyncer
 import com.sans.finance.domain.model.AssetClassHealth
 import com.sans.finance.domain.repository.AccountRepository
 import com.sans.finance.domain.repository.AccountTypeRepository
@@ -491,10 +490,10 @@ class PortfolioViewModel @Inject constructor(
     }
 
     private fun calculateHealth(
-        totals: List<com.sans.finance.data.local.dao.AssetClassTotal>,
+        totals: List<AssetClassTotal>,
         totalValue: Double,
         targets: List<com.sans.finance.data.local.entity.PortfolioTargetEntity>
-    ): List<com.sans.finance.domain.model.AssetClassHealth> {
+    ): List<AssetClassHealth> {
         if (totalValue <= 0) return emptyList()
 
         // Calculate health for targeted asset classes
@@ -511,7 +510,7 @@ class PortfolioViewModel @Inject constructor(
                 else -> com.sans.finance.domain.model.HealthStatus.HEALTHY
             }
 
-            com.sans.finance.domain.model.AssetClassHealth(
+            AssetClassHealth(
                 assetClass = target.assetClass,
                 currentPercentage = currentPercentage,
                 targetPercentage = target.targetPercentage,
@@ -527,7 +526,7 @@ class PortfolioViewModel @Inject constructor(
             targets.none { it.assetClass.equals(total.assetClass, ignoreCase = true) }
         }.map { total ->
             val currentPercentage = (total.totalIdr / totalValue) * 100.0
-            com.sans.finance.domain.model.AssetClassHealth(
+            AssetClassHealth(
                 assetClass = total.assetClass,
                 currentPercentage = currentPercentage,
                 targetPercentage = 0.0,
@@ -569,7 +568,7 @@ class PortfolioViewModel @Inject constructor(
             _isAiAnalyzing.value = true
             try {
                 val provider = aiProviderFactory.create() ?: throw Exception("AI Provider not configured")
-                
+
                 val dateFormat = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault())
                 val dateLabel = currentState.selectedDate?.let { dateFormat.format(java.util.Date(it)) } ?: "Current"
 

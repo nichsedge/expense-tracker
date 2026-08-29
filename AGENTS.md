@@ -2,11 +2,9 @@
 
 ## Project Structure & Module Organization
 
-Sans Finance is a Kotlin Multiplatform (KMP) project consisting of the following modules:
+Sans Finance is an Android project consisting of the following module:
 
 - `:app` — Android application module (Jetpack Compose, Hilt, Room).
-- `:shared` — Kotlin Multiplatform module containing shared domain logic, models, and interfaces.
-- `:server` — Ktor-based backend server providing an API for the financial data.
 
 ### Module Details
 
@@ -14,12 +12,7 @@ Sans Finance is a Kotlin Multiplatform (KMP) project consisting of the following
     - Source code: `app/src/main/java/com/sans/finance`.
     - UI: Jetpack Compose under `presentation/`.
     - Data: Room database and Hilt DI.
-- **shared**:
-    - Source code: `shared/src/commonMain/kotlin/com/sans/finance`.
-    - Layers: `domain/` (models, repositories, usecases), `data/` (shared entities).
-- **server**:
-    - Source code: `server/src/main/kotlin/com/sans/finance/server`.
-    - Framework: Ktor.
+    - Domain: Business logic and models under `domain/`.
 - **scripts**: Utility scripts like `backup.sh`, `sync.sh`, `push_portfolio.sh`.
 - **Makefile**: Common tasks for building and running.
 
@@ -36,7 +29,6 @@ You can use the `Makefile` for convenience:
 Alternatively, use the Gradle wrapper:
 
 - `./gradlew :app:assembleDebug` — build Android debug APK
-- `./gradlew :server:run` — run the Ktor server
 - `./gradlew test` — run all tests
 
 Min/target SDK is 36.
@@ -61,14 +53,14 @@ To deploy and debug on physical Android devices remotely without a USB cable:
 
 The project follows **Clean Architecture** with a Kotlin Multiplatform core.
 
-### Layers (Shared & App)
+### Layers (App)
 
-**Domain** (`shared/domain/`) — Pure Kotlin.
+**Domain** (`app/src/main/java/com/sans/finance/domain/`) — Pure Kotlin.
 - `model/` — Core models: `Expense`, `Account`, `PortfolioHolding`, `Goal`, `Budget`.
 - `repository/` — Interfaces for data access.
 - `usecase/` — Business logic (e.g., `AddTransactionUseCase`, `PredictTransactionUseCase`).
 
-**Data** (`app/data/` & `shared/data/`)
+**Data** (`app/src/main/java/com/sans/finance/data/`)
 - `local/entity/` — Room entities (database version 31).
 - `local/dao/` — Room DAOs with complex queries for analytics.
 - `repository/` — Implementations mapping entities to domain models.
@@ -108,6 +100,6 @@ Reference snapshot: `sans_finance_db_snapshot.sqlite`.
 
 ## Testing
 
-- Unit tests: `shared/src/commonTest` and `app/src/test`.
+- Unit tests: `app/src/test`.
 - Instrumentation: `app/src/androidTest`.
 - Test naming: `*Test.kt`.

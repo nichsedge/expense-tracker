@@ -17,7 +17,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -38,10 +37,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,18 +46,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import com.sans.finance.core.util.CurrencyFormatter
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sans.finance.data.local.entity.GoalEntity
 import com.sans.finance.presentation.components.AppTopBar
 import com.sans.finance.presentation.components.GlassCard
 import com.sans.finance.presentation.components.PrivacyText
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -162,7 +156,7 @@ fun GoalScreen(
                     onDelete = { viewModel.deleteGoal(goalWithProgress.goal) }
                 )
             }
-            
+
             item { Spacer(modifier = Modifier.height(80.dp)) }
         }
 
@@ -194,7 +188,7 @@ fun GoalsSummaryHeader(state: GoalState) {
     val totalProgress = if (state.goals.isNotEmpty()) {
         state.goals.sumOf { (it.currentAmount / it.goal.targetAmount.toDouble()).coerceIn(0.0, 1.0) } / state.goals.size
     } else 0.0
-    
+
     GlassCard(
         modifier = Modifier.fillMaxWidth(),
         containerColor = MaterialTheme.colorScheme.primary,
@@ -212,9 +206,9 @@ fun GoalsSummaryHeader(state: GoalState) {
                 fontWeight = FontWeight.Black,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             LinearProgressIndicator(
                 progress = { totalProgress.toFloat() },
                 modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape),
@@ -334,7 +328,7 @@ fun GoalItem(
                     )
                 }
             }
-            
+
             if (progress < 1f) {
                 val remaining = (goal.targetAmount - goalWithProgress.currentAmount).coerceAtLeast(0.0)
                 Text(

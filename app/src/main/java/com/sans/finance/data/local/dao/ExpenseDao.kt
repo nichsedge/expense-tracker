@@ -196,7 +196,7 @@ interface ExpenseDao {
     fun getSpendingByCategoryBetween(
         since: Long,
         until: Long
-    ): Flow<List<com.sans.finance.data.local.entity.CategorySpent>>
+    ): Flow<List<com.sans.finance.domain.model.CategorySpent>>
 
     @Query(
         """
@@ -227,7 +227,7 @@ interface ExpenseDao {
         since: Long,
         until: Long,
         type: String
-    ): Flow<List<com.sans.finance.data.local.entity.CategorySpent>>
+    ): Flow<List<com.sans.finance.domain.model.CategorySpent>>
 
     @Query(
         """
@@ -268,7 +268,7 @@ interface ExpenseDao {
     fun getDailySpendingBetween(
         since: Long,
         until: Long
-    ): Flow<List<com.sans.finance.data.local.entity.DaySpent>>
+    ): Flow<List<com.sans.finance.domain.model.DaySpent>>
 
     @Query(
         """
@@ -295,7 +295,7 @@ interface ExpenseDao {
         until: Long,
         categoryId: Long,
         type: String
-    ): Flow<List<com.sans.finance.data.local.entity.DaySpent>>
+    ): Flow<List<com.sans.finance.domain.model.DaySpent>>
 
     @Query(
         """
@@ -318,6 +318,6 @@ interface ExpenseDao {
     fun getMonthlyBreakdownByCategory(
         categoryId: Long,
         type: String
-    ): Flow<List<com.sans.finance.data.local.entity.DaySpent>>
+    ): Flow<List<com.sans.finance.domain.model.DaySpent>>
 }
 

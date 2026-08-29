@@ -55,7 +55,6 @@ android {
 }
 
 dependencies {
-    implementation(project(":shared"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
@@ -93,6 +92,7 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.okhttp)
     implementation(libs.androidx.security.crypto)
+    implementation("javax.inject:javax.inject:1")
 
 
 

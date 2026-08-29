@@ -25,19 +25,16 @@ Get the latest release directly from [GitHub Releases](https://github.com/nichse
 
 ## 🛠 Tech Stack
 
-- **Architecture:** Kotlin Multiplatform (KMP) + Clean Architecture
+- **Architecture:** Clean Architecture
 - **Mobile UI:** [Jetpack Compose](https://developer.android.com/compose)
-- **Backend:** [Ktor](https://ktor.io/)
 - **Dependency Injection:** [Hilt](https://dagger.dev/hilt/) (Android)
-- **Local Database:** [Room](https://developer.android.com/training/data-storage/room) (SQLite) - Version 31
+- **Local Database:** [Room](https://developer.android.com/training/data-storage/room) (SQLite) - Version 34
 - **AI:** OpenAI & OpenAI-compatible APIs (OpenRouter); Local AI (Planned)
 - **Data Persistence:** DataStore (Preferences)
 
 ## 🚀 Project Structure
 
-- `:app` — Android Application
-- `:shared` — Common Domain & Data Logic (KMP)
-- `:server` — Companion Ktor Server
+- `:app` — Android Application (including Domain & Data logic)
 
 ## 🚀 Getting Started
 

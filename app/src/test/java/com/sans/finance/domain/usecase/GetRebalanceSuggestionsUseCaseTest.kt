@@ -4,9 +4,9 @@ import com.sans.finance.domain.model.AssetClassHealth
 import com.sans.finance.domain.model.HealthStatus
 import com.sans.finance.domain.model.RebalanceType
 import com.sans.finance.domain.model.RiskLevel
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
 
 class GetRebalanceSuggestionsUseCaseTest {
 

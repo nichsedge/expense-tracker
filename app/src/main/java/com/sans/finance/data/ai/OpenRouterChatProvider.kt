@@ -1,9 +1,5 @@
 package com.sans.finance.data.ai
 
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -13,6 +9,10 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 
 class OpenRouterChatProvider(
     private val client: OkHttpClient,
@@ -138,7 +138,7 @@ class OpenRouterChatProvider(
                                 "content",
                                 JsonPrimitive(
                                     """
-                                    You are an expert wealth management advisor. 
+                                    You are an expert wealth management advisor.
                                     Analyze the user's portfolio and return a concise JSON object.
                                     Schema: { "summary": string, "insights": [{ "title": string, "observation": string, "suggestion": string, "importance": "LOW"|"MEDIUM"|"HIGH" }] }
                                     """.trimIndent()

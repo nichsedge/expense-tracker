@@ -5,8 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.sans.finance.core.util.CalendarUtils
 import com.sans.finance.core.util.DateFormatterUtils
 import com.sans.finance.domain.model.Category
-import com.sans.finance.domain.model.ExpenseFilter
 import com.sans.finance.domain.model.Expense
+import com.sans.finance.domain.model.ExpenseFilter
 import com.sans.finance.domain.repository.BudgetRepository
 import com.sans.finance.domain.usecase.ObserveFilteredExpensesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -16,8 +16,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach

@@ -10,7 +10,10 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import com.sans.finance.core.util.CurrencyFormatter
+import com.sans.finance.data.local.dao.CurrencyDao
 import com.sans.finance.domain.model.Expense
+import com.sans.finance.domain.repository.BudgetRepository
 import com.sans.finance.domain.usecase.AddTransactionUseCase
 import com.sans.finance.domain.usecase.CheckDuplicateExpenseUseCase
 import com.sans.finance.domain.usecase.DeleteExpenseUseCase
@@ -31,9 +34,6 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import com.sans.finance.core.util.CurrencyFormatter
-import com.sans.finance.data.local.dao.CurrencyDao
-import com.sans.finance.domain.repository.BudgetRepository
 import java.util.Calendar
 import javax.inject.Inject
 
@@ -426,13 +426,13 @@ class AddTransactionViewModel @Inject constructor(
         val effectiveTitle = title.trim().ifBlank { buildDefaultTitle() }
 
         val nextDueDateVal = if (isRecurring) {
-            val calendar = java.util.Calendar.getInstance()
+            val calendar = Calendar.getInstance()
             calendar.timeInMillis = selectedDate
             when (recurrenceInterval) {
-                "DAILY" -> calendar.add(java.util.Calendar.DAY_OF_YEAR, 1)
-                "WEEKLY" -> calendar.add(java.util.Calendar.WEEK_OF_YEAR, 1)
-                "MONTHLY" -> calendar.add(java.util.Calendar.MONTH, 1)
-                "YEARLY" -> calendar.add(java.util.Calendar.YEAR, 1)
+                "DAILY" -> calendar.add(Calendar.DAY_OF_YEAR, 1)
+                "WEEKLY" -> calendar.add(Calendar.WEEK_OF_YEAR, 1)
+                "MONTHLY" -> calendar.add(Calendar.MONTH, 1)
+                "YEARLY" -> calendar.add(Calendar.YEAR, 1)
             }
             calendar.timeInMillis
         } else null

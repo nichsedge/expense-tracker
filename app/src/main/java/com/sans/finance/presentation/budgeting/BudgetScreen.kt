@@ -18,7 +18,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Delete
@@ -42,10 +41,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,13 +53,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sans.finance.domain.model.Category
 import com.sans.finance.presentation.components.AppTopBar
 import com.sans.finance.presentation.components.GlassCard
 import com.sans.finance.presentation.components.PrivacyText
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -160,7 +155,7 @@ fun BudgetScreen(
                     onDelete = { viewModel.deleteBudget(status.budget) }
                 )
             }
-            
+
             item { Spacer(modifier = Modifier.height(80.dp)) }
         }
 
@@ -182,7 +177,7 @@ fun BudgetScreen(
 fun BudgetSummaryHeader(state: BudgetState) {
     val totalSpent = state.budgetStatuses.sumOf { it.spent }
     val totalBudget = state.budgetStatuses.sumOf { it.budget.amount }
-    
+
     GlassCard(
         modifier = Modifier.fillMaxWidth(),
         containerColor = MaterialTheme.colorScheme.primary,
@@ -219,9 +214,9 @@ fun BudgetSummaryHeader(state: BudgetState) {
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             val progress = if (totalBudget > 0L) (totalSpent.toFloat() / totalBudget.toFloat()).coerceIn(0f, 1f) else 0f
             LinearProgressIndicator(
                 progress = { progress },

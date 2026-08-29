@@ -18,22 +18,17 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,10 +52,10 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sans.finance.core.util.CurrencyFormatter
 import com.sans.finance.presentation.components.AppTopBar
 import com.sans.finance.presentation.components.GlassCard
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -135,7 +130,7 @@ fun WealthForecastingScreen(
                     containerColor = MaterialTheme.colorScheme.surface
                 ),
                 border = androidx.compose.foundation.BorderStroke(
-                    1.dp, 
+                    1.dp,
                     MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                 )
             ) {
@@ -147,7 +142,7 @@ fun WealthForecastingScreen(
                     ) {
                         Column {
                             Text(
-                                "EXPECTED ANNUAL ROI", 
+                                "EXPECTED ANNUAL ROI",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.secondary
@@ -223,15 +218,15 @@ fun WealthForecastingScreen(
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            Icons.Default.Info, 
-                            contentDescription = null, 
+                            Icons.Default.Info,
+                            contentDescription = null,
                             tint = MaterialTheme.colorScheme.tertiary,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            "FIRE INDEX", 
-                            style = MaterialTheme.typography.labelMedium, 
+                            "FIRE INDEX",
+                            style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Black,
                             letterSpacing = 1.sp
                         )
@@ -241,17 +236,17 @@ fun WealthForecastingScreen(
                         Column {
                             Text("Target (25x Expenses)", style = MaterialTheme.typography.labelSmall)
                             Text(
-                                CurrencyFormatter.formatAmountCompact(state.fireNumber, state.currentCurrency), 
-                                style = MaterialTheme.typography.titleMedium, 
+                                CurrencyFormatter.formatAmountCompact(state.fireNumber, state.currentCurrency),
+                                style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Black
                             )
                         }
                         Column(horizontalAlignment = Alignment.End) {
                             Text("Years to Freedom", style = MaterialTheme.typography.labelSmall)
                             Text(
-                                state.yearsToFire?.let { "$it Years" } ?: "∞", 
-                                style = MaterialTheme.typography.titleMedium, 
-                                fontWeight = FontWeight.Black, 
+                                state.yearsToFire?.let { "$it Years" } ?: "∞",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Black,
                                 color = MaterialTheme.colorScheme.tertiary
                             )
                         }
@@ -268,8 +263,8 @@ fun WealthForecastingScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        "Emergency Fund (Sinking Fund)", 
-                        style = MaterialTheme.typography.titleSmall, 
+                        "Emergency Fund (Sinking Fund)",
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Black
                     )
                     Spacer(Modifier.height(12.dp))
@@ -335,7 +330,7 @@ fun WealthForecastingScreen(
                     )
                 }
             }
-            
+
             Spacer(modifier = Modifier.height(32.dp))
         }
     }
@@ -352,8 +347,8 @@ fun InfoItem(label: String, value: String) {
             letterSpacing = 0.5.sp
         )
         Text(
-            value, 
-            style = MaterialTheme.typography.bodyLarge, 
+            value,
+            style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Black,
             color = MaterialTheme.colorScheme.onSurface
         )
@@ -388,7 +383,7 @@ fun MilestoneItem(years: Int, amount: Long, currencyCode: String) {
                 }
                 Spacer(modifier = Modifier.width(16.dp))
                 Text(
-                    "Projected Net Worth", 
+                    "Projected Net Worth",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium
                 )
