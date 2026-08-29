@@ -6,8 +6,13 @@ import com.sans.finance.core.util.CalendarUtils
 import com.sans.finance.data.local.entity.BudgetEntity
 import com.sans.finance.domain.model.Category
 import com.sans.finance.domain.repository.BudgetRepository
+import com.sans.finance.domain.repository.CategoryRepository
 import com.sans.finance.domain.repository.ExpenseRepository
+import com.sans.finance.domain.repository.UserPreferencesRepository
+import com.sans.finance.domain.usecase.BudgetSuggestion
+import com.sans.finance.domain.usecase.SuggestBudgetsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -26,6 +31,7 @@ data class BudgetStatus(
 data class BudgetState(
     val budgetStatuses: List<BudgetStatus> = emptyList(),
     val categories: List<Category> = emptyList(),
+    val suggestions: List<BudgetSuggestion> = emptyList(),
     val currentCurrency: String = "USD",
     val isLoading: Boolean = true,
     val isPrivacyModeEnabled: Boolean = false
@@ -34,21 +40,33 @@ data class BudgetState(
 @HiltViewModel
 class BudgetViewModel @Inject constructor(
     private val budgetRepository: BudgetRepository,
+    private val categoryRepository: CategoryRepository,
     private val expenseRepository: ExpenseRepository,
+    private val suggestBudgetsUseCase: SuggestBudgetsUseCase,
+    private val userPreferencesRepository: UserPreferencesRepository,
     private val localeManager: com.sans.finance.data.util.LocaleManager
 ) : ViewModel() {
 
-    private val _categories = expenseRepository.getAllCategories().stateIn(
+    private val _categories = categoryRepository.getAllCategories().stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = emptyList()
     )
 
+    private val _suggestions = MutableStateFlow<List<BudgetSuggestion>>(emptyList())
+
+    init {
+        viewModelScope.launch {
+            _suggestions.value = suggestBudgetsUseCase()
+        }
+    }
+
     val state = combine(
         budgetRepository.getAllBudgets(),
         _categories,
-        localeManager.privacyMode
-    ) { budgets, categories, privacyMode ->
+        _suggestions,
+        userPreferencesRepository.userPreferences.map { it.isPrivacyModeEnabled }
+    ) { budgets, categories, suggestions, privacyMode ->
         val calendar = CalendarUtils.getInstance()
         calendar.set(Calendar.DAY_OF_MONTH, 1)
         calendar.set(Calendar.HOUR_OF_DAY, 0)
@@ -71,8 +89,7 @@ class BudgetViewModel @Inject constructor(
                 expenseRepository.getTotalSpentBetween(start, end).map { it ?: 0L }
             }
 
-            val spent =
-                spentFlow.first() // This might be problematic in a combine block if it's not a cold flow that emits quickly
+            val spent = spentFlow.first()
 
             BudgetStatus(
                 budget = budget,
@@ -84,6 +101,7 @@ class BudgetViewModel @Inject constructor(
         BudgetState(
             budgetStatuses = statuses,
             categories = categories,
+            suggestions = suggestions,
             currentCurrency = localeManager.getCurrency(),
             isLoading = false,
             isPrivacyModeEnabled = privacyMode
@@ -113,6 +131,8 @@ class BudgetViewModel @Inject constructor(
     }
 
     fun togglePrivacyMode() {
-        localeManager.setPrivacyModeEnabled(!localeManager.isPrivacyModeEnabled())
+        viewModelScope.launch {
+            userPreferencesRepository.setPrivacyModeEnabled(!state.value.isPrivacyModeEnabled)
+        }
     }
 }

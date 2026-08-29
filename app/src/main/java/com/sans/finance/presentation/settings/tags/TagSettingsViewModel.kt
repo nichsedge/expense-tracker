@@ -3,7 +3,7 @@ package com.sans.finance.presentation.settings.tags
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sans.finance.domain.model.Tag
-import com.sans.finance.domain.repository.ExpenseRepository
+import com.sans.finance.domain.repository.TagRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
@@ -12,7 +12,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class TagSettingsViewModel @Inject constructor(
-    private val repository: ExpenseRepository
+    private val repository: TagRepository
 ) : ViewModel() {
 
     val tags = repository.getAllTagEntities().stateIn(

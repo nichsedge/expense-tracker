@@ -1,12 +1,12 @@
 package com.sans.finance.domain.repository
 
-import com.sans.finance.data.local.entity.GoalEntity
+import com.sans.finance.domain.model.Goal
 import kotlinx.coroutines.flow.Flow
 
 interface GoalRepository {
-    fun getAllGoals(): Flow<List<GoalEntity>>
-    suspend fun getGoalById(id: Long): GoalEntity?
-    suspend fun insertGoal(goal: GoalEntity): Long
-    suspend fun updateGoal(goal: GoalEntity)
-    suspend fun deleteGoal(goal: GoalEntity)
+    fun getAllGoals(): Flow<List<Goal>>
+    suspend fun getGoalById(id: Long): Goal?
+    suspend fun insertGoal(goal: Goal): Long
+    suspend fun updateGoal(goal: Goal)
+    suspend fun deleteGoal(goal: Goal)
 }

@@ -2,18 +2,20 @@ package com.sans.finance.presentation.goals
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.sans.finance.data.local.entity.GoalEntity
+import com.sans.finance.domain.model.Goal
 import com.sans.finance.domain.repository.GoalRepository
 import com.sans.finance.domain.repository.PortfolioRepository
+import com.sans.finance.domain.repository.UserPreferencesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class GoalWithProgress(
-    val goal: GoalEntity,
+    val goal: Goal,
     val currentAmount: Double
 )
 
@@ -29,6 +31,7 @@ data class GoalState(
 class GoalViewModel @Inject constructor(
     private val goalRepository: GoalRepository,
     private val portfolioRepository: PortfolioRepository,
+    private val userPreferencesRepository: UserPreferencesRepository,
     private val localeManager: com.sans.finance.data.util.LocaleManager
 ) : ViewModel() {
 
@@ -36,7 +39,7 @@ class GoalViewModel @Inject constructor(
         goalRepository.getAllGoals(),
         portfolioRepository.getLatestSnapshot(),
         portfolioRepository.getLatestSnapshotHeader(),
-        localeManager.privacyMode
+        userPreferencesRepository.userPreferences.map { it.isPrivacyModeEnabled }
     ) { goals, latestHoldings, latestHeader, privacyMode ->
         val categories = latestHoldings.map { it.category }.distinct().sorted()
         val assetClasses = latestHoldings.map { it.assetClass }.distinct().sorted()
@@ -84,7 +87,7 @@ class GoalViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             goalRepository.insertGoal(
-                GoalEntity(
+                Goal(
                     name = name,
                     targetAmount = targetAmount.toLong(),
                     targetType = targetType,
@@ -97,7 +100,7 @@ class GoalViewModel @Inject constructor(
     }
 
     fun updateGoalDetails(
-        goal: GoalEntity,
+        goal: Goal,
         newName: String,
         newTargetAmount: Double,
         newTargetType: String,
@@ -118,7 +121,7 @@ class GoalViewModel @Inject constructor(
         }
     }
 
-    fun deleteGoal(goal: GoalEntity) {
+    fun deleteGoal(goal: Goal) {
         viewModelScope.launch {
             goalRepository.deleteGoal(goal)
         }

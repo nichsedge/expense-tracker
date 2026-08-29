@@ -7,13 +7,18 @@ import androidx.lifecycle.viewModelScope
 import com.sans.finance.domain.model.AccountSyncDryRunResult
 import com.sans.finance.domain.model.ReSyncMode
 import com.sans.finance.domain.repository.ExpenseRepository
+import com.sans.finance.domain.repository.UserPreferencesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class ReSyncDryRunViewModel @Inject constructor(
     private val repository: ExpenseRepository,
+    private val userPreferencesRepository: UserPreferencesRepository,
     private val localeManager: com.sans.finance.data.util.LocaleManager
 ) : ViewModel() {
 
@@ -30,7 +35,10 @@ class ReSyncDryRunViewModel @Inject constructor(
     val successMessage: State<String?> = _successMessage
 
     val currentCurrency = localeManager.getCurrency()
-    val isPrivacyModeEnabled: Boolean get() = localeManager.isPrivacyModeEnabled()
+
+    val isPrivacyModeEnabled = userPreferencesRepository.userPreferences
+        .map { it.isPrivacyModeEnabled }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private val _selectedMode = mutableStateOf(ReSyncMode.TRANSACTIONS_AS_TRUTH)
     val selectedMode: State<ReSyncMode> = _selectedMode
@@ -84,7 +92,6 @@ class ReSyncDryRunViewModel @Inject constructor(
                 }
                 repository.reSyncAccountBalances(_selectedMode.value, adjustmentDate)
                 _successMessage.value = "Balances synchronized successfully"
-                // Reload the dry run data to show the new synchronized state
                 val results = repository.getReSyncBalancesDryRun()
                 _dryRunResults.value = results
             } catch (e: Exception) {

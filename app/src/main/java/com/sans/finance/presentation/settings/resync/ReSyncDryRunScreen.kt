@@ -57,6 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sans.finance.core.util.CurrencyFormatter
 import com.sans.finance.core.util.DateFormatterUtils
 import com.sans.finance.domain.model.AccountSyncDryRunResult
@@ -75,7 +76,7 @@ fun ReSyncDryRunScreen(
     val dryRunResults by viewModel.dryRunResults
     val error by viewModel.error
     val successMessage by viewModel.successMessage
-    val isPrivacyMode = viewModel.isPrivacyModeEnabled
+    val isPrivacyMode by viewModel.isPrivacyModeEnabled.collectAsStateWithLifecycle()
     val currentCurrency = viewModel.currentCurrency
 
     val snackbarHostState = remember { SnackbarHostState() }

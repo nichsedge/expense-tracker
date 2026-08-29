@@ -21,6 +21,7 @@ import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.PieChart
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -145,6 +146,23 @@ fun DataManagementScreen(
                     onExportJson = {
                         viewModel.setExportType(ImportExportType.PORTFOLIO, ExportFormat.JSON)
                         exportJsonLauncher.launch("portfolio_${System.currentTimeMillis()}.json")
+                    }
+                )
+            }
+
+            item {
+                DataSection(
+                    title = "App Settings",
+                    description = "Backup your preferences, currency settings, and sync configuration.",
+                    icon = Icons.Default.Settings,
+                    onImport = {
+                        viewModel.setImportType(ImportExportType.SETTINGS)
+                        importLauncher.launch("*/*")
+                    },
+                    onExportCsv = null,
+                    onExportJson = {
+                        viewModel.setExportType(ImportExportType.SETTINGS, ExportFormat.JSON)
+                        exportJsonLauncher.launch("settings_${System.currentTimeMillis()}.json")
                     }
                 )
             }

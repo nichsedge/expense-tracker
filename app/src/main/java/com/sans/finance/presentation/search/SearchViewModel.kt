@@ -11,6 +11,8 @@ import com.sans.finance.domain.model.InstallmentItem
 import com.sans.finance.domain.repository.AccountRepository
 import com.sans.finance.domain.repository.ExpenseRepository
 import com.sans.finance.domain.repository.InstallmentRepository
+import com.sans.finance.domain.repository.TagRepository
+import com.sans.finance.domain.repository.UserPreferencesRepository
 import com.sans.finance.domain.usecase.GetCategoriesUseCase
 import com.sans.finance.presentation.expense_list.DateRangeFilter
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -61,6 +63,8 @@ class SearchViewModel @Inject constructor(
     private val repository: ExpenseRepository,
     private val accountRepository: AccountRepository,
     private val installmentRepository: InstallmentRepository,
+    private val tagRepository: TagRepository,
+    private val userPreferencesRepository: UserPreferencesRepository,
     private val getCategoriesUseCase: GetCategoriesUseCase,
     private val localeManager: LocaleManager
 ) : ViewModel() {
@@ -95,7 +99,7 @@ class SearchViewModel @Inject constructor(
     }
 
     private fun loadTags() {
-        repository.getAllTags()
+        tagRepository.getAllTags()
             .onEach { tags ->
                 _state.update { it.copy(availableTags = tags) }
             }
@@ -273,7 +277,9 @@ class SearchViewModel @Inject constructor(
     }
 
     private fun observePrivacyMode() {
-        localeManager.privacyMode
+        userPreferencesRepository.userPreferences
+            .map { it.isPrivacyModeEnabled }
+            .distinctUntilChanged()
             .onEach { isEnabled ->
                 _state.update { it.copy(isPrivacyModeEnabled = isEnabled) }
             }

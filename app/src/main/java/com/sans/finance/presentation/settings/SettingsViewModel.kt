@@ -7,10 +7,14 @@ import androidx.lifecycle.viewModelScope
 import com.sans.finance.data.local.AppDatabase
 import com.sans.finance.data.local.entity.BudgetEntity
 import com.sans.finance.domain.model.ReSyncMode
+import com.sans.finance.domain.model.UserPreferences
 import com.sans.finance.domain.repository.BudgetRepository
 import com.sans.finance.domain.repository.ExpenseRepository
+import com.sans.finance.domain.repository.TagRepository
+import com.sans.finance.domain.repository.UserPreferencesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -20,6 +24,8 @@ import javax.inject.Inject
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val repository: ExpenseRepository,
+    private val tagRepository: TagRepository,
+    private val userPreferencesRepository: UserPreferencesRepository,
     private val localeManager: com.sans.finance.data.util.LocaleManager,
     private val db: AppDatabase,
     private val budgetRepository: BudgetRepository
@@ -43,8 +49,22 @@ class SettingsViewModel @Inject constructor(
     private val _enabledCurrencies = mutableStateOf(localeManager.getEnabledCurrencies())
     val enabledCurrencies: State<List<String>> = _enabledCurrencies
 
-    private val _isPrivacyModeEnabled = mutableStateOf(localeManager.isPrivacyModeEnabled())
+    private val _isPrivacyModeEnabled = mutableStateOf(false)
     val isPrivacyModeEnabled: State<Boolean> = _isPrivacyModeEnabled
+
+    val userPreferences: StateFlow<UserPreferences> = userPreferencesRepository.userPreferences.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = UserPreferences()
+    )
+
+    init {
+        viewModelScope.launch {
+            userPreferences.collect { prefs ->
+                _isPrivacyModeEnabled.value = prefs.isPrivacyModeEnabled
+            }
+        }
+    }
 
     val supportedLanguages = com.sans.finance.data.util.LocaleManager.SUPPORTED_LANGUAGES
     val commonCurrencies = com.sans.finance.data.util.LocaleManager.COMMON_CURRENCIES
@@ -90,9 +110,10 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun togglePrivacyMode() {
-        val next = !localeManager.isPrivacyModeEnabled()
-        localeManager.setPrivacyModeEnabled(next)
-        _isPrivacyModeEnabled.value = next
+        viewModelScope.launch {
+            val next = !userPreferences.value.isPrivacyModeEnabled
+            userPreferencesRepository.setPrivacyModeEnabled(next)
+        }
     }
 
     val monthlyBudget = budgetRepository.getAllBudgets().map { budgets ->
@@ -119,7 +140,7 @@ class SettingsViewModel @Inject constructor(
         _isLoading.value = true
         viewModelScope.launch {
             try {
-                repository.cleanOrphanedTags()
+                tagRepository.cleanOrphanedTags()
                 _syncMessage.value = "Tags cleaned successfully"
             } catch (e: Exception) {
                 _error.value = "Failed to clean tags: ${e.message}"
@@ -208,44 +229,51 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    val backupFrequency = localeManager.backupFrequency
-    val backupWifiOnly = localeManager.backupWifiOnly
-    val backupRequiresCharging = localeManager.backupRequiresCharging
-    val lastBackupTime = localeManager.lastBackupTime
-    val lastBackupSizeBytes = localeManager.lastBackupSizeBytes
-    val cloudBackupProvider = localeManager.cloudBackupProvider
+    val backupFrequency: StateFlow<String> = userPreferences.map { it.backupFrequency }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "WEEKLY")
+    val backupWifiOnly: StateFlow<Boolean> = userPreferences.map { it.backupWifiOnly }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val backupRequiresCharging: StateFlow<Boolean> = userPreferences.map { it.backupRequiresCharging }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val lastBackupTime: StateFlow<Long> = userPreferences.map { it.lastBackupTime }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
+    val lastBackupSizeBytes: StateFlow<Long> = userPreferences.map { it.lastBackupSizeBytes }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
+    val cloudBackupProvider: StateFlow<String> = userPreferences.map { it.cloudBackupProvider }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "CLOUDFLARE_R2")
 
-    fun getCloudBackupProvider(): String = localeManager.getCloudBackupProvider()
+    fun getCloudBackupProvider(): String = userPreferences.value.cloudBackupProvider
 
     fun setCloudBackupProvider(provider: String) {
-        localeManager.setCloudBackupProvider(provider)
+        viewModelScope.launch {
+            userPreferencesRepository.setCloudBackupProvider(provider)
+        }
     }
 
-    fun getR2AccountId(): String = localeManager.getR2AccountId()
-    fun getR2AccessKeyId(): String = localeManager.getR2AccessKeyId()
-    fun getR2SecretAccessKey(): String = localeManager.getR2SecretAccessKey()
-    fun getR2BucketName(): String = localeManager.getR2BucketName()
+    fun getR2AccountId(): String = userPreferences.value.r2AccountId
+    fun getR2AccessKeyId(): String = userPreferences.value.r2AccessKeyId
+    fun getR2SecretAccessKey(): String = userPreferences.value.r2SecretAccessKey
+    fun getR2BucketName(): String = userPreferences.value.r2BucketName
 
     fun saveR2Config(accountId: String, accessKeyId: String, secretAccessKey: String, bucketName: String) {
-        localeManager.setR2AccountId(accountId)
-        localeManager.setR2AccessKeyId(accessKeyId)
-        localeManager.setR2SecretAccessKey(secretAccessKey)
-        localeManager.setR2BucketName(bucketName)
+        viewModelScope.launch {
+            userPreferencesRepository.setR2Config(accountId, accessKeyId, secretAccessKey, bucketName)
+        }
     }
 
     fun setBackupFrequency(freq: String, context: android.content.Context) {
-        localeManager.setBackupFrequency(freq)
-        com.sans.finance.SansFinanceApp.rescheduleBackupWork(context, localeManager)
+        viewModelScope.launch {
+            userPreferencesRepository.setBackupFrequency(freq)
+            com.sans.finance.SansFinanceApp.rescheduleBackupWork(context, localeManager, userPreferencesRepository)
+        }
     }
 
     fun setBackupWifiOnly(wifiOnly: Boolean, context: android.content.Context) {
-        localeManager.setBackupWifiOnly(wifiOnly)
-        com.sans.finance.SansFinanceApp.rescheduleBackupWork(context, localeManager)
+        viewModelScope.launch {
+            userPreferencesRepository.setBackupWifiOnly(wifiOnly)
+            com.sans.finance.SansFinanceApp.rescheduleBackupWork(context, localeManager, userPreferencesRepository)
+        }
     }
 
     fun setBackupRequiresCharging(requiresCharging: Boolean, context: android.content.Context) {
-        localeManager.setBackupRequiresCharging(requiresCharging)
-        com.sans.finance.SansFinanceApp.rescheduleBackupWork(context, localeManager)
+        viewModelScope.launch {
+            userPreferencesRepository.setBackupRequiresCharging(requiresCharging)
+            com.sans.finance.SansFinanceApp.rescheduleBackupWork(context, localeManager, userPreferencesRepository)
+        }
     }
 
     fun uploadBackupToCloud(context: android.content.Context) {
@@ -261,12 +289,14 @@ class SettingsViewModel @Inject constructor(
                 }
 
                 val fileSize = snapshotFile.length()
-                val result = com.sans.finance.data.util.CloudStorageSyncer.uploadDatabaseBackup(context, snapshotFile, localeManager)
+                val result = com.sans.finance.data.util.CloudStorageSyncer.uploadDatabaseBackup(context, snapshotFile, userPreferences.value)
                 result.fold(
                     onSuccess = { msg ->
                         _syncMessage.value = msg
-                        localeManager.setLastBackupTime(System.currentTimeMillis())
-                        localeManager.setLastBackupSizeBytes(fileSize)
+                        viewModelScope.launch {
+                            userPreferencesRepository.setLastBackupTime(System.currentTimeMillis())
+                            userPreferencesRepository.setLastBackupSizeBytes(fileSize)
+                        }
                     },
                     onFailure = { err ->
                         _error.value = err.message ?: "Failed to upload to cloud"
@@ -288,4 +318,3 @@ class SettingsViewModel @Inject constructor(
         _syncMessage.value = null
     }
 }
-

@@ -17,13 +17,16 @@ data class ForecastingState(
     val expectedRoi: Float = 0.07f, // 7% default
     val projectionYears: Int = 20,
     val projections: List<ProjectionPoint> = emptyList(),
+    val whatIfProjections: List<ProjectionPoint> = emptyList(),
     val isLoading: Boolean = true,
     val currentCurrency: String = "USD",
     val fireNumber: Long = 0L,
     val yearsToFire: Int? = null,
+    val whatIfYearsToFire: Int? = null,
     val emergencyFundTarget: Long = 0L,
     val emergencyFundMonths: Int = 6,
-    val currentEmergencyFund: Long = 0L
+    val currentEmergencyFund: Long = 0L,
+    val extraMonthlyContribution: Long = 0L
 )
 
 data class ProjectionPoint(
@@ -38,20 +41,24 @@ class WealthForecastingViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _expectedRoi = MutableStateFlow(0.07f)
-    private val _projectionYears = MutableStateFlow(25) // Show up to 25 years
+    private val _projectionYears = MutableStateFlow(25)
     private val _emergencyFundMonths = MutableStateFlow(6)
+    private val _extraMonthlyContribution = MutableStateFlow(0L)
 
     val state = combine(
         getWealthMetricsUseCase(),
         _expectedRoi,
         _projectionYears,
-        _emergencyFundMonths
-    ) { metrics, roi, years, efMonths ->
+        _emergencyFundMonths,
+        _extraMonthlyContribution
+    ) { metrics, roi, years, efMonths, extraContrib ->
         val currentNetWorth = metrics.cashAssets + metrics.portfolioValue
         val projections = calculateProjections(currentNetWorth, metrics.monthlySavings, roi, years)
+        val whatIfProjections = calculateProjections(currentNetWorth, metrics.monthlySavings + extraContrib, roi, years)
 
         val fireNumber = metrics.monthlyBurn * 12 * 25
         val yearsToFire = projections.find { it.value >= fireNumber }?.year
+        val whatIfYearsToFire = whatIfProjections.find { it.value >= fireNumber }?.year
 
         val emergencyFundTarget = metrics.monthlyBurn * efMonths
         val currentEmergencyFund = metrics.cashAssets
@@ -63,13 +70,16 @@ class WealthForecastingViewModel @Inject constructor(
             expectedRoi = roi,
             projectionYears = years,
             projections = projections,
+            whatIfProjections = whatIfProjections,
             isLoading = false,
             currentCurrency = metrics.currencyCode,
             fireNumber = fireNumber,
             yearsToFire = yearsToFire,
+            whatIfYearsToFire = whatIfYearsToFire,
             emergencyFundTarget = emergencyFundTarget,
             emergencyFundMonths = efMonths,
-            currentEmergencyFund = currentEmergencyFund
+            currentEmergencyFund = currentEmergencyFund,
+            extraMonthlyContribution = extraContrib
         )
     }.stateIn(
         scope = viewModelScope,
@@ -79,6 +89,18 @@ class WealthForecastingViewModel @Inject constructor(
 
     fun updateRoi(roi: Float) {
         _expectedRoi.value = roi
+    }
+
+    fun updateExtraContribution(amount: Long) {
+        _extraMonthlyContribution.value = amount
+    }
+
+    fun updateProjectionYears(years: Int) {
+        _projectionYears.value = years
+    }
+
+    fun updateEmergencyFundMonths(months: Int) {
+        _emergencyFundMonths.value = months
     }
 
     private fun calculateProjections(

@@ -75,6 +75,7 @@ fun ForecastCard(
                     .height(40.dp),
                 color = MaterialTheme.colorScheme.secondary,
                 lineWidth = 3f,
+                selectedIndex = selectedIndex,
                 onValueSelected = { selectedIndex = it }
             )
         }

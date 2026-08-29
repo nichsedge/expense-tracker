@@ -1,12 +1,12 @@
 package com.sans.finance.domain.usecase
 
 import com.sans.finance.domain.model.Category
-import com.sans.finance.domain.repository.ExpenseRepository
+import com.sans.finance.domain.repository.CategoryRepository
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 
 class GetCategoriesUseCase @Inject constructor(
-    private val repository: ExpenseRepository
+    private val repository: CategoryRepository
 ) {
     operator fun invoke(): Flow<List<Category>> {
         return repository.getAllCategories()

@@ -26,7 +26,7 @@ import kotlinx.serialization.json.Json
 import javax.inject.Inject
 
 enum class ImportExportType {
-    TRANSACTIONS, PORTFOLIO
+    TRANSACTIONS, PORTFOLIO, SETTINGS
 }
 
 enum class ExportFormat {
@@ -49,6 +49,7 @@ data class DataManagementState(
 class DataManagementViewModel @Inject constructor(
     private val expenseRepository: ExpenseRepository,
     private val portfolioRepository: PortfolioRepository,
+    private val userPreferencesRepository: com.sans.finance.domain.repository.UserPreferencesRepository,
     @param:ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -102,6 +103,7 @@ class DataManagementViewModel @Inject constructor(
                 when (type) {
                     ImportExportType.TRANSACTIONS -> importTransactions(uri)
                     ImportExportType.PORTFOLIO -> importPortfolio(uri)
+                    ImportExportType.SETTINGS -> importSettings(uri)
                 }
             } catch (e: Exception) {
                 _state.value = _state.value.copy(message = "Import failed: ${e.message}")
@@ -120,6 +122,7 @@ class DataManagementViewModel @Inject constructor(
                 when (type) {
                     ImportExportType.TRANSACTIONS -> exportTransactions(uri, format)
                     ImportExportType.PORTFOLIO -> exportPortfolio(uri, format)
+                    ImportExportType.SETTINGS -> exportSettings(uri)
                 }
             } catch (e: Exception) {
                 _state.value = _state.value.copy(message = "Export failed: ${e.message}")
@@ -250,6 +253,23 @@ class DataManagementViewModel @Inject constructor(
             }
         }
         _state.value = _state.value.copy(message = "Exported ${holdings.size} holdings as ${format.name}")
+    }
+
+    private suspend fun importSettings(uri: Uri) {
+        val content = context.contentResolver.openInputStream(uri)?.use { it.bufferedReader().readText() }
+            ?: throw Exception("Could not read file")
+        userPreferencesRepository.importJson(content)
+        _state.value = _state.value.copy(message = "Successfully imported settings")
+    }
+
+    private suspend fun exportSettings(uri: Uri) {
+        val content = userPreferencesRepository.exportJson()
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                outputStream.bufferedWriter().use { it.write(content) }
+            }
+        }
+        _state.value = _state.value.copy(message = "Settings exported successfully")
     }
 
     fun clearMessage() {

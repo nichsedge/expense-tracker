@@ -21,6 +21,7 @@ fun Sparkline(
     color: Color = MaterialTheme.colorScheme.primary,
     lineWidth: Float = 4f,
     showFill: Boolean = true,
+    selectedIndex: Int = -1,
     onValueSelected: ((Int) -> Unit)? = null
 ) {
     if (data.size < 2) return
@@ -97,5 +98,23 @@ fun Sparkline(
             color = color,
             style = Stroke(width = lineWidth)
         )
+
+        if (selectedIndex in data.indices) {
+            val value = data[selectedIndex]
+            val x = selectedIndex * stepX
+            val fractionY = (value - minData).toFloat() / range.toFloat()
+            val y = height - (fractionY * height)
+
+            drawCircle(
+                color = color,
+                radius = lineWidth * 1.5f,
+                center = androidx.compose.ui.geometry.Offset(x, y)
+            )
+            drawCircle(
+                color = Color.White,
+                radius = lineWidth * 0.8f,
+                center = androidx.compose.ui.geometry.Offset(x, y)
+            )
+        }
     }
 }

@@ -7,12 +7,14 @@ import com.sans.finance.domain.repository.AccountRepository
 import com.sans.finance.domain.repository.AccountTypeRepository
 import com.sans.finance.domain.repository.ExpenseRepository
 import com.sans.finance.domain.repository.PortfolioRepository
+import com.sans.finance.domain.repository.UserPreferencesRepository
 import com.sans.finance.data.local.entity.AccountEntity
 import com.sans.finance.data.local.entity.AccountTypeEntity
 import com.sans.finance.data.local.entity.ExchangeRateEntity
 import com.sans.finance.data.local.dao.SnapshotTotal
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 class GetFinancialFreedomStatsUseCase @Inject constructor(
@@ -20,6 +22,7 @@ class GetFinancialFreedomStatsUseCase @Inject constructor(
     private val portfolioRepository: PortfolioRepository,
     private val accountRepository: AccountRepository,
     private val accountTypeRepository: AccountTypeRepository,
+    private val userPreferencesRepository: UserPreferencesRepository,
     private val localeManager: LocaleManager,
     private val currencyDao: CurrencyDao
 ) {
@@ -40,8 +43,8 @@ class GetFinancialFreedomStatsUseCase @Inject constructor(
         val statsFlow = combine(
             expenseRepository.getTotalAmountByTypeBetween(yearAgo, now, "EXPENSE"),
             expenseRepository.getOldestExpenseDate(),
-            localeManager.fireManualEnabled,
-            localeManager.manualFireAnnualExpense
+            userPreferencesRepository.userPreferences.map { it.fireManualEnabled },
+            userPreferencesRepository.userPreferences.map { it.manualFireAnnualExpense }
         ) { annualExpenseIdr, oldestDate, isFireManual, manualFireExpense ->
             StatsData(annualExpenseIdr, oldestDate, isFireManual, manualFireExpense)
         }
@@ -58,11 +61,9 @@ class GetFinancialFreedomStatsUseCase @Inject constructor(
                 return ((amount * fromRate) / toRate).toLong()
             }
 
-            // Portfolio assets
             val latestPortfolioIdr = finance.history.lastOrNull()?.totalIdr ?: 0.0
             val portfolioAssets = if (baseRate > 0) ((latestPortfolioIdr / baseRate) * 100).toLong() else 0L
 
-            // Account assets
             val liabilityTypeNames = finance.types.filter { it.isLiability }.map { it.name }.toSet()
             val accountAssets = finance.accounts
                 .filter { it.type !in liabilityTypeNames && it.type != "Investment" }
@@ -70,7 +71,6 @@ class GetFinancialFreedomStatsUseCase @Inject constructor(
 
             val totalAssets = portfolioAssets + accountAssets
 
-            // Annual Expense
             val annualExpenseInBase = if (baseRate > 0) (( (stats.annualExpenseIdr ?: 0L).toDouble() / baseRate)).toLong() else 0L
 
             val firstTxnDate = stats.oldestDate ?: now

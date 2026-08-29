@@ -103,7 +103,10 @@ fun ExpenseListScreen(
         topBar = {
             TopAppBar(
                 navigationIcon = {
-                    IconButton(onClick = { viewModel.previousMonth() }) {
+                    IconButton(onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        viewModel.previousMonth()
+                    }) {
                         Icon(
                             Icons.Default.ChevronLeft,
                             contentDescription = "Prev",
@@ -116,7 +119,10 @@ fun ExpenseListScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Surface(
-                            onClick = { showDatePicker = true },
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                showDatePicker = true
+                            },
                             color = Color.Transparent,
                             shape = MaterialTheme.shapes.small
                         ) {
@@ -127,7 +133,10 @@ fun ExpenseListScreen(
                                 modifier = Modifier.padding(horizontal = 4.dp)
                             )
                         }
-                        IconButton(onClick = { viewModel.nextMonth() }) {
+                        IconButton(onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            viewModel.nextMonth()
+                        }) {
                             Icon(
                                 Icons.Default.ChevronRight,
                                 contentDescription = "Next",
@@ -137,13 +146,19 @@ fun ExpenseListScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = onSearchClick) {
+                    IconButton(onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onSearchClick()
+                    }) {
                         Icon(
                             Icons.Default.Search,
                             contentDescription = stringResource(R.string.search_expenses)
                         )
                     }
-                    IconButton(onClick = onStatsClick) {
+                    IconButton(onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onStatsClick()
+                    }) {
                         Icon(
                             Icons.Default.Insights,
                             contentDescription = "Statistics"
@@ -153,7 +168,10 @@ fun ExpenseListScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAddTransactionClick) {
+            FloatingActionButton(onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                onAddTransactionClick()
+            }) {
                 Icon(Icons.Default.Add, contentDescription = "Add Transaction")
             }
         }
@@ -199,7 +217,6 @@ fun ExpenseListScreen(
                 }
             }
 
-            // In-Feed Filter Chips (All / Installments / Recurring)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -208,13 +225,17 @@ fun ExpenseListScreen(
             ) {
                 FilterChip(
                     selected = state.activeCommitmentFilter == TimelineCommitmentFilter.ALL,
-                    onClick = { viewModel.setCommitmentFilter(TimelineCommitmentFilter.ALL) },
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        viewModel.setCommitmentFilter(TimelineCommitmentFilter.ALL)
+                    },
                     label = { Text("All", style = MaterialTheme.typography.labelMedium) },
                     shape = CircleShape
                 )
                 FilterChip(
                     selected = state.activeCommitmentFilter == TimelineCommitmentFilter.INSTALLMENTS,
                     onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         val next = if (state.activeCommitmentFilter == TimelineCommitmentFilter.INSTALLMENTS) {
                             TimelineCommitmentFilter.ALL
                         } else {
@@ -238,6 +259,7 @@ fun ExpenseListScreen(
                 FilterChip(
                     selected = state.activeCommitmentFilter == TimelineCommitmentFilter.RECURRING,
                     onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         val next = if (state.activeCommitmentFilter == TimelineCommitmentFilter.RECURRING) {
                             TimelineCommitmentFilter.ALL
                         } else {

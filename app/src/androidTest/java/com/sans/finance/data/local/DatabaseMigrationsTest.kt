@@ -134,6 +134,49 @@ class DatabaseMigrationsTest {
         assertHasColumn(db, "fx_rates", "created_at")
     }
 
+    @Test
+    fun migration33To34_addsExpensesIndex() {
+        val db = openDatabase("migration_33_34_test.db")
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `expenses` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `date` INTEGER NOT NULL,
+                `title` TEXT NOT NULL,
+                `amount` INTEGER NOT NULL,
+                `categoryId` INTEGER NOT NULL,
+                `isRecurring` INTEGER NOT NULL,
+                `isInstallment` INTEGER NOT NULL,
+                `type` TEXT NOT NULL DEFAULT 'EXPENSE'
+            )
+            """.trimIndent()
+        )
+
+        DatabaseMigrations.MIGRATION_33_34.migrate(db)
+
+        assertIndexExists(db, "index_expenses_date_type_is_installment")
+    }
+
+    @Test
+    fun migration34To35_createsInvestmentMetadataTable() {
+        val db = openDatabase("migration_34_35_test.db")
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `expenses` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `title` TEXT NOT NULL
+            )
+            """.trimIndent()
+        )
+
+        DatabaseMigrations.MIGRATION_34_35.migrate(db)
+
+        assertTableExists(db, "investment_metadata")
+        assertHasColumn(db, "investment_metadata", "code")
+        assertHasColumn(db, "investment_metadata", "rate")
+        assertIndexExists(db, "index_expenses_title")
+    }
+
     private fun openDatabase(name: String): SupportSQLiteDatabase {
         openedNames += name
         val configuration = androidx.sqlite.db.SupportSQLiteOpenHelper.Configuration.builder(context)
@@ -165,6 +208,13 @@ class DatabaseMigrationsTest {
                 }
             }
             assertTrue("Expected column $columnName in table $tableName", found)
+        }
+    }
+
+    private fun assertIndexExists(db: SupportSQLiteDatabase, indexName: String) {
+        val cursor = db.query("SELECT name FROM sqlite_master WHERE type='index' AND name=?", arrayOf(indexName))
+        cursor.use {
+            assertTrue("Expected index $indexName to exist", it.moveToFirst())
         }
     }
 }

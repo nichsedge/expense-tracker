@@ -7,10 +7,12 @@ import androidx.work.WorkManager
 import com.sans.finance.data.util.LocaleManager
 import com.sans.finance.data.worker.CloudSyncAndBackupWorker
 import com.sans.finance.domain.repository.PortfolioRepository
+import com.sans.finance.domain.repository.UserPreferencesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -39,6 +41,7 @@ data class WealthState(
 class WealthViewModel @Inject constructor(
     private val portfolioRepository: PortfolioRepository,
     private val getWealthMetricsUseCase: com.sans.finance.domain.usecase.GetWealthMetricsUseCase,
+    private val userPreferencesRepository: UserPreferencesRepository,
     private val localeManager: LocaleManager
 ) : ViewModel() {
 
@@ -48,7 +51,7 @@ class WealthViewModel @Inject constructor(
         getWealthMetricsUseCase(),
         portfolioRepository.getLatestSnapshotHeader(),
         portfolioRepository.getLatestSnapshot(),
-        localeManager.privacyMode
+        userPreferencesRepository.userPreferences.map { it.isPrivacyModeEnabled }
     ) { metrics, latestHeader, latestHoldings, privacyMode ->
         val sources = latestHoldings
             .groupBy { it.source }
@@ -111,6 +114,8 @@ class WealthViewModel @Inject constructor(
     }
 
     fun togglePrivacyMode() {
-        localeManager.setPrivacyModeEnabled(!localeManager.isPrivacyModeEnabled())
+        viewModelScope.launch {
+            userPreferencesRepository.setPrivacyModeEnabled(!state.value.isPrivacyModeEnabled)
+        }
     }
 }

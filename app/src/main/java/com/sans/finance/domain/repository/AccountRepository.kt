@@ -9,6 +9,7 @@ interface AccountRepository {
     suspend fun countAccountsByType(typeName: String): Int
     suspend fun insertAccount(account: AccountEntity): Long
     suspend fun updateAccount(account: AccountEntity)
+    suspend fun updateBalance(accountId: Long, delta: Long)
     suspend fun renameTypeForAccounts(oldType: String, newType: String)
     suspend fun deleteAccountById(id: Long)
 }

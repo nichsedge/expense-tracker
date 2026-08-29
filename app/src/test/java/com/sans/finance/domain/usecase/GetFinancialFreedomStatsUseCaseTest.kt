@@ -9,6 +9,8 @@ import com.sans.finance.domain.repository.AccountRepository
 import com.sans.finance.domain.repository.AccountTypeRepository
 import com.sans.finance.domain.repository.ExpenseRepository
 import com.sans.finance.domain.repository.PortfolioRepository
+import com.sans.finance.domain.repository.UserPreferencesRepository
+import com.sans.finance.domain.model.UserPreferences
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,6 +27,7 @@ class GetFinancialFreedomStatsUseCaseTest {
     private val portfolioRepository: PortfolioRepository = mockk()
     private val accountRepository: AccountRepository = mockk()
     private val accountTypeRepository: AccountTypeRepository = mockk()
+    private val userPreferencesRepository: UserPreferencesRepository = mockk()
     private val localeManager: LocaleManager = mockk()
     private val currencyDao: com.sans.finance.data.local.dao.CurrencyDao = mockk()
 
@@ -37,6 +40,7 @@ class GetFinancialFreedomStatsUseCaseTest {
             portfolioRepository,
             accountRepository,
             accountTypeRepository,
+            userPreferencesRepository,
             localeManager,
             currencyDao
         )
@@ -62,8 +66,7 @@ class GetFinancialFreedomStatsUseCaseTest {
         every { expenseRepository.getTotalAmountByTypeBetween(any(), any(), "EXPENSE") } returns flowOf(1600000000L)
         every { expenseRepository.getOldestExpenseDate() } returns flowOf(System.currentTimeMillis() - 366L * 24 * 60 * 60 * 1000)
 
-        every { localeManager.fireManualEnabled } returns MutableStateFlow(false)
-        every { localeManager.manualFireAnnualExpense } returns MutableStateFlow(0L)
+        every { userPreferencesRepository.userPreferences } returns flowOf(UserPreferences(fireManualEnabled = false, manualFireAnnualExpense = 0L))
 
         // When
         useCase().test {

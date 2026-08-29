@@ -50,7 +50,7 @@ class PortfolioRepositoryImpl(
         exchangeRate: Double?
     ) {
         val filteredItems = items.filterNot { it.source.equals("SansFinance", ignoreCase = true) }
-        val normalizedItems = filteredItems.map { item ->
+        val normalizedNewItems = filteredItems.map { item ->
             val accountKey = item.accountKey?.trim().takeUnless { it.isNullOrEmpty() }
             val accountName =
                 item.accountName?.trim().takeUnless { it.isNullOrEmpty() }
@@ -70,10 +70,21 @@ class PortfolioRepositoryImpl(
             )
         }
 
-        val totalIdr = normalizedItems.sumOf { it.valueIdr }
+        // --- INTELLIGENT MERGE LOGIC ---
+        val existingItems = dao.getSnapshotByDateSync(date)
+        val newSources = normalizedNewItems.map { it.source }.toSet()
+
+        // Keep existing items from sources that ARE NOT in the new batch
+        val itemsToKeep = existingItems.filter { it.source !in newSources }
+
+        // Combined items
+        val finalItems = itemsToKeep + normalizedNewItems
+
+        val totalIdr = finalItems.sumOf { it.valueIdr }
+        // --- END MERGE LOGIC ---
 
         // Estimate exchange rate if not provided (fallback to a reasonable default or calculate from items)
-        val rate = exchangeRate ?: normalizedItems.filter { it.currency == "USD" && it.quantity > 0 }
+        val rate = exchangeRate ?: finalItems.filter { (it.currency == "USD") && (it.quantity > 0) }
             .map { it.valueIdr / it.quantity }
             .average()
             .takeIf { !it.isNaN() } ?: 16000.0 // Default fallback
@@ -87,7 +98,7 @@ class PortfolioRepositoryImpl(
             totalValueUsd = totalUsd
         )
 
-        dao.insertSnapshot(header, normalizedItems)
+        dao.insertSnapshot(header, finalItems)
     }
 
     private suspend fun resolveExistingAccountId(

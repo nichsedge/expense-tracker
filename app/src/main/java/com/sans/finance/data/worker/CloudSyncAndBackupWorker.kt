@@ -7,9 +7,11 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.sans.finance.data.local.AppDatabase
 import com.sans.finance.domain.repository.PortfolioRepository
+import com.sans.finance.domain.repository.UserPreferencesRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 
 private const val TAG = "CloudSyncWorker"
@@ -20,12 +22,13 @@ class CloudSyncAndBackupWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val db: AppDatabase,
     private val portfolioRepository: PortfolioRepository,
-    private val localeManager: com.sans.finance.data.util.LocaleManager
+    private val userPreferencesRepository: UserPreferencesRepository
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         var uploadSuccess = false
         var syncSuccess = false
+        val prefs = userPreferencesRepository.userPreferences.first()
 
         // 1. Upload SQLite Database Backup to Cloud (GCS or Cloudflare R2)
         val snapshotFile = java.io.File(context.cacheDir, "sans_finance_backup.sqlite")
@@ -33,12 +36,12 @@ class CloudSyncAndBackupWorker @AssistedInject constructor(
             db.createBackupSnapshot(snapshotFile)
             if (snapshotFile.exists() && snapshotFile.length() > 0) {
                 val fileSize = snapshotFile.length()
-                val uploadResult = com.sans.finance.data.util.CloudStorageSyncer.uploadDatabaseBackup(context, snapshotFile, localeManager)
+                val uploadResult = com.sans.finance.data.util.CloudStorageSyncer.uploadDatabaseBackup(context, snapshotFile, prefs)
                 uploadResult.fold(
                     onSuccess = { msg ->
                         Log.i(TAG, "Database successfully backed up: $msg")
-                        localeManager.setLastBackupTime(System.currentTimeMillis())
-                        localeManager.setLastBackupSizeBytes(fileSize)
+                        userPreferencesRepository.setLastBackupTime(System.currentTimeMillis())
+                        userPreferencesRepository.setLastBackupSizeBytes(fileSize)
                         uploadSuccess = true
                     },
                     onFailure = { err ->
@@ -58,7 +61,7 @@ class CloudSyncAndBackupWorker @AssistedInject constructor(
 
         // 2. Download and Import Latest Portfolio Snapshot from Cloud (GCS or Cloudflare R2)
         try {
-            val (date, items, exchangeRate) = com.sans.finance.data.util.CloudStorageSyncer.downloadLatestSnapshot(context, localeManager)
+            val (date, items, exchangeRate) = com.sans.finance.data.util.CloudStorageSyncer.downloadLatestSnapshot(context, prefs)
             if (items.isNotEmpty()) {
                 portfolioRepository.importSnapshot(date, items, exchangeRate)
                 Log.i(TAG, "Successfully synced ${items.size} portfolio holdings from cloud storage (snapshot: $date)")

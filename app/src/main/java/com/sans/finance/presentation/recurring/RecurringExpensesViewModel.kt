@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sans.finance.domain.model.Category
 import com.sans.finance.domain.model.Expense
+import com.sans.finance.domain.repository.CategoryRepository
 import com.sans.finance.domain.repository.ExpenseRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -15,6 +16,7 @@ import javax.inject.Inject
 @HiltViewModel
 class RecurringExpensesViewModel @Inject constructor(
     private val expenseRepository: ExpenseRepository,
+    private val categoryRepository: CategoryRepository,
     private val localeManager: com.sans.finance.data.util.LocaleManager
 ) : ViewModel() {
 
@@ -24,7 +26,7 @@ class RecurringExpensesViewModel @Inject constructor(
 
     val state = combine(
         _expenses,
-        expenseRepository.getAllCategories(),
+        categoryRepository.getAllCategories(),
         _viewMode
     ) { expenses, categories, viewMode ->
         val recurringExpenses = expenses.filter { it.isRecurring }

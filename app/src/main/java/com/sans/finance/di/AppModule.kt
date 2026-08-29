@@ -9,8 +9,12 @@ import com.sans.finance.data.ai.SecureAiSettingsRepository
 import com.sans.finance.data.local.AppDatabase
 import com.sans.finance.data.local.DatabaseMigrations
 import com.sans.finance.data.local.dao.ExpenseDao
+import com.sans.finance.data.repository.CategoryRepositoryImpl
 import com.sans.finance.data.repository.ExpenseRepositoryImpl
+import com.sans.finance.data.repository.TagRepositoryImpl
+import com.sans.finance.domain.repository.CategoryRepository
 import com.sans.finance.domain.repository.ExpenseRepository
+import com.sans.finance.domain.repository.TagRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -177,6 +181,26 @@ object AppModule {
         httpClient: OkHttpClient
     ): com.sans.finance.domain.repository.CurrencyRepository =
         com.sans.finance.data.repository.CurrencyRepositoryImpl(dao, httpClient)
+
+    @Provides
+    @Singleton
+    fun provideUserPreferencesRepository(
+        app: Application
+    ): com.sans.finance.domain.repository.UserPreferencesRepository =
+        com.sans.finance.data.repository.DataStoreUserPreferencesRepository(app)
+
+    @Provides
+    @Singleton
+    fun provideCategoryRepository(
+        dao: com.sans.finance.data.local.dao.CategoryDao
+    ): CategoryRepository = CategoryRepositoryImpl(dao)
+
+    @Provides
+    @Singleton
+    fun provideTagRepository(
+        dao: com.sans.finance.data.local.dao.TagDao,
+        expenseDao: ExpenseDao
+    ): TagRepository = TagRepositoryImpl(dao, expenseDao)
 
     @Provides
     @Singleton

@@ -3,7 +3,7 @@ package com.sans.finance.presentation.settings.categories
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sans.finance.domain.model.Category
-import com.sans.finance.domain.repository.ExpenseRepository
+import com.sans.finance.domain.repository.CategoryRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,7 +18,7 @@ import javax.inject.Inject
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class CategorySettingsViewModel @Inject constructor(
-    private val repository: ExpenseRepository
+    private val repository: CategoryRepository
 ) : ViewModel() {
 
     private val _selectedType = MutableStateFlow("EXPENSE")

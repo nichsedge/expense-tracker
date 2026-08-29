@@ -33,22 +33,6 @@ interface ExpenseRepository {
     fun getTotalSpentBetween(since: Long, until: Long): Flow<Long?>
     fun getAllTimeSpent(): Flow<Long?>
     fun getOldestExpenseDate(): Flow<Long?>
-    fun getAllTags(): Flow<List<String>>
-    fun getVisibleTags(): Flow<List<String>>
-
-    // Category management
-    fun getAllCategories(): Flow<List<Category>>
-    fun getCategoriesByType(type: String): Flow<List<Category>>
-    suspend fun insertCategory(category: Category)
-    suspend fun updateCategory(category: Category)
-    suspend fun updateCategories(categories: List<Category>)
-    suspend fun deleteCategory(category: Category)
-
-    // Tag management
-    fun getAllTagEntities(): Flow<List<Tag>>
-    suspend fun updateTag(tag: Tag)
-    suspend fun updateTags(tags: List<Tag>)
-    suspend fun deleteTag(tag: Tag)
 
     fun getSpendingByCategoryBetween(
         since: Long,
@@ -84,7 +68,6 @@ interface ExpenseRepository {
         type: String
     ): Flow<List<DaySpent>>
 
-    suspend fun cleanOrphanedTags()
     suspend fun getReSyncBalancesDryRun(): List<AccountSyncDryRunResult>
     suspend fun reSyncAccountBalances(mode: ReSyncMode, adjustmentDate: Long)
 }

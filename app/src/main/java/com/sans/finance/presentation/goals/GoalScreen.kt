@@ -52,7 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.sans.finance.data.local.entity.GoalEntity
+import com.sans.finance.domain.model.Goal
 import com.sans.finance.presentation.components.AppTopBar
 import com.sans.finance.presentation.components.GlassCard
 import com.sans.finance.presentation.components.PrivacyText
@@ -68,7 +68,7 @@ fun GoalScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var showAddDialog by remember { mutableStateOf(false) }
-    var goalToEdit by remember { mutableStateOf<GoalEntity?>(null) }
+    var goalToEdit by remember { mutableStateOf<Goal?>(null) }
 
     Scaffold(
         topBar = {
@@ -354,7 +354,7 @@ fun GoalItem(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddGoalDialog(
-    goalToEdit: GoalEntity? = null,
+    goalToEdit: Goal? = null,
     categories: List<String> = emptyList(),
     assetClasses: List<String> = emptyList(),
     onDismiss: () -> Unit,

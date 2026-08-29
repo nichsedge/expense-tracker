@@ -9,7 +9,13 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import com.sans.finance.domain.repository.UserPreferencesRepository
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
@@ -22,6 +28,11 @@ class SansFinanceApp : Application(), Configuration.Provider {
     @Inject
     lateinit var localeManager: com.sans.finance.data.util.LocaleManager
 
+    @Inject
+    lateinit var userPreferencesRepository: UserPreferencesRepository
+
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
             .setWorkerFactory(workerFactory)
@@ -31,7 +42,10 @@ class SansFinanceApp : Application(), Configuration.Provider {
         super.onCreate()
         scheduleSync()
         scheduleDailyRecap()
-        rescheduleBackupWork(this, localeManager)
+        applicationScope.launch {
+            val prefs = userPreferencesRepository.userPreferences.first()
+            rescheduleBackupWork(this@SansFinanceApp, localeManager, userPreferencesRepository)
+        }
     }
 
     private fun scheduleDailyRecap() {
@@ -84,44 +98,49 @@ class SansFinanceApp : Application(), Configuration.Provider {
     companion object {
         fun rescheduleBackupWork(
             context: Context,
-            localeManager: com.sans.finance.data.util.LocaleManager
+            localeManager: com.sans.finance.data.util.LocaleManager,
+            userPreferencesRepository: UserPreferencesRepository
         ) {
-            val frequency = localeManager.getBackupFrequency()
-            val wifiOnly = localeManager.isBackupWifiOnly()
-            val requiresCharging = localeManager.isBackupRequiresCharging()
+            val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            applicationScope.launch {
+                val prefs = userPreferencesRepository.userPreferences.first()
+                val frequency = prefs.backupFrequency
+                val wifiOnly = prefs.backupWifiOnly
+                val requiresCharging = prefs.backupRequiresCharging
 
-            val workManager = WorkManager.getInstance(context)
+                val workManager = WorkManager.getInstance(context)
 
-            if (frequency == "OFF" || frequency == "MANUAL") {
-                workManager.cancelUniqueWork("CloudSyncAndBackup")
-                return
-            }
+                if (frequency == "OFF" || frequency == "MANUAL") {
+                    workManager.cancelUniqueWork("CloudSyncAndBackup")
+                    return@launch
+                }
 
-            val intervalDays = when (frequency) {
-                "DAILY" -> 1L
-                "WEEKLY" -> 7L
-                "MONTHLY" -> 30L
-                else -> 7L
-            }
+                val intervalDays = when (frequency) {
+                    "DAILY" -> 1L
+                    "WEEKLY" -> 7L
+                    "MONTHLY" -> 30L
+                    else -> 7L
+                }
 
-            val constraints = Constraints.Builder()
-                .setRequiredNetworkType(if (wifiOnly) NetworkType.UNMETERED else NetworkType.CONNECTED)
-                .setRequiresCharging(requiresCharging)
-                .build()
-
-            val cloudSyncRequest =
-                PeriodicWorkRequestBuilder<com.sans.finance.data.worker.CloudSyncAndBackupWorker>(
-                    intervalDays, TimeUnit.DAYS
-                )
-                    .setConstraints(constraints)
-                    .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.MINUTES)
+                val constraints = Constraints.Builder()
+                    .setRequiredNetworkType(if (wifiOnly) NetworkType.UNMETERED else NetworkType.CONNECTED)
+                    .setRequiresCharging(requiresCharging)
                     .build()
 
-            workManager.enqueueUniquePeriodicWork(
-                "CloudSyncAndBackup",
-                ExistingPeriodicWorkPolicy.UPDATE,
-                cloudSyncRequest
-            )
+                val cloudSyncRequest =
+                    PeriodicWorkRequestBuilder<com.sans.finance.data.worker.CloudSyncAndBackupWorker>(
+                        intervalDays, TimeUnit.DAYS
+                    )
+                        .setConstraints(constraints)
+                        .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.MINUTES)
+                        .build()
+
+                workManager.enqueueUniquePeriodicWork(
+                    "CloudSyncAndBackup",
+                    ExistingPeriodicWorkPolicy.UPDATE,
+                    cloudSyncRequest
+                )
+            }
         }
     }
 }

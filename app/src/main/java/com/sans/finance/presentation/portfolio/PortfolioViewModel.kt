@@ -17,6 +17,7 @@ import com.sans.finance.domain.repository.AccountRepository
 import com.sans.finance.domain.repository.AccountTypeRepository
 import com.sans.finance.domain.repository.GoalRepository
 import com.sans.finance.domain.repository.PortfolioRepository
+import com.sans.finance.domain.repository.UserPreferencesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,6 +25,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -66,15 +68,6 @@ data class PortfolioScreenState(
     val isAiAnalyzing: Boolean = false
 )
 
-private data class PortfolioData(
-    val dates: List<Long>,
-    val history: List<SnapshotTotal>,
-    val dbTargets: List<com.sans.finance.data.local.entity.PortfolioTargetEntity>,
-    val goals: List<com.sans.finance.data.local.entity.GoalEntity>,
-    val dateIndex: Int,
-    val importMsg: String?
-)
-
 @HiltViewModel
 class PortfolioViewModel @Inject constructor(
     private val repository: PortfolioRepository,
@@ -84,6 +77,7 @@ class PortfolioViewModel @Inject constructor(
     private val currencyDao: CurrencyDao,
     private val accountAliasDao: AccountAliasDao,
     private val goalRepository: GoalRepository,
+    private val userPreferencesRepository: UserPreferencesRepository,
     private val localeManager: LocaleManager,
     private val getRebalanceSuggestionsUseCase: com.sans.finance.domain.usecase.GetRebalanceSuggestionsUseCase,
     private val valuatePortfolioUseCase: com.sans.finance.domain.usecase.ValuatePortfolioUseCase,
@@ -100,7 +94,6 @@ class PortfolioViewModel @Inject constructor(
     private val _isAiAnalyzing = MutableStateFlow(false)
 
     init {
-        // Seed default targets if none exist
         viewModelScope.launch {
             repository.getPortfolioTargets().first().let {
                 if (it.isEmpty()) {
@@ -126,7 +119,7 @@ class PortfolioViewModel @Inject constructor(
         goalRepository.getAllGoals(),
         _selectedDateIndex,
         _importMessage,
-        localeManager.privacyMode,
+        userPreferencesRepository.userPreferences.map { it.isPrivacyModeEnabled },
         _selectedTab,
         _chartMode,
         _xirr,
@@ -145,7 +138,7 @@ class PortfolioViewModel @Inject constructor(
         @Suppress("UNCHECKED_CAST")
         val dbTargets = args[2] as List<com.sans.finance.data.local.entity.PortfolioTargetEntity>
         @Suppress("UNCHECKED_CAST")
-        val goals = args[3] as List<com.sans.finance.data.local.entity.GoalEntity>
+        val goals = args[3] as List<com.sans.finance.domain.model.Goal>
         val dateIndex = args[4] as Int
         val importMsg = args[5] as String?
         val privacyMode = args[6] as Boolean
@@ -180,7 +173,6 @@ class PortfolioViewModel @Inject constructor(
         val validIndex = dateIndex.coerceIn(0, dates.size - 1)
         val selectedDate = dates[validIndex]
 
-        // Trigger XIRR update
         updateXirr(selectedDate)
 
         val holdings = repository.getSnapshotByDateSync(selectedDate)
@@ -213,7 +205,6 @@ class PortfolioViewModel @Inject constructor(
 
         val consolidatedHoldings = holdings + accountCashHoldings
 
-        // Perform multi-currency valuation using historical FX rates
         val valuation = valuatePortfolioUseCase(
             holdings = consolidatedHoldings,
             baseCurrency = currency,
@@ -445,10 +436,11 @@ class PortfolioViewModel @Inject constructor(
     fun syncFromCloud() {
         viewModelScope.launch {
             try {
-                val provider = com.sans.finance.data.util.CloudStorageSyncer.getActiveProvider(localeManager)
+                val prefs = userPreferencesRepository.userPreferences.first()
+                val provider = com.sans.finance.data.util.CloudStorageSyncer.getActiveProvider(prefs)
                 val providerLabel = if (provider == com.sans.finance.data.util.CloudStorageProvider.CLOUDFLARE_R2) "Cloudflare R2" else "GCS"
                 _importMessage.value = "Connecting to $providerLabel..."
-                val (date, items, exchangeRate) = com.sans.finance.data.util.CloudStorageSyncer.downloadLatestSnapshot(context, localeManager)
+                val (date, items, exchangeRate) = com.sans.finance.data.util.CloudStorageSyncer.downloadLatestSnapshot(context, prefs)
 
                 if (items.isEmpty()) {
                     _importMessage.value = "No valid entries found in $providerLabel"
@@ -496,7 +488,6 @@ class PortfolioViewModel @Inject constructor(
     ): List<AssetClassHealth> {
         if (totalValue <= 0) return emptyList()
 
-        // Calculate health for targeted asset classes
         val targetedHealth = targets.map { target ->
             val currentTotal =
                 totals.find { it.assetClass.equals(target.assetClass, ignoreCase = true) }?.totalIdr
@@ -521,7 +512,6 @@ class PortfolioViewModel @Inject constructor(
             )
         }
 
-        // Find asset classes in data that are NOT in targets
         val untargetedHealth = totals.filter { total ->
             targets.none { it.assetClass.equals(total.assetClass, ignoreCase = true) }
         }.map { total ->
@@ -541,7 +531,9 @@ class PortfolioViewModel @Inject constructor(
     }
 
     fun togglePrivacyMode() {
-        localeManager.setPrivacyModeEnabled(!localeManager.isPrivacyModeEnabled())
+        viewModelScope.launch {
+            userPreferencesRepository.setPrivacyModeEnabled(!state.value.isPrivacyModeEnabled)
+        }
     }
 
     fun updateTarget(assetClass: String, targetPercentage: Double) {

@@ -7,6 +7,8 @@ import com.sans.finance.domain.model.Category
 import com.sans.finance.domain.model.Expense
 import com.sans.finance.domain.model.ExpenseFilter
 import com.sans.finance.domain.repository.BudgetRepository
+import com.sans.finance.domain.repository.TagRepository
+import com.sans.finance.domain.repository.UserPreferencesRepository
 import com.sans.finance.domain.usecase.ObserveFilteredExpensesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -100,6 +102,8 @@ class ExpenseListViewModel @Inject constructor(
     private val repository: com.sans.finance.domain.repository.ExpenseRepository,
     private val accountRepository: com.sans.finance.domain.repository.AccountRepository,
     private val installmentRepository: com.sans.finance.domain.repository.InstallmentRepository,
+    private val tagRepository: TagRepository,
+    private val userPreferencesRepository: UserPreferencesRepository,
     private val getCategoriesUseCase: com.sans.finance.domain.usecase.GetCategoriesUseCase,
     private val budgetRepository: BudgetRepository,
     private val localeManager: com.sans.finance.data.util.LocaleManager
@@ -151,10 +155,11 @@ class ExpenseListViewModel @Inject constructor(
     }
 
     private fun observePrivacyMode() {
-        localeManager.privacyMode
+        userPreferencesRepository.userPreferences
+            .map { it.isPrivacyModeEnabled }
+            .distinctUntilChanged()
             .onEach { enabled ->
-                _state.update { it.copy(isPrivacyModeEnabled = enabled) }
-            }
+                _state.update { it.copy(isPrivacyModeEnabled = enabled) } }
             .launchIn(viewModelScope)
     }
 
@@ -162,7 +167,7 @@ class ExpenseListViewModel @Inject constructor(
         combine(
             getCategoriesUseCase(),
             accountRepository.getAllAccounts(),
-            repository.getAllTags(),
+            tagRepository.getAllTags(),
             budgetRepository.getAllBudgets().map { budgets ->
                 budgets.find { it.categoryId == null }?.amount ?: 0L
             }
@@ -398,8 +403,6 @@ class ExpenseListViewModel @Inject constructor(
     private fun groupExpensesByDate(expenses: List<Expense>): Map<Long, List<Expense>> {
         val calendar = CalendarUtils.getInstance()
 
-        // Since expenses are already sorted by date DESC from the repository,
-        // groupBy (which returns a LinkedHashMap) will preserve this order.
         return expenses.groupBy { expense ->
             calendar.timeInMillis = expense.date
             calendar.set(Calendar.HOUR_OF_DAY, 0)
@@ -481,7 +484,6 @@ class ExpenseListViewModel @Inject constructor(
     }
 
     private fun observeHistoricalStats() {
-        // This Month
         val calendar = CalendarUtils.getInstance()
         calendar.set(Calendar.DAY_OF_MONTH, 1)
         calendar.set(Calendar.HOUR_OF_DAY, 0)
@@ -542,7 +544,9 @@ class ExpenseListViewModel @Inject constructor(
     }
 
     fun togglePrivacyMode() {
-        localeManager.setPrivacyModeEnabled(!localeManager.isPrivacyModeEnabled())
+        viewModelScope.launch {
+            userPreferencesRepository.setPrivacyModeEnabled(!_state.value.isPrivacyModeEnabled)
+        }
     }
 
     fun previousMonth() {

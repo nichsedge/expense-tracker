@@ -14,6 +14,8 @@ import com.sans.finance.core.util.CurrencyFormatter
 import com.sans.finance.data.local.dao.CurrencyDao
 import com.sans.finance.domain.model.Expense
 import com.sans.finance.domain.repository.BudgetRepository
+import com.sans.finance.domain.repository.CategoryRepository
+import com.sans.finance.domain.repository.TagRepository
 import com.sans.finance.domain.usecase.AddTransactionUseCase
 import com.sans.finance.domain.usecase.CheckDuplicateExpenseUseCase
 import com.sans.finance.domain.usecase.DeleteExpenseUseCase
@@ -65,6 +67,7 @@ class AddTransactionViewModel @Inject constructor(
     private val getDetailsSuggestionsUseCase: GetDetailsSuggestionsUseCase,
     private val installmentRepository: com.sans.finance.domain.repository.InstallmentRepository,
     private val expenseRepository: com.sans.finance.domain.repository.ExpenseRepository,
+    private val tagRepository: TagRepository,
     private val accountRepository: com.sans.finance.domain.repository.AccountRepository,
     private val budgetRepository: BudgetRepository,
     private val currencyDao: CurrencyDao,
@@ -116,7 +119,6 @@ class AddTransactionViewModel @Inject constructor(
     var accountId by mutableLongStateOf(1L)
     var toAccountId by mutableLongStateOf(2L)
 
-    // transactionType moved up
     var paymentType by mutableStateOf("ONE_TIME") // "ONE_TIME", "RECURRING", "INSTALLMENT"
     var isInstallmentPayment by mutableStateOf(false)
         private set
@@ -228,7 +230,7 @@ class AddTransactionViewModel @Inject constructor(
 
     var newTagText by mutableStateOf("")
 
-    val allTags = expenseRepository.getVisibleTags().stateIn(
+    val allTags = tagRepository.getVisibleTags().stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = emptyList()
@@ -331,7 +333,6 @@ class AddTransactionViewModel @Inject constructor(
         snapshotFlow { transactionType }
             .distinctUntilChanged()
             .onEach { type ->
-                // When type changes, try to pick the first category of that type
                 val currentCats = allCategories.value
                 val firstMatch = currentCats.firstOrNull { it.type == type }
                 if (firstMatch != null) {

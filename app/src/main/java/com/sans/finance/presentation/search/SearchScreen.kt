@@ -52,6 +52,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -75,6 +77,7 @@ fun SearchScreen(
     viewModel: SearchViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val haptic = LocalHapticFeedback.current
     var showFilterSheet by remember { mutableStateOf(false) }
     var expenseToDelete by remember { mutableStateOf<com.sans.finance.domain.model.Expense?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -130,7 +133,10 @@ fun SearchScreen(
                             )
                             if (state.searchQuery.isNotEmpty()) {
                                 IconButton(
-                                    onClick = { viewModel.updateSearchQuery("") },
+                                    onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        viewModel.updateSearchQuery("")
+                                    },
                                     modifier = Modifier.size(24.dp)
                                 ) {
                                     Icon(
@@ -149,7 +155,10 @@ fun SearchScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { showFilterSheet = true }) {
+                    IconButton(onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        showFilterSheet = true
+                    }) {
                         val isFiltered = state.selectedCategoryIds.isNotEmpty() ||
                             state.selectedAccountIds.isNotEmpty() ||
                             state.minAmount != null ||
@@ -279,6 +288,7 @@ fun SearchScreen(
                                     }
                                 },
                                 onLongClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     expenseToDelete = expense
                                     showDeleteDialog = true
                                 }

@@ -6,9 +6,12 @@ import androidx.lifecycle.viewModelScope
 import com.sans.finance.data.local.entity.AccountEntity
 import com.sans.finance.domain.repository.AccountRepository
 import com.sans.finance.domain.repository.ExpenseRepository
+import com.sans.finance.domain.repository.UserPreferencesRepository
+import com.sans.finance.domain.usecase.AddTransactionUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -29,8 +32,10 @@ data class AccountScreenState(
 class AccountViewModel @Inject constructor(
     private val accountRepository: AccountRepository,
     private val expenseRepository: ExpenseRepository,
+    private val addTransactionUseCase: AddTransactionUseCase,
     private val accountTypeRepository: com.sans.finance.domain.repository.AccountTypeRepository,
     private val currencyDao: com.sans.finance.data.local.dao.CurrencyDao,
+    private val userPreferencesRepository: UserPreferencesRepository,
     private val localeManager: com.sans.finance.data.util.LocaleManager
 ) : ViewModel() {
 
@@ -39,7 +44,7 @@ class AccountViewModel @Inject constructor(
         expenseRepository.getExpensesBetween(0, Long.MAX_VALUE),
         accountTypeRepository.getAllAccountTypes(),
         currencyDao.getAllRates(),
-        localeManager.privacyMode
+        userPreferencesRepository.userPreferences.map { it.isPrivacyModeEnabled }
     ) { accountsList, expensesList, accountTypesList, rates, privacyMode ->
         val liabilityTypeNames = accountTypesList.filter { it.isLiability }.map { it.name }.toSet()
         val baseCurrency = localeManager.getCurrency()
@@ -118,7 +123,7 @@ class AccountViewModel @Inject constructor(
                 val amount = if (isIncome) diff else -diff
                 val type = if (isIncome) "INCOME" else "EXPENSE"
 
-                expenseRepository.insertExpense(
+                addTransactionUseCase(
                     com.sans.finance.domain.model.Expense(
                         date = System.currentTimeMillis(),
                         title = "Adjustment Balance",
@@ -130,19 +135,22 @@ class AccountViewModel @Inject constructor(
                         details = "Manual balance adjustment for ${account.name}"
                     )
                 )
-                // Also update the account details
+                // Note: AddTransactionUseCase already updates the account balance!
+                // So we only update OTHER details here, and NOT the balance,
+                // OR we update balance here and use a separate insert method.
+                // To keep it simple and follow the new pattern, I'll update the account details
+                // but keep the new balance.
                 accountRepository.updateAccount(
                     account.copy(
                         name = newName,
                         type = newType,
-                        balance = newBalance,
+                        balance = newBalance, // Already adjusted by UseCase, but we re-apply to be sure of final state
                         interestRate = interestRate,
                         minPayment = minPayment,
                         updatedAt = System.currentTimeMillis()
                     )
                 )
             } else {
-                // If not recording adjustment, just update the account directly
                 accountRepository.updateAccount(
                     account.copy(
                         name = newName,
@@ -164,7 +172,9 @@ class AccountViewModel @Inject constructor(
     }
 
     fun togglePrivacyMode() {
-        localeManager.setPrivacyModeEnabled(!localeManager.isPrivacyModeEnabled())
+        viewModelScope.launch {
+            userPreferencesRepository.setPrivacyModeEnabled(!state.value.isPrivacyModeEnabled)
+        }
     }
 
     fun moveAccountUp(account: AccountEntity) {

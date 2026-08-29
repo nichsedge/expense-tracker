@@ -5,9 +5,12 @@ import com.sans.finance.domain.model.Category
 import com.sans.finance.domain.model.Expense
 import com.sans.finance.domain.model.Installment
 import com.sans.finance.domain.model.InstallmentItem
+import com.sans.finance.domain.model.UserPreferences
 import com.sans.finance.domain.repository.AccountRepository
 import com.sans.finance.domain.repository.ExpenseRepository
 import com.sans.finance.domain.repository.InstallmentRepository
+import com.sans.finance.domain.repository.TagRepository
+import com.sans.finance.domain.repository.UserPreferencesRepository
 import com.sans.finance.domain.usecase.GetCategoriesUseCase
 import com.sans.finance.presentation.expense_list.DateRangeFilter
 import io.mockk.coEvery
@@ -39,6 +42,8 @@ class SearchViewModelTest {
     private lateinit var expenseRepository: ExpenseRepository
     private lateinit var accountRepository: AccountRepository
     private lateinit var installmentRepository: InstallmentRepository
+    private lateinit var tagRepository: TagRepository
+    private lateinit var userPreferencesRepository: UserPreferencesRepository
     private lateinit var getCategoriesUseCase: GetCategoriesUseCase
     private lateinit var localeManager: LocaleManager
 
@@ -54,7 +59,12 @@ class SearchViewModelTest {
                 any(), any(), any(), any(), any(), any(), any(), any(), any()
             )
         } returns filteredExpensesFlow
-        every { expenseRepository.getAllTags() } returns flowOf(listOf("Food", "Tech"))
+
+        tagRepository = mockk()
+        every { tagRepository.getAllTags() } returns flowOf(listOf("Food", "Tech"))
+
+        userPreferencesRepository = mockk()
+        every { userPreferencesRepository.userPreferences } returns flowOf(UserPreferences())
 
         accountRepository = mockk(relaxed = true)
         every { accountRepository.getAllAccounts() } returns flowOf(emptyList())
@@ -68,7 +78,6 @@ class SearchViewModelTest {
 
         localeManager = mockk()
         every { localeManager.getCurrency() } returns "IDR"
-        every { localeManager.privacyMode } returns MutableStateFlow(false)
     }
 
     @After
@@ -80,6 +89,8 @@ class SearchViewModelTest {
         repository = expenseRepository,
         accountRepository = accountRepository,
         installmentRepository = installmentRepository,
+        tagRepository = tagRepository,
+        userPreferencesRepository = userPreferencesRepository,
         getCategoriesUseCase = getCategoriesUseCase,
         localeManager = localeManager
     )

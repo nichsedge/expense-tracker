@@ -3,6 +3,7 @@ package com.sans.finance.data.util
 import android.content.Context
 import android.util.Base64
 import com.sans.finance.data.local.entity.PortfolioHoldingEntity
+import com.sans.finance.domain.model.UserPreferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -41,35 +42,31 @@ object CloudStorageSyncer {
 
     private const val GCS_OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token"
 
-    // =========================================================================
-    // Public Unified API
-    // =========================================================================
-
     suspend fun uploadDatabaseBackup(
         context: Context,
         dbFile: File,
-        localeManager: LocaleManager? = null
+        prefs: UserPreferences
     ): Result<String> = withContext(Dispatchers.IO) {
-        val provider = getActiveProvider(localeManager)
+        val provider = getActiveProvider(prefs)
         when (provider) {
-            CloudStorageProvider.CLOUDFLARE_R2 -> uploadDatabaseBackupToR2(context, dbFile, localeManager)
-            CloudStorageProvider.GCS -> uploadDatabaseBackupToGcs(context, dbFile, localeManager)
+            CloudStorageProvider.CLOUDFLARE_R2 -> uploadDatabaseBackupToR2(context, dbFile, prefs)
+            CloudStorageProvider.GCS -> uploadDatabaseBackupToGcs(context, dbFile, prefs)
         }
     }
 
     suspend fun downloadLatestSnapshot(
         context: Context,
-        localeManager: LocaleManager? = null
+        prefs: UserPreferences
     ): Triple<Long, List<PortfolioHoldingEntity>, Double?> = withContext(Dispatchers.IO) {
-        val provider = getActiveProvider(localeManager)
+        val provider = getActiveProvider(prefs)
         when (provider) {
-            CloudStorageProvider.CLOUDFLARE_R2 -> downloadLatestSnapshotFromR2(context, localeManager)
-            CloudStorageProvider.GCS -> downloadLatestSnapshotFromGcs(context, localeManager)
+            CloudStorageProvider.CLOUDFLARE_R2 -> downloadLatestSnapshotFromR2(context, prefs)
+            CloudStorageProvider.GCS -> downloadLatestSnapshotFromGcs(context, prefs)
         }
     }
 
-    fun getActiveProvider(localeManager: LocaleManager?): CloudStorageProvider {
-        val key = localeManager?.getCloudBackupProvider() ?: "CLOUDFLARE_R2"
+    fun getActiveProvider(prefs: UserPreferences): CloudStorageProvider {
+        val key = prefs.cloudBackupProvider
         return if (key.equals("GCS", ignoreCase = true) || key.equals("GOOGLE_CLOUD_STORAGE", ignoreCase = true)) {
             CloudStorageProvider.GCS
         } else {
@@ -77,23 +74,11 @@ object CloudStorageSyncer {
         }
     }
 
-    // =========================================================================
-    // Cloudflare R2 Implementation (AWS SigV4 over HTTPS)
-    // =========================================================================
-
-    fun loadR2Config(context: Context, localeManager: LocaleManager?): CloudflareR2Config {
-        // 1. Check user preferences from LocaleManager
-        if (localeManager != null) {
-            val accId = localeManager.getR2AccountId()
-            val keyId = localeManager.getR2AccessKeyId()
-            val secKey = localeManager.getR2SecretAccessKey()
-            val bucket = localeManager.getR2BucketName().ifBlank { "ichsanul-dev" }
-            if (accId.isNotBlank() && keyId.isNotBlank() && secKey.isNotBlank()) {
-                return CloudflareR2Config(accId, keyId, secKey, bucket)
-            }
+    fun loadR2Config(context: Context, prefs: UserPreferences): CloudflareR2Config {
+        if (prefs.r2AccountId.isNotBlank() && prefs.r2AccessKeyId.isNotBlank() && prefs.r2SecretAccessKey.isNotBlank()) {
+            return CloudflareR2Config(prefs.r2AccountId, prefs.r2AccessKeyId, prefs.r2SecretAccessKey, prefs.r2BucketName.ifBlank { "ichsanul-dev" })
         }
 
-        // 2. Fallback to assets/r2_cred.json if present
         try {
             val jsonString = context.assets.open("r2_cred.json").use { inputStream ->
                 inputStream.bufferedReader().use { it.readText() }
@@ -103,23 +88,17 @@ object CloudStorageSyncer {
                 accountId = json.optString("account_id", ""),
                 accessKeyId = json.optString("access_key_id", ""),
                 secretAccessKey = json.optString("secret_access_key", ""),
-                bucketName = json.optString("bucket_name", localeManager?.getR2BucketName() ?: "ichsanul-dev")
+                bucketName = json.optString("bucket_name", prefs.r2BucketName.ifBlank { "ichsanul-dev" })
             )
-        } catch (_: Exception) {
-            // Asset not present
-        }
+        } catch (_: Exception) {}
 
         return CloudflareR2Config(
-            accountId = localeManager?.getR2AccountId() ?: "",
-            accessKeyId = localeManager?.getR2AccessKeyId() ?: "",
-            secretAccessKey = localeManager?.getR2SecretAccessKey() ?: "",
-            bucketName = localeManager?.getR2BucketName() ?: "ichsanul-dev"
+            accountId = prefs.r2AccountId,
+            accessKeyId = prefs.r2AccessKeyId,
+            secretAccessKey = prefs.r2SecretAccessKey,
+            bucketName = prefs.r2BucketName.ifBlank { "ichsanul-dev" }
         )
     }
-
-    // =========================================================================
-    // Network Resilience Utilities
-    // =========================================================================
 
     private suspend fun <T> retryWithExponentialBackoff(
         times: Int = 3,
@@ -144,31 +123,23 @@ object CloudStorageSyncer {
     private suspend fun uploadDatabaseBackupToR2(
         context: Context,
         dbFile: File,
-        localeManager: LocaleManager?
+        prefs: UserPreferences
     ): Result<String> = withContext(Dispatchers.IO) {
         try {
-            if (!dbFile.exists()) {
-                return@withContext Result.failure(Exception("Database file not found: ${dbFile.absolutePath}"))
-            }
+            if (!dbFile.exists()) return@withContext Result.failure(Exception("Database file not found"))
 
-            val r2Config = loadR2Config(context, localeManager)
-            if (!r2Config.isValid) {
-                return@withContext Result.failure(
-                    Exception("Cloudflare R2 is not configured. Please configure Account ID, Access Key ID, and Secret Access Key.")
-                )
-            }
+            val r2Config = loadR2Config(context, prefs)
+            if (!r2Config.isValid) return@withContext Result.failure(Exception("R2 not configured"))
 
             val objectKey = "db/sans_finance_latest.sqlite"
             val fileBytes = dbFile.readBytes()
             val payloadHash = sha256Hex(fileBytes)
-
             val host = "${r2Config.accountId}.r2.cloudflarestorage.com"
             val canonicalUri = "/${r2Config.bucketName}/$objectKey"
             val endpointUrl = "https://$host$canonicalUri"
 
             val (amzDate, dateStamp) = getIsoTimestamps()
             val contentType = "application/x-sqlite3"
-
             val headers = sortedMapOf(
                 "content-type" to contentType,
                 "host" to host,
@@ -184,12 +155,10 @@ object CloudStorageSyncer {
                 accessKey = r2Config.accessKeyId,
                 secretKey = r2Config.secretAccessKey,
                 dateStamp = dateStamp,
-                amzDate = amzDate,
-                region = "auto",
-                service = "s3"
+                amzDate = amzDate
             )
 
-            retryWithExponentialBackoff(times = 3) {
+            retryWithExponentialBackoff {
                 val url = URL(endpointUrl)
                 val conn = (url.openConnection() as HttpURLConnection).apply {
                     requestMethod = "PUT"
@@ -200,36 +169,19 @@ object CloudStorageSyncer {
                     setRequestProperty("x-amz-date", amzDate)
                     setRequestProperty("x-amz-content-sha256", payloadHash)
                     setFixedLengthStreamingMode(fileBytes.size)
-                    connectTimeout = 15000
-                    readTimeout = 30000
                 }
-
-                conn.outputStream.use { os ->
-                    os.write(fileBytes)
-                }
-
-                val responseCode = conn.responseCode
-                if (responseCode in 200..299) {
-                    Result.success("Cloudflare R2 Backup Successful (r2://${r2Config.bucketName}/$objectKey)")
-                } else {
-                    val err = conn.errorStream?.bufferedReader()?.readText() ?: ""
-                    throw Exception("Cloudflare R2 upload failed ($responseCode): $err")
-                }
+                conn.outputStream.use { it.write(fileBytes) }
+                if (conn.responseCode in 200..299) Result.success("R2 Backup Successful")
+                else throw Exception("R2 upload failed: ${conn.responseCode}")
             }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+        } catch (e: Exception) { Result.failure(e) }
     }
 
     private suspend fun downloadLatestSnapshotFromR2(
         context: Context,
-        localeManager: LocaleManager?
+        prefs: UserPreferences
     ): Triple<Long, List<PortfolioHoldingEntity>, Double?> = withContext(Dispatchers.IO) {
-        val r2Config = loadR2Config(context, localeManager)
-        if (!r2Config.isValid) {
-            throw Exception("Cloudflare R2 is not configured. Please fill credentials in Settings.")
-        }
-
+        val r2Config = loadR2Config(context, prefs)
         val objectKey = "snapshots/latest.json"
         val host = "${r2Config.accountId}.r2.cloudflarestorage.com"
         val canonicalUri = "/${r2Config.bucketName}/$objectKey"
@@ -237,7 +189,6 @@ object CloudStorageSyncer {
 
         val (amzDate, dateStamp) = getIsoTimestamps()
         val emptyPayloadHash = sha256Hex(ByteArray(0))
-
         val headers = sortedMapOf(
             "host" to host,
             "x-amz-content-sha256" to emptyPayloadHash,
@@ -252,46 +203,26 @@ object CloudStorageSyncer {
             accessKey = r2Config.accessKeyId,
             secretKey = r2Config.secretAccessKey,
             dateStamp = dateStamp,
-            amzDate = amzDate,
-            region = "auto",
-            service = "s3"
+            amzDate = amzDate
         )
 
-        retryWithExponentialBackoff(times = 3) {
+        retryWithExponentialBackoff {
             val url = URL(endpointUrl)
             val conn = (url.openConnection() as HttpURLConnection).apply {
-                requestMethod = "GET"
                 setRequestProperty("Authorization", authorization)
                 setRequestProperty("Host", host)
                 setRequestProperty("x-amz-date", amzDate)
                 setRequestProperty("x-amz-content-sha256", emptyPayloadHash)
-                connectTimeout = 8000
-                readTimeout = 15000
             }
-
-            val responseCode = conn.responseCode
-            if (responseCode != 200) {
-                val errStream = conn.errorStream?.bufferedReader()?.readText() ?: ""
-                throw Exception("Failed to download snapshots/latest.json from Cloudflare R2: $responseCode - $errStream")
-            }
-
-            val jsonString = conn.inputStream.bufferedReader().use { it.readText() }
-            PortfolioJsonImporter.parseContent(jsonString)
+            if (conn.responseCode != 200) throw Exception("R2 Download Failed")
+            PortfolioJsonImporter.parseContent(conn.inputStream.bufferedReader().use { it.readText() })
         }
     }
 
-    // =========================================================================
-    // AWS SigV4 Pure-Kotlin Implementation
-    // =========================================================================
-
     private fun getIsoTimestamps(): Pair<String, String> {
         val now = Date()
-        val amzFormat = SimpleDateFormat("yyyyMMdd'T'HHmmss'Z'", Locale.US).apply {
-            timeZone = TimeZone.getTimeZone("UTC")
-        }
-        val dateStampFormat = SimpleDateFormat("yyyyMMdd", Locale.US).apply {
-            timeZone = TimeZone.getTimeZone("UTC")
-        }
+        val amzFormat = SimpleDateFormat("yyyyMMdd'T'HHmmss'Z'", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }
+        val dateStampFormat = SimpleDateFormat("yyyyMMdd", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }
         return Pair(amzFormat.format(now), dateStampFormat.format(now))
     }
 
@@ -309,23 +240,12 @@ object CloudStorageSyncer {
     ): String {
         val canonicalHeaders = headers.entries.joinToString("") { (k, v) -> "${k.lowercase(Locale.US)}:$v\n" }
         val signedHeaders = headers.keys.joinToString(";") { it.lowercase(Locale.US) }
-
-        val canonicalRequest = listOf(
-            httpMethod,
-            canonicalUri,
-            "", // Query parameters
-            canonicalHeaders,
-            signedHeaders,
-            payloadHash
-        ).joinToString("\n")
-
+        val canonicalRequest = listOf(httpMethod, canonicalUri, "", canonicalHeaders, signedHeaders, payloadHash).joinToString("\n")
         val canonicalRequestHash = sha256Hex(canonicalRequest.toByteArray(StandardCharsets.UTF_8))
         val credentialScope = "$dateStamp/$region/$service/aws4_request"
         val stringToSign = "AWS4-HMAC-SHA256\n$amzDate\n$credentialScope\n$canonicalRequestHash"
-
         val signingKey = getSignatureKey(secretKey, dateStamp, region, service)
         val signature = bytesToHex(hmacSha256(signingKey, stringToSign))
-
         return "AWS4-HMAC-SHA256 Credential=$accessKey/$credentialScope, SignedHeaders=$signedHeaders, Signature=$signature"
     }
 
@@ -359,26 +279,15 @@ object CloudStorageSyncer {
         return String(hexChars)
     }
 
-    // =========================================================================
-    // Google Cloud Storage Implementation (OAuth2 / Service Account JWT)
-    // =========================================================================
-
     private fun loadGcsCredentials(context: Context): JSONObject {
-        val jsonString = context.assets.open("SA_cred_general.json").use { inputStream ->
-            inputStream.bufferedReader().use { it.readText() }
-        }
+        val jsonString = context.assets.open("SA_cred_general.json").use { it.bufferedReader().use { r -> r.readText() } }
         return JSONObject(jsonString)
     }
 
     private fun generateGcsJwt(clientEmail: String, privateKeyPem: String): String {
         val iat = System.currentTimeMillis() / 1000
         val exp = iat + 3600
-
-        val header = JSONObject().apply {
-            put("alg", "RS256")
-            put("typ", "JWT")
-        }
-
+        val header = JSONObject().apply { put("alg", "RS256"); put("typ", "JWT") }
         val claims = JSONObject().apply {
             put("iss", clientEmail)
             put("scope", "https://www.googleapis.com/auth/devstorage.read_write")
@@ -386,137 +295,61 @@ object CloudStorageSyncer {
             put("exp", exp)
             put("iat", iat)
         }
-
         val headerBase64 = base64UrlEncode(header.toString().toByteArray(Charsets.UTF_8))
         val claimsBase64 = base64UrlEncode(claims.toString().toByteArray(Charsets.UTF_8))
         val stringToSign = "$headerBase64.$claimsBase64"
-
         val privateKey = parseRsaPrivateKey(privateKeyPem)
-        val signature = Signature.getInstance("SHA256withRSA").apply {
-            initSign(privateKey)
-            update(stringToSign.toByteArray(Charsets.UTF_8))
-        }
-        val signatureBytes = signature.sign()
-        val signatureBase64 = base64UrlEncode(signatureBytes)
-
-        return "$stringToSign.$signatureBase64"
+        val signature = Signature.getInstance("SHA256withRSA").apply { initSign(privateKey); update(stringToSign.toByteArray(Charsets.UTF_8)) }
+        return "$stringToSign.${base64UrlEncode(signature.sign())}"
     }
 
-    private fun base64UrlEncode(input: ByteArray): String {
-        return Base64.encodeToString(input, Base64.NO_WRAP or Base64.NO_PADDING or Base64.URL_SAFE).trim()
-    }
+    private fun base64UrlEncode(input: ByteArray): String = Base64.encodeToString(input, Base64.NO_WRAP or Base64.NO_PADDING or Base64.URL_SAFE).trim()
 
     private fun parseRsaPrivateKey(pem: String): java.security.PrivateKey {
-        val privateKeyDer = pem
-            .replace("-----BEGIN PRIVATE KEY-----", "")
-            .replace("-----END PRIVATE KEY-----", "")
-            .replace("\\s".toRegex(), "")
-            .replace("\n", "")
-
-        val keyBytes = Base64.decode(privateKeyDer, Base64.DEFAULT)
-        val spec = PKCS8EncodedKeySpec(keyBytes)
-        val kf = KeyFactory.getInstance("RSA")
-        return kf.generatePrivate(spec)
+        val der = pem.replace("-----BEGIN PRIVATE KEY-----", "").replace("-----END PRIVATE KEY-----", "").replace("\\s".toRegex(), "")
+        return KeyFactory.getInstance("RSA").generatePrivate(PKCS8EncodedKeySpec(Base64.decode(der, Base64.DEFAULT)))
     }
 
     private suspend fun getGcsAccessToken(context: Context): String = withContext(Dispatchers.IO) {
-        retryWithExponentialBackoff(times = 3) {
+        retryWithExponentialBackoff {
             val creds = loadGcsCredentials(context)
-            val clientEmail = creds.getString("client_email")
-            val privateKey = creds.getString("private_key")
-
-            val assertion = generateGcsJwt(clientEmail, privateKey)
-            val params = "grant_type=" + URLEncoder.encode("urn:ietf:params:oauth:grant-type:jwt-bearer", "UTF-8") +
-                    "&assertion=" + URLEncoder.encode(assertion, "UTF-8")
-
-            val url = URL(GCS_OAUTH_TOKEN_URL)
-            val conn = url.openConnection() as HttpURLConnection
-            conn.requestMethod = "POST"
-            conn.doOutput = true
-            conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
-            conn.connectTimeout = 8000
-            conn.readTimeout = 15000
-
-            conn.outputStream.use { os ->
-                os.write(params.toByteArray(Charsets.UTF_8))
-            }
-
-            if (conn.responseCode != 200) {
-                val errStream = conn.errorStream?.bufferedReader()?.readText() ?: ""
-                throw Exception("Failed to get OAuth token from Google: ${conn.responseCode} - $errStream")
-            }
-
-            val response = conn.inputStream.bufferedReader().use { it.readText() }
-            val json = JSONObject(response)
-            json.getString("access_token")
+            val assertion = generateGcsJwt(creds.getString("client_email"), creds.getString("private_key"))
+            val params = "grant_type=" + URLEncoder.encode("urn:ietf:params:oauth:grant-type:jwt-bearer", "UTF-8") + "&assertion=" + URLEncoder.encode(assertion, "UTF-8")
+            val conn = (URL(GCS_OAUTH_TOKEN_URL).openConnection() as HttpURLConnection).apply { requestMethod = "POST"; doOutput = true; setRequestProperty("Content-Type", "application/x-www-form-urlencoded") }
+            conn.outputStream.use { it.write(params.toByteArray(Charsets.UTF_8)) }
+            if (conn.responseCode != 200) throw Exception("GCS Token Failed")
+            JSONObject(conn.inputStream.bufferedReader().use { it.readText() }).getString("access_token")
         }
     }
 
     private suspend fun downloadLatestSnapshotFromGcs(
         context: Context,
-        localeManager: LocaleManager?
+        prefs: UserPreferences
     ): Triple<Long, List<PortfolioHoldingEntity>, Double?> = withContext(Dispatchers.IO) {
-        val bucketName = localeManager?.getGcsBucketName()?.ifBlank { "ichsanul-portfolio-snapshots" } ?: "ichsanul-portfolio-snapshots"
+        val bucketName = prefs.gcsBucketName.ifBlank { "ichsanul-portfolio-snapshots" }
         val token = getGcsAccessToken(context)
-
-        retryWithExponentialBackoff(times = 3) {
-            val latestUrl = URL("https://storage.googleapis.com/storage/v1/b/$bucketName/o/snapshots%2Flatest.json?alt=media")
-            val conn = latestUrl.openConnection() as HttpURLConnection
-            conn.setRequestProperty("Authorization", "Bearer $token")
-            conn.connectTimeout = 8000
-            conn.readTimeout = 15000
-
-            if (conn.responseCode != 200) {
-                val errStream = conn.errorStream?.bufferedReader()?.readText() ?: ""
-                throw Exception("Failed to download snapshots/latest.json from GCS: ${conn.responseCode} - $errStream")
-            }
-
-            val jsonString = conn.inputStream.bufferedReader().use { it.readText() }
-            PortfolioJsonImporter.parseContent(jsonString)
+        retryWithExponentialBackoff {
+            val conn = (URL("https://storage.googleapis.com/storage/v1/b/$bucketName/o/snapshots%2Flatest.json?alt=media").openConnection() as HttpURLConnection).apply { setRequestProperty("Authorization", "Bearer $token") }
+            if (conn.responseCode != 200) throw Exception("GCS Download Failed")
+            PortfolioJsonImporter.parseContent(conn.inputStream.bufferedReader().use { it.readText() })
         }
     }
 
     private suspend fun uploadDatabaseBackupToGcs(
         context: Context,
         dbFile: File,
-        localeManager: LocaleManager?
+        prefs: UserPreferences
     ): Result<String> = withContext(Dispatchers.IO) {
         try {
-            if (!dbFile.exists()) {
-                return@withContext Result.failure(Exception("Database file not found: ${dbFile.absolutePath}"))
-            }
-
-            val bucketName = localeManager?.getGcsBucketName()?.ifBlank { "ichsanul-portfolio-snapshots" } ?: "ichsanul-portfolio-snapshots"
+            val bucketName = prefs.gcsBucketName.ifBlank { "ichsanul-portfolio-snapshots" }
             val token = getGcsAccessToken(context)
-            val objectName = "db/sans_finance_latest.sqlite"
-            val encodedName = URLEncoder.encode(objectName, "UTF-8")
-            val uploadUrl = URL("https://storage.googleapis.com/upload/storage/v1/b/$bucketName/o?uploadType=media&name=$encodedName")
-
-            retryWithExponentialBackoff(times = 3) {
-                val conn = uploadUrl.openConnection() as HttpURLConnection
-                conn.requestMethod = "POST"
-                conn.doOutput = true
-                conn.setRequestProperty("Authorization", "Bearer $token")
-                conn.setRequestProperty("Content-Type", "application/x-sqlite3")
-                conn.setFixedLengthStreamingMode(dbFile.length())
-                conn.connectTimeout = 15000
-                conn.readTimeout = 30000
-
-                dbFile.inputStream().use { input ->
-                    conn.outputStream.use { output ->
-                        input.copyTo(output)
-                    }
-                }
-
-                if (conn.responseCode in 200..299) {
-                    Result.success("Google Cloud Storage Backup Successful (gs://$bucketName/$objectName)")
-                } else {
-                    val errStream = conn.errorStream?.bufferedReader()?.readText() ?: ""
-                    throw Exception("GCS Upload failed (${conn.responseCode}): $errStream")
-                }
+            val url = URL("https://storage.googleapis.com/upload/storage/v1/b/$bucketName/o?uploadType=media&name=" + URLEncoder.encode("db/sans_finance_latest.sqlite", "UTF-8"))
+            retryWithExponentialBackoff {
+                val conn = (url.openConnection() as HttpURLConnection).apply { requestMethod = "POST"; doOutput = true; setRequestProperty("Authorization", "Bearer $token"); setRequestProperty("Content-Type", "application/x-sqlite3"); setFixedLengthStreamingMode(dbFile.length()) }
+                dbFile.inputStream().use { it.copyTo(conn.outputStream) }
+                if (conn.responseCode in 200..299) Result.success("GCS Backup Successful")
+                else throw Exception("GCS Upload Failed: ${conn.responseCode}")
             }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+        } catch (e: Exception) { Result.failure(e) }
     }
 }

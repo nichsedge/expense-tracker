@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -172,6 +173,7 @@ fun AddTransactionScreen(
                 confirmButton = {
                     Button(
                         onClick = {
+                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
                             viewModel.onSaveClick(onBack)
                         }
                     ) {
@@ -202,6 +204,7 @@ fun AddTransactionScreen(
             modifier = Modifier
                 .padding(paddingValues)
                 .fillMaxSize()
+                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(8.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)

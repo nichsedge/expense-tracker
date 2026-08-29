@@ -2,6 +2,7 @@ package com.sans.finance.presentation.budgeting
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -53,6 +54,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sans.finance.domain.model.Category
@@ -106,12 +108,37 @@ fun BudgetScreen(
                 BudgetSummaryHeader(state)
             }
 
+            if (state.suggestions.isNotEmpty()) {
+                item {
+                    Text(
+                        "Smart Suggestions".uppercase(),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 1.sp,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
+                    )
+                    androidx.compose.foundation.lazy.LazyRow(
+                        contentPadding = PaddingValues(horizontal = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(state.suggestions) { suggestion ->
+                            BudgetSuggestionCard(
+                                suggestion = suggestion,
+                                currencyCode = state.currentCurrency,
+                                onApply = { viewModel.addBudget(suggestion.suggestedAmount, suggestion.categoryId) }
+                            )
+                        }
+                    }
+                }
+            }
+
             if (state.budgetStatuses.isEmpty()) {
                 item {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 80.dp),
+                            .padding(vertical = 40.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -127,11 +154,6 @@ fun BudgetScreen(
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                "Plan your spending better!",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.outlineVariant
                             )
                             Spacer(Modifier.height(16.dp))
                             Button(
@@ -169,6 +191,43 @@ fun BudgetScreen(
                     showAddDialog = false
                 }
             )
+        }
+    }
+}
+
+@Composable
+fun BudgetSuggestionCard(
+    suggestion: com.sans.finance.domain.usecase.BudgetSuggestion,
+    currencyCode: String,
+    onApply: () -> Unit
+) {
+    Card(
+        modifier = Modifier.width(200.dp),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f))
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                com.sans.finance.presentation.components.CategoryIcon(suggestion.categoryIcon ?: "", fontSize = 14.sp)
+                Spacer(Modifier.width(8.dp))
+                Text(suggestion.categoryName, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+            }
+            Spacer(Modifier.height(8.dp))
+            Text("Based on 3-mo avg:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondaryContainer)
+            Text(
+                com.sans.finance.core.util.CurrencyFormatter.formatAmount(suggestion.last3MonthsAverage, currencyCode),
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(12.dp))
+            Button(
+                onClick = onApply,
+                modifier = Modifier.fillMaxWidth().height(32.dp),
+                contentPadding = PaddingValues(0.dp),
+                shape = MaterialTheme.shapes.small
+            ) {
+                Text("Set ${com.sans.finance.core.util.CurrencyFormatter.formatAmountCompact(suggestion.suggestedAmount, currencyCode)}", fontSize = 10.sp)
+            }
         }
     }
 }

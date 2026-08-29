@@ -23,6 +23,17 @@ class AccountRepositoryImpl(
         dao.updateAccount(account)
         context?.let { FinancialSummaryWidgetProvider.updateAllWidgets(it) }
     }
+    override suspend fun updateBalance(accountId: Long, delta: Long) {
+        dao.getAccountById(accountId)?.let { account ->
+            dao.updateAccount(
+                account.copy(
+                    balance = account.balance + delta,
+                    updatedAt = System.currentTimeMillis()
+                )
+            )
+        }
+        context?.let { FinancialSummaryWidgetProvider.updateAllWidgets(it) }
+    }
     override suspend fun renameTypeForAccounts(oldType: String, newType: String) {
         dao.renameTypeForAccounts(oldType, newType, System.currentTimeMillis())
         context?.let { FinancialSummaryWidgetProvider.updateAllWidgets(it) }
