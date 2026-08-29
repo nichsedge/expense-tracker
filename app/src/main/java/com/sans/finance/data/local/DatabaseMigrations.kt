@@ -135,6 +135,30 @@ object DatabaseMigrations {
         }
     }
 
+    val MIGRATION_34_35 = object : Migration(34, 35) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `investment_metadata` (
+                    `code` TEXT NOT NULL,
+                    `rate` REAL NOT NULL,
+                    `type` TEXT NOT NULL DEFAULT 'SUKUK',
+                    `updatedAt` INTEGER NOT NULL,
+                    PRIMARY KEY(`code`)
+                )
+                """.trimIndent()
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_expenses_title` ON `expenses` (`title`)")
+
+            // Seed initial Sukuk rates
+            val now = System.currentTimeMillis()
+            db.execSQL("INSERT OR IGNORE INTO investment_metadata (code, rate, type, updatedAt) VALUES ('ST010T4', 0.0640, 'SUKUK', $now)")
+            db.execSQL("INSERT OR IGNORE INTO investment_metadata (code, rate, type, updatedAt) VALUES ('ST012T4', 0.0655, 'SUKUK', $now)")
+            db.execSQL("INSERT OR IGNORE INTO investment_metadata (code, rate, type, updatedAt) VALUES ('ST013T2', 0.0640, 'SUKUK', $now)")
+            db.execSQL("INSERT OR IGNORE INTO investment_metadata (code, rate, type, updatedAt) VALUES ('ST014T2', 0.0640, 'SUKUK', $now)")
+        }
+    }
+
     val ALL = arrayOf(
         MIGRATION_25_27,
         MIGRATION_27_28,
@@ -143,6 +167,7 @@ object DatabaseMigrations {
         MIGRATION_30_31,
         MIGRATION_31_32,
         MIGRATION_32_33,
-        MIGRATION_33_34
+        MIGRATION_33_34,
+        MIGRATION_34_35
     )
 }

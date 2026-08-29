@@ -16,6 +16,7 @@ import com.sans.finance.presentation.add_transaction.AddTransactionScreen
 import com.sans.finance.presentation.expense_list.ExpenseListScreen
 import com.sans.finance.presentation.goals.GoalScreen
 import com.sans.finance.presentation.main.MainScreen
+import com.sans.finance.presentation.navigation.NavigationTransitions
 import com.sans.finance.presentation.navigation.Screen
 import com.sans.finance.presentation.search.SearchScreen
 import com.sans.finance.presentation.settings.SettingsScreen
@@ -132,12 +133,15 @@ fun AppNavigation(
     NavHost(
         navController = navController,
         startDestination = Screen.Main,
-        enterTransition = { EnterTransition.None },
-        exitTransition = { ExitTransition.None },
-        popEnterTransition = { EnterTransition.None },
-        popExitTransition = { ExitTransition.None }
+        enterTransition = NavigationTransitions.defaultEnterTransition,
+        exitTransition = NavigationTransitions.defaultExitTransition,
+        popEnterTransition = NavigationTransitions.defaultPopEnterTransition,
+        popExitTransition = NavigationTransitions.defaultPopExitTransition
     ) {
-        composable<Screen.Main> {
+        composable<Screen.Main>(
+            enterTransition = { EnterTransition.None },
+            exitTransition = { ExitTransition.None }
+        ) {
             MainScreen(
                 rootNavController = navController
             )
@@ -173,7 +177,10 @@ fun AppNavigation(
                 }
             )
         }
-        composable<Screen.AddTransaction> {
+        composable<Screen.AddTransaction>(
+            enterTransition = NavigationTransitions.modalEnterTransition,
+            popExitTransition = NavigationTransitions.modalPopExitTransition
+        ) {
             AddTransactionScreen(onBack = { navController.popBackStack() })
         }
 
@@ -186,7 +193,10 @@ fun AppNavigation(
             )
         }
 
-        composable<Screen.EditExpense> {
+        composable<Screen.EditExpense>(
+            enterTransition = NavigationTransitions.modalEnterTransition,
+            popExitTransition = NavigationTransitions.modalPopExitTransition
+        ) {
             AddTransactionScreen(onBack = { navController.popBackStack() })
         }
         composable<Screen.Installments> {

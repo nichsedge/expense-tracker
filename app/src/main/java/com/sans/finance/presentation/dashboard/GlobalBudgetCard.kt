@@ -106,7 +106,7 @@ fun GlobalBudgetCard(
                 Column {
                     Text(
                         "Spent",
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Bold
                     )
@@ -114,14 +114,14 @@ fun GlobalBudgetCard(
                         amount = spent,
                         currencyCode = currencyCode,
                         isVisible = !isPrivacyModeEnabled,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Black
                     )
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         if (isOverBudget) "Overspent" else "Remaining",
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Bold
                     )
@@ -129,7 +129,7 @@ fun GlobalBudgetCard(
                         amount = if (isOverBudget) spent - budget else remaining,
                         currencyCode = currencyCode,
                         isVisible = !isPrivacyModeEnabled,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Black,
                         color = color
                     )

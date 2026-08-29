@@ -94,7 +94,7 @@ fun MonthlyCashFlowCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         "Cash Flow",
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Bold
                     )
@@ -102,14 +102,14 @@ fun MonthlyCashFlowCard(
                         amount = cashFlow,
                         currencyCode = currencyCode,
                         isVisible = !isPrivacyModeEnabled,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Black,
                         color = if (cashFlow >= 0) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         "Savings Rate",
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Bold
                     )
@@ -164,7 +164,7 @@ fun FlowBox(
             amount = amount,
             currencyCode = currencyCode,
             isVisible = !isPrivacyModeEnabled,
-            style = MaterialTheme.typography.bodySmall,
+            style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Black,
             color = color
         )

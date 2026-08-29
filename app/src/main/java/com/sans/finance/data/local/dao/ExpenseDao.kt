@@ -15,6 +15,13 @@ data class TodaySpentSummary(
     val totalAmount: Long?
 )
 
+data class TransferFlow(
+    val date: Long,
+    val amount: Long,
+    val account_id: Long,
+    val to_account_id: Long?
+)
+
 @Dao
 interface ExpenseDao {
     @Transaction
@@ -97,6 +104,15 @@ interface ExpenseDao {
     )
     fun searchExpensesFts(query: String): Flow<List<com.sans.finance.data.local.entity.ExpenseWithTags>>
 
+    @Query(
+        """
+        SELECT date, amount, account_id, to_account_id FROM expenses
+        WHERE type = 'TRANSFER' AND date <= :endDate
+        AND (account_id IN (:investmentAccountIds) OR to_account_id IN (:investmentAccountIds))
+    """
+    )
+    suspend fun getTransferCashFlows(investmentAccountIds: List<Long>, endDate: Long): List<TransferFlow>
+
     @Transaction
     @Query("SELECT * FROM expenses WHERE id = :id")
     suspend fun getExpenseById(id: Long): com.sans.finance.data.local.entity.ExpenseWithTags?
@@ -144,6 +160,9 @@ interface ExpenseDao {
 
     @Query("SELECT DISTINCT details FROM expenses WHERE details LIKE '%' || :query || '%' AND details IS NOT NULL ORDER BY details ASC LIMIT 5")
     suspend fun getDetailsSuggestions(query: String): List<String>
+
+    @Query("SELECT MIN(date) FROM expenses")
+    fun getOldestExpenseDate(): Flow<Long?>
 
     @Query("SELECT title FROM expenses GROUP BY title ORDER BY COUNT(*) DESC LIMIT :limit")
     suspend fun getTopFrequentTitles(limit: Int): List<String>

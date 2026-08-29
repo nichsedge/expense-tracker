@@ -32,6 +32,7 @@ interface ExpenseRepository {
     fun getTotalSpentSince(since: Long): Flow<Long?>
     fun getTotalSpentBetween(since: Long, until: Long): Flow<Long?>
     fun getAllTimeSpent(): Flow<Long?>
+    fun getOldestExpenseDate(): Flow<Long?>
     fun getAllTags(): Flow<List<String>>
     fun getVisibleTags(): Flow<List<String>>
 

@@ -9,12 +9,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -43,14 +44,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -64,7 +64,6 @@ import com.sans.finance.presentation.components.SummaryCard
 import com.sans.finance.presentation.components.TodaySeparator
 import com.sans.finance.presentation.installments.InstallmentDetailBottomSheet
 import com.sans.finance.presentation.recurring.RecurringDetailBottomSheet
-import java.text.SimpleDateFormat
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -78,9 +77,7 @@ fun ExpenseListScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val haptic = LocalHapticFeedback.current
-    LocalFocusManager.current
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
     var expenseToDelete by remember { mutableStateOf<Expense?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
@@ -97,7 +94,7 @@ fun ExpenseListScreen(
             val cal = com.sans.finance.core.util.CalendarUtils.getInstance().apply {
                 timeInMillis = state.startDate
             }
-            SimpleDateFormat("MMM yyyy", Locale.getDefault()).format(cal.time)
+            com.sans.finance.core.util.DateFormatterUtils.getMonthYearFormatter().format(cal.time)
         }
     }
 
@@ -161,10 +158,15 @@ fun ExpenseListScreen(
             }
         }
     ) { paddingValues ->
+        val layoutDirection = LocalLayoutDirection.current
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .padding(
+                    start = paddingValues.calculateStartPadding(layoutDirection),
+                    top = paddingValues.calculateTopPadding(),
+                    end = paddingValues.calculateEndPadding(layoutDirection)
+                )
         ) {
             if (isSummaryExpanded) {
                 Box(modifier = Modifier.combinedClickable(
@@ -258,16 +260,7 @@ fun ExpenseListScreen(
                 )
             }
 
-            val todayMillis = remember {
-                com.sans.finance.core.util.CalendarUtils.getInstance().apply {
-                    set(java.util.Calendar.HOUR_OF_DAY, 0)
-                    set(java.util.Calendar.MINUTE, 0)
-                    set(java.util.Calendar.SECOND, 0)
-                    set(java.util.Calendar.MILLISECOND, 0)
-                }.timeInMillis
-            }
-
-            if (state.groupedExpenses.isEmpty() && !state.isLoading) {
+            if (state.timelineItems.isEmpty() && !state.isLoading) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -292,124 +285,55 @@ fun ExpenseListScreen(
                         start = 12.dp,
                         top = 8.dp,
                         end = 12.dp,
-                        bottom = 72.dp
+                        bottom = paddingValues.calculateBottomPadding() + 72.dp
                     ),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    var hasShownTodaySeparator = false
-                    val hasFutureTransactions = state.groupedExpenses.keys.any { it > todayMillis }
-
-                    state.groupedExpenses.forEach { (date, expenses) ->
-                        if (!hasShownTodaySeparator && date <= todayMillis && hasFutureTransactions) {
-                            item(key = "today-separator") {
-                                TodaySeparator()
+                    state.timelineItems.forEach { item ->
+                        when (item) {
+                            is TimelineItem.TodaySeparator -> {
+                                item(key = item.key) { TodaySeparator() }
                             }
-                            hasShownTodaySeparator = true
-                        }
 
-                        stickyHeader(key = "header-$date") {
-                            val cal = com.sans.finance.core.util.CalendarUtils.getInstance()
-                                .apply { timeInMillis = date }
-                            val day =
-                                cal.get(java.util.Calendar.DAY_OF_MONTH).toString().padStart(2, '0')
-                            val dayOfWeek =
-                                SimpleDateFormat("EEE", Locale.US).format(cal.time)
-
-                            val dayIncome = expenses.filter { it.type == "INCOME" }
-                                .sumOf {
-                                    if (it.isInstallment && it.monthlyPayment > 0) it.monthlyPayment else it.amount
-                                }
-                            val dayExpense = expenses.filter { it.type == "EXPENSE" }
-                                .sumOf {
-                                    if (it.isInstallment && it.monthlyPayment > 0) it.monthlyPayment else it.amount
-                                }
-
-                            Surface(
-                                modifier = Modifier
-                                    .fillMaxWidth(),
-                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
-                                tonalElevation = 0.dp
-                            ) {
-                                Column {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 4.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Text(
-                                                text = "$day $dayOfWeek",
-                                                style = MaterialTheme.typography.labelMedium,
-                                                fontWeight = FontWeight.Black,
-                                                color = MaterialTheme.colorScheme.primary
-                                            )
-                                        }
-
-                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            if (dayIncome > 0) {
-                                                PrivacyText(
-                                                    amount = dayIncome,
-                                                    currencyCode = state.currentCurrency,
-                                                    isVisible = !state.isPrivacyModeEnabled,
-                                                    style = MaterialTheme.typography.labelSmall.copy(
-                                                        fontWeight = FontWeight.Bold
-                                                    ),
-                                                    color = DayIncomeColor
-                                                )
-                                            }
-                                            if (dayExpense > 0) {
-                                                PrivacyText(
-                                                    amount = dayExpense,
-                                                    currencyCode = state.currentCurrency,
-                                                    isVisible = !state.isPrivacyModeEnabled,
-                                                    style = MaterialTheme.typography.labelSmall.copy(
-                                                        fontWeight = FontWeight.Bold
-                                                    ),
-                                                    color = DayExpenseColor
-                                                )
-                                            }
-                                        }
-                                    }
-                                    HorizontalDivider(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        thickness = 0.5.dp,
-                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                            is TimelineItem.Header -> {
+                                stickyHeader(key = item.key) {
+                                    TimelineHeader(
+                                        header = item,
+                                        currentCurrency = state.currentCurrency,
+                                        isPrivacyModeEnabled = state.isPrivacyModeEnabled
                                     )
                                 }
                             }
-                        }
 
-                        items(
-                            items = expenses,
-                            key = { "exp_${it.id}_${it.installmentMonth}_${it.date}_${it.amount}" },
-                            contentType = { "expense" }
-                        ) { expense ->
-                            val category = state.categories.find { it.id == expense.categoryId }
-                            val fallbackIcon = if (expense.isInstallmentPayment) "💳" else "📁"
-                            val icon = category?.icon ?: expense.categoryIcon ?: fallbackIcon
-                            ExpenseItem(
-                                expense = expense,
-                                categoryName = category?.name ?: expense.categoryName,
-                                categoryIcon = icon,
-                                accountName = state.accounts.find { it.id == expense.accountId }?.name,
-                                isPrivacyModeEnabled = state.isPrivacyModeEnabled,
-                                onClick = {
-                                    if (expense.isInstallment || expense.isInstallmentPayment) {
-                                        viewModel.openInstallmentDetail(expense)
-                                    } else if (expense.isRecurring) {
-                                        viewModel.openRecurringDetail(expense)
-                                    } else {
-                                        onExpenseClick(expense.id)
-                                    }
-                                },
-                                onLongClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    expenseToDelete = expense
-                                    showDeleteDialog = true
+                            is TimelineItem.ExpenseItem -> {
+                                item(key = item.key) {
+                                    val expense = item.expense
+                                    val category = state.categories.find { it.id == expense.categoryId }
+                                    val fallbackIcon = if (expense.isInstallmentPayment) "💳" else "📁"
+                                    val icon = category?.icon ?: expense.categoryIcon ?: fallbackIcon
+                                    ExpenseItem(
+                                        expense = expense,
+                                        categoryName = category?.name ?: expense.categoryName,
+                                        categoryIcon = icon,
+                                        accountName = state.accounts.find { it.id == expense.accountId }?.name,
+                                        isPrivacyModeEnabled = state.isPrivacyModeEnabled,
+                                        onClick = {
+                                            if (expense.isInstallment || expense.isInstallmentPayment) {
+                                                viewModel.openInstallmentDetail(expense)
+                                            } else if (expense.isRecurring) {
+                                                viewModel.openRecurringDetail(expense)
+                                            } else {
+                                                onExpenseClick(expense.id)
+                                            }
+                                        },
+                                        onLongClick = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            expenseToDelete = expense
+                                            showDeleteDialog = true
+                                        }
+                                    )
                                 }
-                            )
+                            }
                         }
                     }
                 }
@@ -510,9 +434,76 @@ fun ExpenseListScreen(
             initialYear = cal.get(java.util.Calendar.YEAR)
         )
     }
-
 }
 
-private val DayIncomeColor = Color(0xFF43A047)
-private val DayExpenseColor = Color(0xFFE53935)
+@Composable
+private fun TimelineHeader(
+    header: TimelineItem.Header,
+    currentCurrency: String,
+    isPrivacyModeEnabled: Boolean
+) {
+    val date = header.date
+    val dayIncome = header.income
+    val dayExpense = header.expense
 
+    val cal = com.sans.finance.core.util.CalendarUtils.getInstance().apply { timeInMillis = date }
+    val day = cal.get(java.util.Calendar.DAY_OF_MONTH).toString().padStart(2, '0')
+    val dayOfWeek = com.sans.finance.core.util.DateFormatterUtils.getStandardFormatter().apply {
+        applyPattern("EEE")
+    }.format(cal.time)
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+        tonalElevation = 0.dp
+    ) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "$day $dayOfWeek",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (dayIncome > 0) {
+                        PrivacyText(
+                            amount = dayIncome,
+                            currencyCode = currentCurrency,
+                            isVisible = !isPrivacyModeEnabled,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = Color(0xFF43A047)
+                        )
+                    }
+                    if (dayExpense > 0) {
+                        PrivacyText(
+                            amount = dayExpense,
+                            currencyCode = currentCurrency,
+                            isVisible = !isPrivacyModeEnabled,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = Color(0xFFE53935)
+                        )
+                    }
+                }
+            }
+            HorizontalDivider(
+                modifier = Modifier.fillMaxWidth(),
+                thickness = 0.5.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+            )
+        }
+    }
+}

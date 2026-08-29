@@ -2,7 +2,6 @@ package com.sans.finance.presentation.wealth
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -49,6 +48,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sans.finance.presentation.components.AppTopBar
 import com.sans.finance.presentation.components.GlassCard
 import com.sans.finance.presentation.components.PrivacyText
+import com.sans.finance.presentation.dashboard.SectionHeader
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,17 +87,6 @@ fun WealthScreen(
             contentPadding = contentPadding,
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            item {
-                WealthSummaryCard(
-                    netWorth = state.cashAssets + state.portfolioValue - state.liabilities,
-                    assets = state.cashAssets + state.portfolioValue,
-                    liabilities = state.liabilities,
-                    currencyCode = state.currencyCode,
-                    isPrivacyModeEnabled = state.isPrivacyModeEnabled,
-                    onTogglePrivacyMode = viewModel::togglePrivacyMode
-                )
-            }
-
             item {
                 EmergencyRunwayCard(
                     runwayMonths = state.runwayMonths,
@@ -211,114 +200,6 @@ fun WealthScreen(
 
             item { Spacer(modifier = Modifier.height(32.dp)) }
         }
-    }
-}
-
-@Composable
-fun SectionHeader(text: String) {
-    Text(
-        text = text.uppercase(),
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.secondary,
-        letterSpacing = 1.5.sp,
-        fontWeight = FontWeight.Bold,
-        modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
-    )
-}
-
-@Composable
-private fun WealthSummaryCard(
-    netWorth: Long,
-    assets: Long,
-    liabilities: Long,
-    currencyCode: String,
-    isPrivacyModeEnabled: Boolean,
-    onTogglePrivacyMode: () -> Unit = {}
-) {
-    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
-    GlassCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(MaterialTheme.shapes.extraLarge)
-            .clickable {
-                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
-                onTogglePrivacyMode()
-            },
-        containerColor = MaterialTheme.colorScheme.primary,
-        alpha = 0.12f
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                "Net Worth",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-            )
-            PrivacyText(
-                amount = netWorth,
-                currencyCode = currencyCode,
-                isVisible = !isPrivacyModeEnabled,
-                animate = true,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Black,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                WealthBreakdownItem(
-                    "Total Assets",
-                    assets,
-                    MaterialTheme.colorScheme.tertiary,
-                    currencyCode,
-                    isPrivacyModeEnabled
-                )
-                VerticalDivider(
-                    modifier = Modifier.height(32.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                )
-                WealthBreakdownItem(
-                    "Total Liabilities",
-                    liabilities,
-                    MaterialTheme.colorScheme.error,
-                    currencyCode,
-                    isPrivacyModeEnabled
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun WealthBreakdownItem(
-    label: String,
-    amount: Long,
-    color: Color,
-    currencyCode: String,
-    isPrivacyModeEnabled: Boolean
-) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            label.uppercase(),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-            fontWeight = FontWeight.Bold
-        )
-        PrivacyText(
-            amount = amount,
-            currencyCode = currencyCode,
-            isVisible = !isPrivacyModeEnabled,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Black,
-            color = color
-        )
     }
 }
 
@@ -513,14 +394,14 @@ fun EmergencyRunwayCard(
                     Column(modifier = Modifier.weight(1f, fill = false)) {
                         Text(
                             text = "Emergency Runway",
-                            style = MaterialTheme.typography.titleSmall,
+                            style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1
                         )
                         Text(
                             text = if (runwayMonths >= 99.0) "Over 99 months coverage" else "${String.format(java.util.Locale.US, "%.1f", runwayMonths)} months of living expenses",
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1
                         )
@@ -562,29 +443,31 @@ fun EmergencyRunwayCard(
                 Column {
                     Text(
                         "Liquid Cash Buffer",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Bold
                     )
                     PrivacyText(
                         amount = cashAssets,
                         currencyCode = currencyCode,
                         isVisible = !isPrivacyModeEnabled,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Black
                     )
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         "Avg Monthly Burn (90d)",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Bold
                     )
                     PrivacyText(
                         amount = monthlyBurn,
                         currencyCode = currencyCode,
                         isVisible = !isPrivacyModeEnabled,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Black
                     )
                 }
             }
@@ -632,14 +515,14 @@ fun UpcomingInflowsCard(
                     Column(modifier = Modifier.weight(1f, fill = false)) {
                         Text(
                             text = "Passive Coupon Inflows",
-                            style = MaterialTheme.typography.titleSmall,
+                            style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1
                         )
                         Text(
                             text = "Next Payout: $nextPayoutDateStr",
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1
                         )
@@ -671,14 +554,15 @@ fun UpcomingInflowsCard(
                 Column {
                     Text(
                         "Monthly Est. Coupon",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Bold
                     )
                     PrivacyText(
                         amount = monthlyPassiveIncome,
                         currencyCode = currencyCode,
                         isVisible = !isPrivacyModeEnabled,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Black,
                         color = Color(0xFF4CAF50)
                     )
@@ -686,14 +570,15 @@ fun UpcomingInflowsCard(
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         "Annual Projected Yield",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Bold
                     )
                     PrivacyText(
                         amount = annualPassiveIncome,
                         currencyCode = currencyCode,
                         isVisible = !isPrivacyModeEnabled,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Black,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -743,14 +628,14 @@ fun FinancialIndependenceMilestoneCard(
                     Column(modifier = Modifier.weight(1f, fill = false)) {
                         Text(
                             text = "Financial Independence",
-                            style = MaterialTheme.typography.titleSmall,
+                            style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1
                         )
                         Text(
                             text = fiStage,
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.SemiBold,
                             maxLines = 1

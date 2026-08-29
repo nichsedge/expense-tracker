@@ -153,19 +153,17 @@ class PortfolioRepositoryImpl(
         val investmentAccounts = accounts.filter { it.type == "Investment" }.map { it.id }.toSet()
         if (investmentAccounts.isEmpty()) return Double.NaN
 
-        val transactions = expenseDao.getExpensesBetween(0, endDate).first()
+        val transferFlows = expenseDao.getTransferCashFlows(investmentAccounts.toList(), endDate)
         val cashFlows = mutableListOf<com.sans.finance.core.util.CashFlow>()
 
-        transactions.forEach { tx ->
-            val fromInv = investmentAccounts.contains(tx.expense.accountId)
-            val toInv = tx.expense.toAccountId?.let { investmentAccounts.contains(it) } ?: false
+        transferFlows.forEach { tx ->
+            val fromInv = investmentAccounts.contains(tx.account_id)
+            val toInv = tx.to_account_id?.let { investmentAccounts.contains(it) } ?: false
 
-            if (tx.expense.type == "TRANSFER") {
-                if (!fromInv && toInv) {
-                    cashFlows.add(com.sans.finance.core.util.CashFlow(-tx.expense.amount.toDouble(), tx.expense.date))
-                } else if (fromInv && !toInv) {
-                    cashFlows.add(com.sans.finance.core.util.CashFlow(tx.expense.amount.toDouble(), tx.expense.date))
-                }
+            if (!fromInv && toInv) {
+                cashFlows.add(com.sans.finance.core.util.CashFlow(-tx.amount.toDouble(), tx.date))
+            } else if (fromInv && !toInv) {
+                cashFlows.add(com.sans.finance.core.util.CashFlow(tx.amount.toDouble(), tx.date))
             }
         }
 

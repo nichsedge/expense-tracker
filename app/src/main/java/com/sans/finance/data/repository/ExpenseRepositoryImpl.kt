@@ -58,7 +58,8 @@ class ExpenseRepositoryImpl(
             installmentDao.getInstallmentPaymentsBetween(0, Long.MAX_VALUE),
             installmentDao.getAllInstallmentItems()
         ) { expenseEntities, installmentRows, items ->
-            val expenses = expenseEntities.map { it.toDomain(items) }
+            val itemsByInstallment = items.groupBy { it.installmentId }
+            val expenses = expenseEntities.map { it.toDomain(itemsByInstallment) }
             val installmentPayments = installmentRows.map { it.toDomain() }
             (expenses + installmentPayments).sortedByDescending { it.date }
         }
@@ -70,7 +71,8 @@ class ExpenseRepositoryImpl(
             installmentDao.getInstallmentPaymentsBetween(since, until),
             installmentDao.getAllInstallmentItems()
         ) { expenseEntities, installmentRows, items ->
-            val expenses = expenseEntities.map { it.toDomain(items) }
+            val itemsByInstallment = items.groupBy { it.installmentId }
+            val expenses = expenseEntities.map { it.toDomain(itemsByInstallment) }
             val installmentPayments = installmentRows.map { it.toDomain() }
             (expenses + installmentPayments).sortedByDescending { it.date }
         }
@@ -81,7 +83,8 @@ class ExpenseRepositoryImpl(
             dao.getRecurringExpenses(),
             installmentDao.getAllInstallmentItems()
         ) { entities, items ->
-            entities.map { it.toDomain(items) }
+            val itemsByInstallment = items.groupBy { it.installmentId }
+            entities.map { it.toDomain(itemsByInstallment) }
         }
     }
 
@@ -135,7 +138,8 @@ class ExpenseRepositoryImpl(
             installmentsFlow,
             installmentDao.getAllInstallmentItems()
         ) { expenseEntities, installmentRows, items ->
-            val expenses = expenseEntities.map { it.toDomain(items) }
+            val itemsByInstallment = items.groupBy { it.installmentId }
+            val expenses = expenseEntities.map { it.toDomain(itemsByInstallment) }
             val installmentPayments = installmentRows.map { it.toDomain() }
             (expenses + installmentPayments).sortedByDescending { it.date }
         }
@@ -170,7 +174,7 @@ class ExpenseRepositoryImpl(
         } else {
             dao.getExpenseById(id)?.let {
                 val items = installmentDao.getItemsByInstallmentIdForId(it.installment?.id ?: -1)
-                it.toDomain(items)
+                it.toDomain(items.groupBy { it.installmentId })
             }
         }
     }
@@ -194,7 +198,7 @@ class ExpenseRepositoryImpl(
     override suspend fun getPredictionForTitle(title: String): Expense? {
         return dao.getLastExpenseByTitle(title)?.let {
             val items = installmentDao.getItemsByInstallmentIdForId(it.installment?.id ?: -1)
-            it.toDomain(items)
+            it.toDomain(items.groupBy { it.installmentId })
         }
     }
 
@@ -213,7 +217,7 @@ class ExpenseRepositoryImpl(
             accountId = accountId
         )?.let {
             val items = installmentDao.getItemsByInstallmentIdForId(it.installment?.id ?: -1)
-            it.toDomain(items)
+            it.toDomain(items.groupBy { it.installmentId })
         }
     }
 
@@ -240,7 +244,9 @@ class ExpenseRepositoryImpl(
                 return@withTransaction
             }
 
-            val oldExpense = dao.getExpenseById(expense.id)?.toDomain()
+            val oldExpense = dao.getExpenseById(expense.id)?.let {
+                it.toDomain(emptyMap())
+            }
 
             if (oldExpense != null) {
                 // Reverse old balance effect
@@ -384,6 +390,10 @@ class ExpenseRepositoryImpl(
 
     override fun getAllTimeSpent(): Flow<Long?> {
         return dao.getAllTimeSpent()
+    }
+
+    override fun getOldestExpenseDate(): Flow<Long?> {
+        return dao.getOldestExpenseDate()
     }
 
     override fun getAllTags(): Flow<List<String>> {
@@ -628,9 +638,9 @@ class ExpenseRepositoryImpl(
 
     // Internal mapping extension
     private fun com.sans.finance.data.local.entity.ExpenseWithTags.toDomain(
-        allInstallmentItems: List<com.sans.finance.data.local.entity.InstallmentItemEntity>? = null
+        itemsByInstallment: Map<Long, List<com.sans.finance.data.local.entity.InstallmentItemEntity>>? = null
     ): Expense {
-        val items = allInstallmentItems?.filter { it.installmentId == installment?.id }
+        val items = installment?.id?.let { itemsByInstallment?.get(it) }
         val totalPaid = items?.filter { it.status == "Paid" }?.sumOf { it.amount } ?: 0L
         val remainingBalance = items?.filter { it.status == "Pending" }?.sumOf { it.amount } ?: 0L
         val totalAmount = items?.sumOf { it.amount } ?: 0L

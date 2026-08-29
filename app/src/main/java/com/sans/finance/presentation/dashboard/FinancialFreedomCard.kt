@@ -293,7 +293,7 @@ fun FinancialFreedomCard(
                             "%.1f years",
                             yearsOfCover
                         ),
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Black,
                         color = MaterialTheme.colorScheme.onSurface
                     )

@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -29,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -54,6 +57,7 @@ fun DashboardScreen(
             )
         }
     ) { paddingValues ->
+        val layoutDirection = LocalLayoutDirection.current
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -64,9 +68,13 @@ fun DashboardScreen(
                             MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
                         )
                     )
-                )
-                .padding(paddingValues),
-            contentPadding = PaddingValues(12.dp),
+                ),
+            contentPadding = PaddingValues(
+                start = paddingValues.calculateStartPadding(layoutDirection) + 12.dp,
+                top = paddingValues.calculateTopPadding() + 12.dp,
+                end = paddingValues.calculateEndPadding(layoutDirection) + 12.dp,
+                bottom = paddingValues.calculateBottomPadding() + 12.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item {

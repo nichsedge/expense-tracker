@@ -68,6 +68,18 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideInvestmentMetadataDao(db: AppDatabase): com.sans.finance.data.local.dao.InvestmentMetadataDao =
+        db.investmentMetadataDao
+
+    @Provides
+    @Singleton
+    fun provideInvestmentMetadataRepository(
+        dao: com.sans.finance.data.local.dao.InvestmentMetadataDao
+    ): com.sans.finance.domain.repository.InvestmentMetadataRepository =
+        com.sans.finance.data.repository.InvestmentMetadataRepositoryImpl(dao)
+
+    @Provides
+    @Singleton
     fun provideExpenseDao(db: AppDatabase): ExpenseDao = db.expenseDao
 
     @Provides

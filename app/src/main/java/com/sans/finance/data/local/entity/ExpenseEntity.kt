@@ -11,6 +11,7 @@ import androidx.room.PrimaryKey
         Index(value = ["date"]),
         Index(value = ["category_id"]),
         Index(value = ["account_id"]),
+        Index(value = ["title"]),
         Index(value = ["date", "type", "is_installment"])
     ]
 )

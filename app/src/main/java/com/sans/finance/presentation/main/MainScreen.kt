@@ -29,6 +29,7 @@ import androidx.navigation.compose.rememberNavController
 import com.sans.finance.presentation.accounts.AccountScreen
 import com.sans.finance.presentation.dashboard.DashboardScreen
 import com.sans.finance.presentation.expense_list.ExpenseListScreen
+import com.sans.finance.presentation.navigation.NavigationTransitions
 import com.sans.finance.presentation.navigation.Screen
 import com.sans.finance.presentation.portfolio.PortfolioScreen
 import com.sans.finance.presentation.settings.SettingsScreen
@@ -49,7 +50,11 @@ fun MainScreen(
         NavHost(
             navController = navController,
             startDestination = Screen.Dashboard,
-            modifier = Modifier.padding(paddingValues)
+            modifier = Modifier.padding(paddingValues),
+            enterTransition = NavigationTransitions.tabEnterTransition,
+            exitTransition = NavigationTransitions.tabExitTransition,
+            popEnterTransition = NavigationTransitions.tabEnterTransition,
+            popExitTransition = NavigationTransitions.tabExitTransition
         ) {
             composable<Screen.Dashboard> {
                 DashboardScreen(

@@ -27,13 +27,16 @@ fun PrivacyText(
     maxLines: Int = Int.MAX_VALUE,
     overflow: androidx.compose.ui.text.style.TextOverflow = androidx.compose.ui.text.style.TextOverflow.Clip
 ) {
-    val animatedAmount by animateFloatAsState(
-        targetValue = amount.toFloat(),
-        animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing),
-        label = "AmountAnimation"
-    )
-
-    val currentAmount = if (animate) animatedAmount.toLong() else amount
+    val currentAmount = if (animate) {
+        val animatedAmount by animateFloatAsState(
+            targetValue = amount.toFloat(),
+            animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing),
+            label = "AmountAnimation"
+        )
+        animatedAmount.toLong()
+    } else {
+        amount
+    }
 
     val text = if (isVisible) {
         if (isCompact) {

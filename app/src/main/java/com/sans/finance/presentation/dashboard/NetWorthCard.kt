@@ -56,7 +56,7 @@ fun NetWorthCard(
                 currencyCode = currencyCode,
                 isVisible = !isPrivacyModeEnabled,
                 animate = true,
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Black,
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -110,7 +110,7 @@ fun BreakdownItem(
             amount = amount,
             currencyCode = currencyCode,
             isVisible = !isPrivacyModeEnabled,
-            style = MaterialTheme.typography.bodySmall,
+            style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Black,
             color = color
         )

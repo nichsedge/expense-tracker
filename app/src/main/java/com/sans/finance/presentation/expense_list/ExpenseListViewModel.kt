@@ -3,13 +3,13 @@ package com.sans.finance.presentation.expense_list
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sans.finance.core.util.CalendarUtils
-import com.sans.finance.core.util.DateFormatterUtils
 import com.sans.finance.domain.model.Category
 import com.sans.finance.domain.model.Expense
 import com.sans.finance.domain.model.ExpenseFilter
 import com.sans.finance.domain.repository.BudgetRepository
 import com.sans.finance.domain.usecase.ObserveFilteredExpensesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -41,9 +42,26 @@ enum class TimelineCommitmentFilter {
     RECURRING
 }
 
+sealed class TimelineItem {
+    abstract val key: String
+
+    data class Header(val date: Long, val income: Long, val expense: Long) : TimelineItem() {
+        override val key: String = "header_$date"
+    }
+
+    data class ExpenseItem(val expense: Expense) : TimelineItem() {
+        override val key: String = "exp_${expense.id}"
+    }
+
+    object TodaySeparator : TimelineItem() {
+        override val key: String = "today_separator"
+    }
+}
+
 data class ExpenseListState(
     val expenses: List<Expense> = emptyList(),
     val groupedExpenses: Map<Long, List<Expense>> = emptyMap(),
+    val timelineItems: List<TimelineItem> = emptyList(),
     val thisMonthSpent: Long = 0L,
     val totalFilteredAmount: Long = 0L,
     val totalFilteredIncome: Long = 0L,
@@ -90,35 +108,44 @@ class ExpenseListViewModel @Inject constructor(
     private val _state = MutableStateFlow(ExpenseListState())
     val state: StateFlow<ExpenseListState> = _state.asStateFlow()
 
-    private val dateFormat
-        get() = DateFormatterUtils.getStandardFormatter()
-
     init {
-        _state.update { it.copy(currentCurrency = localeManager.getCurrency()) }
-        updateDateRange(DateRangeFilter.THIS_MONTH)
+        val initialCurrency = localeManager.getCurrency()
+        val initialRange = calculateDateRange(DateRangeFilter.THIS_MONTH)
 
-        loadExpenses()
-        loadHistoricalStats()
-        loadCategories()
-        loadAccounts()
-        loadTags()
-        loadBudget()
-        loadCommitmentCounts()
-        observePrivacyMode()
+        _state.update {
+            it.copy(
+                currentCurrency = initialCurrency,
+                startDate = initialRange.first,
+                endDate = initialRange.second,
+                activeDateFilter = DateRangeFilter.THIS_MONTH
+            )
+        }
+
+        setupObservations()
     }
 
-    private fun loadCommitmentCounts() {
-        installmentRepository.getActiveInstallments()
-            .onEach { active ->
-                _state.update { it.copy(activeInstallmentCount = active.size) }
-            }
-            .launchIn(viewModelScope)
+    private fun setupObservations() {
+        observeCommitmentCounts()
+        observePrivacyMode()
+        observeInitialData()
+        observeHistoricalStats()
+        observeExpenses()
+    }
 
-        repository.getRecurringExpenses()
-            .onEach { recurring ->
-                _state.update { it.copy(recurringExpenseCount = recurring.size) }
+    private fun observeCommitmentCounts() {
+        combine(
+            installmentRepository.getActiveInstallments(),
+            repository.getRecurringExpenses()
+        ) { activeInstallments, recurringExpenses ->
+            Pair(activeInstallments.size, recurringExpenses.size)
+        }.onEach { (activeCount, recurringCount) ->
+            _state.update {
+                it.copy(
+                    activeInstallmentCount = activeCount,
+                    recurringExpenseCount = recurringCount
+                )
             }
-            .launchIn(viewModelScope)
+        }.launchIn(viewModelScope)
     }
 
     private fun observePrivacyMode() {
@@ -129,100 +156,159 @@ class ExpenseListViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
-    private fun loadBudget() {
-        budgetRepository.getAllBudgets()
-            .map { budgets -> budgets.find { it.categoryId == null }?.amount ?: 0L }
-            .onEach { budget ->
-                _state.update { it.copy(monthlyBudget = budget) }
+    private fun observeInitialData() {
+        combine(
+            getCategoriesUseCase(),
+            accountRepository.getAllAccounts(),
+            repository.getAllTags(),
+            budgetRepository.getAllBudgets().map { budgets ->
+                budgets.find { it.categoryId == null }?.amount ?: 0L
             }
-            .launchIn(viewModelScope)
-    }
-
-    private fun loadTags() {
-        repository.getAllTags()
-            .onEach { tags ->
-                _state.update { it.copy(availableTags = tags) }
+        ) { categories, accounts, tags, budget ->
+            _state.update {
+                it.copy(
+                    categories = categories,
+                    accounts = accounts,
+                    availableTags = tags,
+                    monthlyBudget = budget
+                )
             }
-            .launchIn(viewModelScope)
-    }
-
-
-    private fun loadAccounts() {
-        accountRepository.getAllAccounts()
-            .onEach { accounts ->
-                _state.update { it.copy(accounts = accounts) }
-            }
-            .launchIn(viewModelScope)
-    }
-
-    private fun loadCategories() {
-        getCategoriesUseCase()
-            .onEach { categories ->
-                _state.update { it.copy(categories = categories) }
-            }
-            .launchIn(viewModelScope)
+        }.launchIn(viewModelScope)
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    private fun loadExpenses() {
-        _state
-            .map { state ->
-                ExpenseFilter(
-                    query = state.searchQuery,
-                    categoryIds = state.selectedCategoryIds,
-                    accountIds = state.selectedAccountIds,
-                    since = state.startDate,
-                    until = state.endDate,
-                    minAmount = state.minAmount,
-                    maxAmount = state.maxAmount,
-                    tags = state.selectedTags,
-                    types = state.selectedTypes
-                )
-            }
-            .distinctUntilChanged()
-            .flatMapLatest(observeFilteredExpensesUseCase::invoke)
-            .onEach { result ->
-                val expenses = result.expenses
-                val dailySpending = result.dailySpending
-                val dailyMap = dailySpending.associate { it.day to it.amount }
-                val validExpenses = expenses.filter { !it.isInstallment || it.isInstallmentPayment }
-                val currentCommitmentFilter = _state.value.activeCommitmentFilter
-                val displayedExpenses = when (currentCommitmentFilter) {
-                    TimelineCommitmentFilter.ALL -> validExpenses
-                    TimelineCommitmentFilter.INSTALLMENTS -> expenses.filter {
-                        it.isInstallment || it.isInstallmentPayment
+    private fun observeExpenses() {
+        val filterFlow = _state.map { state ->
+            ExpenseFilter(
+                query = state.searchQuery,
+                categoryIds = state.selectedCategoryIds,
+                accountIds = state.selectedAccountIds,
+                since = state.startDate,
+                until = state.endDate,
+                minAmount = state.minAmount,
+                maxAmount = state.maxAmount,
+                tags = state.selectedTags,
+                types = state.selectedTypes
+            )
+        }.distinctUntilChanged()
+
+        val commitmentFlow = _state.map { it.activeCommitmentFilter }.distinctUntilChanged()
+
+        combine(filterFlow, commitmentFlow) { filter, commitment -> Pair(filter, commitment) }
+            .flatMapLatest { (filter, commitmentFilter) ->
+                observeFilteredExpensesUseCase(filter).map { result ->
+                    val expenses = result.expenses
+                    val dailyMap = result.dailySpending.associate { it.day to it.amount }
+
+                    val calendar = CalendarUtils.getInstance()
+                    calendar.set(Calendar.HOUR_OF_DAY, 0)
+                    calendar.set(Calendar.MINUTE, 0)
+                    calendar.set(Calendar.SECOND, 0)
+                    calendar.set(Calendar.MILLISECOND, 0)
+                    val todayMillis = calendar.timeInMillis
+
+                    var totalIncome = 0L
+                    var totalExpense = 0L
+
+                    val validExpenses = ArrayList<Expense>(expenses.size)
+                    val displayedExpenses = ArrayList<Expense>(expenses.size)
+
+                    for (exp in expenses) {
+                        val isValid = !exp.isInstallment || exp.isInstallmentPayment
+                        if (isValid) {
+                            validExpenses.add(exp)
+                            if (exp.type == "INCOME") totalIncome += exp.amount
+                            else if (exp.type == "EXPENSE") totalExpense += exp.amount
+                        }
+
+                        val shouldDisplay = when (commitmentFilter) {
+                            TimelineCommitmentFilter.ALL -> isValid
+                            TimelineCommitmentFilter.INSTALLMENTS -> exp.isInstallment || exp.isInstallmentPayment
+                            TimelineCommitmentFilter.RECURRING -> isValid && exp.isRecurring
+                        }
+                        if (shouldDisplay) {
+                            displayedExpenses.add(exp)
+                        }
                     }
-                    TimelineCommitmentFilter.RECURRING -> validExpenses.filter { it.isRecurring }
-                }
-                val grouped = groupExpensesByDate(displayedExpenses)
-                val income = validExpenses.filter { it.type == "INCOME" }.sumOf { it.amount }
-                val expense = validExpenses.filter { it.type == "EXPENSE" }.sumOf { it.amount }
-                val periodTotal = income - expense
 
-                var avgMonthlyExpense = 0L
-                if (_state.value.activeDateFilter == DateRangeFilter.ALL_TIME && validExpenses.isNotEmpty()) {
-                    val firstDate = validExpenses.minOf { it.date }
-                    val lastDate = CalendarUtils.getInstance().timeInMillis
-                    val diff = lastDate - firstDate
-                    val months = (diff / (1000L * 60 * 60 * 24 * 30)).coerceAtLeast(1L)
-                    avgMonthlyExpense = expense / months
-                }
+                    val grouped = groupExpensesByDate(displayedExpenses)
+                    val timelineItems = ArrayList<TimelineItem>(displayedExpenses.size + grouped.size + 1)
 
+                    var hasShownTodaySeparator = false
+                    val hasFutureTransactions = grouped.keys.any { it > todayMillis }
+
+                    for ((date, dayExpenses) in grouped) {
+                        if (!hasShownTodaySeparator && date <= todayMillis && hasFutureTransactions) {
+                            timelineItems.add(TimelineItem.TodaySeparator)
+                            hasShownTodaySeparator = true
+                        }
+
+                        var dayIncome = 0L
+                        var dayExpense = 0L
+                        for (exp in dayExpenses) {
+                            val amount = if (exp.isInstallment && exp.monthlyPayment > 0) exp.monthlyPayment else exp.amount
+                            if (exp.type == "INCOME") dayIncome += amount
+                            else if (exp.type == "EXPENSE") dayExpense += amount
+                        }
+
+                        timelineItems.add(TimelineItem.Header(date, dayIncome, dayExpense))
+                        for (exp in dayExpenses) {
+                            timelineItems.add(TimelineItem.ExpenseItem(exp))
+                        }
+                    }
+
+                    val periodTotal = totalIncome - totalExpense
+
+                    var avgMonthlyExpense = 0L
+                    if (_state.value.activeDateFilter == DateRangeFilter.ALL_TIME && validExpenses.isNotEmpty()) {
+                        val firstDate = validExpenses.last().date // Sorted DESC, so last is oldest
+                        val lastDate = System.currentTimeMillis()
+                        val diff = lastDate - firstDate
+                        val months = (diff / (1000L * 60 * 60 * 24 * 30)).coerceAtLeast(1L)
+                        avgMonthlyExpense = totalExpense / months
+                    }
+
+                    ProcessedExpenses(
+                        expenses = expenses,
+                        grouped = grouped,
+                        timelineItems = timelineItems,
+                        periodTotal = periodTotal,
+                        income = totalIncome,
+                        expense = totalExpense,
+                        dailyMap = dailyMap,
+                        avgMonthlyExpense = avgMonthlyExpense
+                    )
+                }
+            }
+            .flowOn(Dispatchers.Default)
+            .onEach { processed ->
                 _state.update {
                     it.copy(
-                        expenses = expenses,
-                        groupedExpenses = grouped,
-                        totalFilteredAmount = periodTotal,
-                        totalFilteredIncome = income,
-                        totalFilteredExpense = expense,
-                        dailySpending = dailyMap,
-                        avgMonthlyExpense = avgMonthlyExpense,
+                        expenses = processed.expenses,
+                        groupedExpenses = processed.grouped,
+                        timelineItems = processed.timelineItems,
+                        totalFilteredAmount = processed.periodTotal,
+                        totalFilteredIncome = processed.income,
+                        totalFilteredExpense = processed.expense,
+                        dailySpending = processed.dailyMap,
+                        avgMonthlyExpense = processed.avgMonthlyExpense,
                         isLoading = false
                     )
                 }
             }
             .launchIn(viewModelScope)
     }
+
+    private data class ProcessedExpenses(
+        val expenses: List<Expense>,
+        val grouped: Map<Long, List<Expense>>,
+        val timelineItems: List<TimelineItem>,
+        val periodTotal: Long,
+        val income: Long,
+        val expense: Long,
+        val dailyMap: Map<Long, Long>,
+        val avgMonthlyExpense: Long
+    )
 
     fun updateSearchQuery(query: String) {
         _state.update { it.copy(searchQuery = query) }
@@ -310,6 +396,8 @@ class ExpenseListViewModel @Inject constructor(
     private fun groupExpensesByDate(expenses: List<Expense>): Map<Long, List<Expense>> {
         val calendar = CalendarUtils.getInstance()
 
+        // Since expenses are already sorted by date DESC from the repository,
+        // groupBy (which returns a LinkedHashMap) will preserve this order.
         return expenses.groupBy { expense ->
             calendar.timeInMillis = expense.date
             calendar.set(Calendar.HOUR_OF_DAY, 0)
@@ -317,36 +405,14 @@ class ExpenseListViewModel @Inject constructor(
             calendar.set(Calendar.SECOND, 0)
             calendar.set(Calendar.MILLISECOND, 0)
             calendar.timeInMillis
-        }.toSortedMap(compareByDescending { it })
+        }
     }
 
     fun updateCustomDateRange(start: Long, end: Long) {
-        val utcCalendar = Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
-
-        utcCalendar.timeInMillis = start
-        val sYear = utcCalendar.get(Calendar.YEAR)
-        val sMonth = utcCalendar.get(Calendar.MONTH)
-        val sDay = utcCalendar.get(Calendar.DAY_OF_MONTH)
-
-        val localCalendar = CalendarUtils.getInstance()
-        localCalendar.set(sYear, sMonth, sDay, 0, 0, 0)
-        localCalendar.set(Calendar.MILLISECOND, 0)
-        val localStart = localCalendar.timeInMillis
-
-        utcCalendar.timeInMillis = end
-        val eYear = utcCalendar.get(Calendar.YEAR)
-        val eMonth = utcCalendar.get(Calendar.MONTH)
-        val eDay = utcCalendar.get(Calendar.DAY_OF_MONTH)
-
-        localCalendar.set(eYear, eMonth, eDay, 0, 0, 0)
-        localCalendar.set(Calendar.MILLISECOND, 0)
-        localCalendar.add(Calendar.DAY_OF_MONTH, 1)
-        val localEnd = localCalendar.timeInMillis
-
         _state.update {
             it.copy(
-                startDate = localStart,
-                endDate = localEnd,
+                startDate = start,
+                endDate = end,
                 activeDateFilter = DateRangeFilter.CUSTOM,
                 isLoading = true
             )
@@ -354,14 +420,25 @@ class ExpenseListViewModel @Inject constructor(
     }
 
     fun updateDateRange(filter: DateRangeFilter) {
+        val (start, end) = calculateDateRange(filter)
+        _state.update {
+            it.copy(
+                startDate = start,
+                endDate = end,
+                activeDateFilter = filter,
+                isLoading = true
+            )
+        }
+    }
+
+    private fun calculateDateRange(filter: DateRangeFilter): Pair<Long, Long> {
         val calendar = CalendarUtils.getInstance()
         calendar.set(Calendar.HOUR_OF_DAY, 0)
         calendar.set(Calendar.MINUTE, 0)
         calendar.set(Calendar.SECOND, 0)
         calendar.set(Calendar.MILLISECOND, 0)
 
-
-        val (start, end) = when (filter) {
+        return when (filter) {
             DateRangeFilter.THIS_WEEK -> {
                 calendar.set(Calendar.DAY_OF_WEEK, calendar.firstDayOfWeek)
                 val endCal = calendar.clone() as Calendar
@@ -399,18 +476,9 @@ class ExpenseListViewModel @Inject constructor(
                 Pair(_state.value.startDate, _state.value.endDate)
             }
         }
-
-        _state.update {
-            it.copy(
-                startDate = start,
-                endDate = end,
-                activeDateFilter = filter,
-                isLoading = true
-            )
-        }
     }
 
-    private fun loadHistoricalStats() {
+    private fun observeHistoricalStats() {
         // This Month
         val calendar = CalendarUtils.getInstance()
         calendar.set(Calendar.DAY_OF_MONTH, 1)
@@ -477,14 +545,8 @@ class ExpenseListViewModel @Inject constructor(
 
     fun previousMonth() {
         val calendar = CalendarUtils.getInstance()
-        calendar.timeInMillis =
-            if (_state.value.startDate == 0L) System.currentTimeMillis() else _state.value.startDate
-
-        calendar.set(Calendar.DAY_OF_MONTH, 1)
-        calendar.set(Calendar.HOUR_OF_DAY, 0)
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
+        calendar.timeInMillis = if (_state.value.startDate == 0L) System.currentTimeMillis() else _state.value.startDate
+        resetToFirstOfMonth(calendar)
 
         calendar.add(Calendar.MONTH, -1)
         val start = calendar.timeInMillis
@@ -492,26 +554,13 @@ class ExpenseListViewModel @Inject constructor(
         calendar.add(Calendar.MONTH, 1)
         val end = calendar.timeInMillis
 
-        _state.update {
-            it.copy(
-                startDate = start,
-                endDate = end,
-                activeDateFilter = DateRangeFilter.CUSTOM,
-                isLoading = true
-            )
-        }
+        updateCustomDateRange(start, end)
     }
 
     fun nextMonth() {
         val calendar = CalendarUtils.getInstance()
-        calendar.timeInMillis =
-            if (_state.value.startDate == 0L) System.currentTimeMillis() else _state.value.startDate
-
-        calendar.set(Calendar.DAY_OF_MONTH, 1)
-        calendar.set(Calendar.HOUR_OF_DAY, 0)
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
+        calendar.timeInMillis = if (_state.value.startDate == 0L) System.currentTimeMillis() else _state.value.startDate
+        resetToFirstOfMonth(calendar)
 
         calendar.add(Calendar.MONTH, 1)
         val start = calendar.timeInMillis
@@ -519,57 +568,36 @@ class ExpenseListViewModel @Inject constructor(
         calendar.add(Calendar.MONTH, 1)
         val end = calendar.timeInMillis
 
-        _state.update {
-            it.copy(
-                startDate = start,
-                endDate = end,
-                activeDateFilter = DateRangeFilter.CUSTOM,
-                isLoading = true
-            )
-        }
+        updateCustomDateRange(start, end)
     }
 
     fun jumpToDate(millis: Long) {
         val calendar = CalendarUtils.getInstance()
         calendar.timeInMillis = millis
-
-        calendar.set(Calendar.DAY_OF_MONTH, 1)
-        calendar.set(Calendar.HOUR_OF_DAY, 0)
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
+        resetToFirstOfMonth(calendar)
 
         val start = calendar.timeInMillis
 
         calendar.add(Calendar.MONTH, 1)
         val end = calendar.timeInMillis
 
-        _state.update {
-            it.copy(
-                startDate = start,
-                endDate = end,
-                activeDateFilter = DateRangeFilter.CUSTOM,
-                isLoading = true
-            )
-        }
+        updateCustomDateRange(start, end)
+    }
+
+    private fun resetToStartOfDay(calendar: Calendar) {
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+    }
+
+    private fun resetToFirstOfMonth(calendar: Calendar) {
+        calendar.set(Calendar.DAY_OF_MONTH, 1)
+        resetToStartOfDay(calendar)
     }
 
     fun setCommitmentFilter(filter: TimelineCommitmentFilter) {
-        _state.update { currentState ->
-            val allExpenses = currentState.expenses
-            val validExpenses = allExpenses.filter { !it.isInstallment || it.isInstallmentPayment }
-            val displayedExpenses = when (filter) {
-                TimelineCommitmentFilter.ALL -> validExpenses
-                TimelineCommitmentFilter.INSTALLMENTS -> allExpenses.filter {
-                    it.isInstallment || it.isInstallmentPayment
-                }
-                TimelineCommitmentFilter.RECURRING -> validExpenses.filter { it.isRecurring }
-            }
-            currentState.copy(
-                activeCommitmentFilter = filter,
-                groupedExpenses = groupExpensesByDate(displayedExpenses)
-            )
-        }
+        _state.update { it.copy(activeCommitmentFilter = filter) }
     }
 
     fun openInstallmentDetail(expense: Expense) {
