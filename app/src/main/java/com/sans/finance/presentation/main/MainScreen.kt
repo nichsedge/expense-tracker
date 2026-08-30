@@ -112,6 +112,7 @@ fun MainScreen(
                             onOpenDebts = { rootNavController.navigate(Screen.DebtStrategist) },
                             onOpenGoals = { rootNavController.navigate(Screen.Goals) },
                             onOpenBudgets = { rootNavController.navigate(Screen.Budgets) },
+                            onOpenRecurringExpenses = { rootNavController.navigate(Screen.RecurringExpenses) },
                             onOpenForecasting = { rootNavController.navigate(Screen.WealthForecasting) },
                             onOpenMonthlyReview = { rootNavController.navigate(Screen.MonthlyReview(0)) }
                         )

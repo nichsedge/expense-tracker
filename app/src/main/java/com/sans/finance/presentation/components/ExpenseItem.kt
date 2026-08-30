@@ -140,12 +140,33 @@ fun ExpenseItem(
 
                     val interval = expense.recurrenceInterval
                     if (expense.isRecurring && interval != null) {
+                        val mult = expense.recurrenceIntervalMultiplier.coerceAtLeast(1)
+                        val cadenceStr = if (mult > 1) {
+                            "• every ${mult}${interval.lowercase().take(1)}"
+                        } else {
+                            "• ${interval.lowercase().take(3)}"
+                        }
                         Text(
-                            "• ${interval.lowercase().take(3)}",
+                            cadenceStr,
                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                             color = MaterialTheme.colorScheme.secondary,
                             fontWeight = FontWeight.Bold
                         )
+                        if (expense.recurrenceStatus.equals("PAUSED", ignoreCase = true)) {
+                            Text(
+                                "• paused",
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                color = MaterialTheme.colorScheme.error,
+                                fontWeight = FontWeight.Bold
+                            )
+                        } else if (expense.status.equals("Pending", ignoreCase = true)) {
+                            Text(
+                                "• upcoming",
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                color = MaterialTheme.colorScheme.tertiary,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
 
                     if (expense.isInstallmentPayment && expense.installmentTotalMonths > 0) {

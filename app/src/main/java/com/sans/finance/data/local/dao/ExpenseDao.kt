@@ -55,8 +55,6 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses WHERE is_recurring = 1 ORDER BY date DESC")
     fun getRecurringExpenses(): Flow<List<com.sans.finance.data.local.entity.ExpenseWithTags>>
 
-    @Query("DELETE FROM expenses WHERE id >= :idOffset AND (id - :idOffset) IN (SELECT id FROM installment_items)")
-    suspend fun deleteSyntheticDuplicateExpenses(idOffset: Long)
 
     @Transaction
     @Query(

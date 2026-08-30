@@ -64,8 +64,13 @@ data class PortfolioScreenState(
     val accountAliases: Map<String, String> = emptyMap(),
     val includedAccountCashIdr: Double = 0.0,
     val rebalanceSuggestions: List<com.sans.finance.domain.model.RebalanceAction> = emptyList(),
+    val dividendSummary: com.sans.finance.domain.model.DividendYieldSummary? = null,
+    val cashInjectionDepositAmount: Double = 0.0,
+    val cashInjectionResult: com.sans.finance.domain.usecase.CashInjectionRebalanceResult? = null,
     val aiAnalysis: com.sans.finance.data.ai.PortfolioAnalysisResult? = null,
-    val isAiAnalyzing: Boolean = false
+    val isAiAnalyzing: Boolean = false,
+    val benchmarkComparison: com.sans.finance.domain.model.PortfolioBenchmarkComparison? = null,
+    val selectedBenchmark: com.sans.finance.domain.model.BenchmarkType = com.sans.finance.domain.model.BenchmarkType.SP500
 )
 
 @HiltViewModel
@@ -80,6 +85,9 @@ class PortfolioViewModel @Inject constructor(
     private val userPreferencesRepository: UserPreferencesRepository,
     private val localeManager: LocaleManager,
     private val getRebalanceSuggestionsUseCase: com.sans.finance.domain.usecase.GetRebalanceSuggestionsUseCase,
+    private val getCashInjectionRebalanceUseCase: com.sans.finance.domain.usecase.GetCashInjectionRebalanceUseCase,
+    private val getDividendYieldSummaryUseCase: com.sans.finance.domain.usecase.GetDividendYieldSummaryUseCase,
+    private val getPortfolioBenchmarkComparisonUseCase: com.sans.finance.domain.usecase.GetPortfolioBenchmarkComparisonUseCase,
     private val valuatePortfolioUseCase: com.sans.finance.domain.usecase.ValuatePortfolioUseCase,
     private val aiProviderFactory: com.sans.finance.data.ai.AiProviderFactory,
     @param:ApplicationContext private val context: android.content.Context
@@ -88,6 +96,8 @@ class PortfolioViewModel @Inject constructor(
     private val _selectedDateIndex = MutableStateFlow(0)
     private val _importMessage = MutableStateFlow<String?>(null)
     private val _selectedTab = MutableStateFlow(0)
+    private val _cashInjectionAmount = MutableStateFlow(0.0)
+    private val _selectedBenchmark = MutableStateFlow(com.sans.finance.domain.model.BenchmarkType.SP500)
     private val _chartMode = MutableStateFlow(0)
     private val _xirr = MutableStateFlow<Double?>(null)
     private val _aiAnalysis = MutableStateFlow<com.sans.finance.data.ai.PortfolioAnalysisResult?>(null)
@@ -121,6 +131,7 @@ class PortfolioViewModel @Inject constructor(
         _importMessage,
         userPreferencesRepository.userPreferences.map { it.isPrivacyModeEnabled },
         _selectedTab,
+        _cashInjectionAmount,
         _chartMode,
         _xirr,
         _aiAnalysis,
@@ -129,7 +140,9 @@ class PortfolioViewModel @Inject constructor(
         accountTypeRepository.getAllAccountTypes(),
         currencyDao.getAllRates(),
         accountAliasDao.getAllAliases(),
-        expenseRepository.getExpensesBetween(0, Long.MAX_VALUE)
+        expenseRepository.getExpensesBetween(0, Long.MAX_VALUE),
+        getDividendYieldSummaryUseCase(),
+        _selectedBenchmark
     ) { args ->
         @Suppress("UNCHECKED_CAST")
         val dates = args[0] as List<Long>
@@ -143,20 +156,23 @@ class PortfolioViewModel @Inject constructor(
         val importMsg = args[5] as String?
         val privacyMode = args[6] as Boolean
         val selectedTab = args[7] as Int
-        val chartMode = args[8] as Int
-        val xirrValue = args[9] as Double?
-        val aiAnalysis = args[10] as com.sans.finance.data.ai.PortfolioAnalysisResult?
-        val isAiAnalyzing = args[11] as Boolean
+        val cashInjectionDeposit = args[8] as Double
+        val chartMode = args[9] as Int
+        val xirrValue = args[10] as Double?
+        val aiAnalysis = args[11] as com.sans.finance.data.ai.PortfolioAnalysisResult?
+        val isAiAnalyzing = args[12] as Boolean
         @Suppress("UNCHECKED_CAST")
-        val accounts = args[12] as List<com.sans.finance.data.local.entity.AccountEntity>
+        val accounts = args[13] as List<com.sans.finance.data.local.entity.AccountEntity>
         @Suppress("UNCHECKED_CAST")
-        val accountTypes = args[13] as List<com.sans.finance.data.local.entity.AccountTypeEntity>
+        val accountTypes = args[14] as List<com.sans.finance.data.local.entity.AccountTypeEntity>
         @Suppress("UNCHECKED_CAST")
-        val rates = args[14] as List<com.sans.finance.data.local.entity.ExchangeRateEntity>
+        val rates = args[15] as List<com.sans.finance.data.local.entity.ExchangeRateEntity>
         @Suppress("UNCHECKED_CAST")
-        val aliases = args[15] as List<com.sans.finance.data.local.entity.AccountAliasEntity>
+        val aliases = args[16] as List<com.sans.finance.data.local.entity.AccountAliasEntity>
         @Suppress("UNCHECKED_CAST")
-        val allExpenses = args[16] as List<com.sans.finance.domain.model.Expense>
+        val allExpenses = args[17] as List<com.sans.finance.domain.model.Expense>
+        val dividendSummary = args[18] as com.sans.finance.domain.model.DividendYieldSummary
+        val selectedBenchmark = args[19] as com.sans.finance.domain.model.BenchmarkType
 
         val currency = localeManager.getCurrency()
 
@@ -238,12 +254,9 @@ class PortfolioViewModel @Inject constructor(
             .toList()
             .sortedByDescending { it.second.sumOf { h -> valuedMap[h.id]?.currentValueInBase ?: h.valueIdr } }
             .toMap()
-
         val rebalanceSuggestions = getRebalanceSuggestionsUseCase(healthList)
-
-        val previousDate = dates.getOrNull(validIndex + 1)
-        val previousTotalIdr = if (previousDate != null) {
-            history.find { it.snapshot_date == previousDate }?.totalIdr
+        val cashInjectionResult = if (cashInjectionDeposit > 0) {
+            getCashInjectionRebalanceUseCase(healthList, cashInjectionDeposit)
         } else null
 
         val currentTotal = history.find { it.snapshot_date == selectedDate }
@@ -334,6 +347,16 @@ class PortfolioViewModel @Inject constructor(
         }
 
         val totalValueIdr = assetClassTotals.sumOf { it.totalIdr }
+        val benchmarkComparison = getPortfolioBenchmarkComparisonUseCase(history, selectedBenchmark)
+
+        val previousDate = dates.getOrNull(validIndex + 1)
+        val previousTotalInBase = if (previousDate != null) {
+            if (accountCashHoldings.isNotEmpty()) {
+                netWorthHistory.find { it.snapshot_date == previousDate }?.totalIdr
+            } else {
+                history.find { it.snapshot_date == previousDate }?.let { if (baseRate > 0) it.totalIdr / baseRate else it.totalIdr }
+            }
+        } else null
 
         PortfolioScreenState(
             holdings = consolidatedHoldings,
@@ -359,7 +382,7 @@ class PortfolioViewModel @Inject constructor(
             currentCurrency = currency,
             isLoading = false,
             importMessage = importMsg,
-            previousTotalIdr = previousTotalIdr?.let { if (baseRate > 0) it / baseRate else it },
+            previousTotalIdr = previousTotalInBase,
             isPrivacyModeEnabled = privacyMode,
             assetClassTotals = assetClassTotals,
             healthList = healthList,
@@ -369,14 +392,27 @@ class PortfolioViewModel @Inject constructor(
             accountAliases = aliases.associate { it.accountKey to it.aliasName },
             includedAccountCashIdr = accountCashHoldings.sumOf { it.valueIdr },
             rebalanceSuggestions = rebalanceSuggestions,
+            dividendSummary = dividendSummary,
+            cashInjectionDepositAmount = cashInjectionDeposit,
+            cashInjectionResult = cashInjectionResult,
             aiAnalysis = aiAnalysis,
-            isAiAnalyzing = isAiAnalyzing
+            isAiAnalyzing = isAiAnalyzing,
+            benchmarkComparison = benchmarkComparison,
+            selectedBenchmark = selectedBenchmark
         )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = PortfolioScreenState()
     )
+
+    fun selectBenchmark(benchmark: com.sans.finance.domain.model.BenchmarkType) {
+        _selectedBenchmark.value = benchmark
+    }
+
+    fun updateCashInjectionDeposit(amount: Double) {
+        _cashInjectionAmount.value = amount
+    }
 
     fun setChartMode(mode: Int) {
         _chartMode.value = mode

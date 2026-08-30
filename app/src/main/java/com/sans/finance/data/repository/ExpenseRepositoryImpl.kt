@@ -44,25 +44,17 @@ class ExpenseRepositoryImpl(
         }
     }
 
-    init {
-        widgetScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-            dao.deleteSyntheticDuplicateExpenses(INSTALLMENT_PAYMENT_ID_OFFSET)
-        }
-    }
-
-    companion object {
-        private const val INSTALLMENT_PAYMENT_ID_OFFSET = Expense.SYNTHETIC_INSTALLMENT_OFFSET
-    }
-
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     override fun getAllExpenses(): Flow<List<Expense>> {
         val expensesFlow = dao.getAllExpenses()
         val installmentPaymentsFlow = installmentDao.getInstallmentPaymentsBetween(0, Long.MAX_VALUE)
+        val recurringFlow = dao.getRecurringExpenses()
 
         return combine(
             expensesFlow,
-            installmentPaymentsFlow
-        ) { e, i -> Pair(e, i) }.flatMapLatest { (expenseEntities, installmentRows) ->
+            installmentPaymentsFlow,
+            recurringFlow
+        ) { e, i, r -> Triple(e, i, r) }.flatMapLatest { (expenseEntities, installmentRows, recurringEntities) ->
             val installmentIds = expenseEntities.mapNotNull { it.installment?.id }.distinct()
             val itemsFlow = if (installmentIds.isEmpty()) {
                 flowOf(emptyList<com.sans.finance.data.local.entity.InstallmentItemEntity>())
@@ -74,7 +66,12 @@ class ExpenseRepositoryImpl(
                 val itemsByInstallment = items.groupBy { it.installmentId }
                 val expenses = expenseEntities.map { it.toDomain(itemsByInstallment) }
                 val installmentPayments = installmentRows.map { it.toDomain() }
-                (expenses + installmentPayments).sortedByDescending { it.date }
+                val recurringProjections = projectRecurringOccurrences(
+                    recurringEntities = recurringEntities,
+                    since = 0L,
+                    until = Long.MAX_VALUE
+                )
+                (expenses + installmentPayments + recurringProjections).sortedByDescending { it.date }
             }
         }
     }
@@ -83,11 +80,13 @@ class ExpenseRepositoryImpl(
     override fun getExpensesBetween(since: Long, until: Long): Flow<List<Expense>> {
         val expensesFlow = dao.getExpensesBetween(since, until)
         val installmentPaymentsFlow = installmentDao.getInstallmentPaymentsBetween(since, until)
+        val recurringFlow = dao.getRecurringExpenses()
 
         return combine(
             expensesFlow,
-            installmentPaymentsFlow
-        ) { e, i -> Pair(e, i) }.flatMapLatest { (expenseEntities, installmentRows) ->
+            installmentPaymentsFlow,
+            recurringFlow
+        ) { e, i, r -> Triple(e, i, r) }.flatMapLatest { (expenseEntities, installmentRows, recurringEntities) ->
             val installmentIds = expenseEntities.mapNotNull { it.installment?.id }.distinct()
             val itemsFlow = if (installmentIds.isEmpty()) {
                 flowOf(emptyList<com.sans.finance.data.local.entity.InstallmentItemEntity>())
@@ -99,7 +98,12 @@ class ExpenseRepositoryImpl(
                 val itemsByInstallment = items.groupBy { it.installmentId }
                 val expenses = expenseEntities.map { it.toDomain(itemsByInstallment) }
                 val installmentPayments = installmentRows.map { it.toDomain() }
-                (expenses + installmentPayments).sortedByDescending { it.date }
+                val recurringProjections = projectRecurringOccurrences(
+                    recurringEntities = recurringEntities,
+                    since = since,
+                    until = until
+                )
+                (expenses + installmentPayments + recurringProjections).sortedByDescending { it.date }
             }
         }
     }
@@ -167,10 +171,13 @@ class ExpenseRepositoryImpl(
             types.size
         )
 
+        val recurringFlow = dao.getRecurringExpenses()
+
         return combine(
             expensesFlow,
-            installmentsFlow
-        ) { e, i -> Pair(e, i) }.flatMapLatest { (expenseEntities, installmentRows) ->
+            installmentsFlow,
+            recurringFlow
+        ) { e, i, r -> Triple(e, i, r) }.flatMapLatest { (expenseEntities, installmentRows, recurringEntities) ->
             val installmentIds = expenseEntities.mapNotNull { it.installment?.id }.distinct()
             val itemsFlow = if (installmentIds.isEmpty()) {
                 flowOf(emptyList<com.sans.finance.data.local.entity.InstallmentItemEntity>())
@@ -182,15 +189,55 @@ class ExpenseRepositoryImpl(
                 val itemsByInstallment = items.groupBy { it.installmentId }
                 val expenses = expenseEntities.map { it.toDomain(itemsByInstallment) }
                 val installmentPayments = installmentRows.map { it.toDomain() }
-                (expenses + installmentPayments).sortedByDescending { it.date }
+                val recurringProjections = projectRecurringOccurrences(
+                    recurringEntities = recurringEntities,
+                    since = since,
+                    until = until,
+                    query = searchQuery,
+                    categoryIds = categoryIds,
+                    accountIds = accountIds,
+                    minAmount = minAmount,
+                    maxAmount = maxAmount,
+                    tags = tags,
+                    types = types
+                )
+                (expenses + installmentPayments + recurringProjections).sortedByDescending { it.date }
             }
         }
     }
 
     override suspend fun getExpenseById(id: Long): Expense? {
-        return if (id >= INSTALLMENT_PAYMENT_ID_OFFSET) {
-            val installmentItemId = id - INSTALLMENT_PAYMENT_ID_OFFSET
-            installmentDao.getInstallmentItemById(installmentItemId)?.let { item ->
+        if (com.sans.finance.core.util.RecurringOccurrenceCalculator.isSyntheticRecurringId(id)) {
+            val parentId = com.sans.finance.core.util.RecurringOccurrenceCalculator.extractParentRuleId(id)
+            val occIndex = com.sans.finance.core.util.RecurringOccurrenceCalculator.extractOccurrenceIndex(id)
+            val parent = dao.getExpenseById(parentId)?.let {
+                val items = installmentDao.getItemsByInstallmentIdForId(it.installment?.id ?: -1)
+                it.toDomain(items.groupBy { it.installmentId })
+            } ?: return null
+
+            return parent.copy(
+                id = id,
+                isRecurringInstance = true,
+                parentRecurringId = parentId,
+                recurringOccurrenceIndex = occIndex
+            )
+        }
+
+        // For positive IDs, always check the expenses table first
+        if (id > 0) {
+            val directExpense = dao.getExpenseById(id)?.let {
+                val items = installmentDao.getItemsByInstallmentIdForId(it.installment?.id ?: -1)
+                it.toDomain(items.groupBy { it.installmentId })
+            }
+            if (directExpense != null) {
+                return directExpense
+            }
+        }
+
+        // Negative IDs are synthetic installment payment references: id = -installmentItemId
+        if (id < 0) {
+            val installmentItemId = -id
+            return installmentDao.getInstallmentItemById(installmentItemId)?.let { item ->
                 val installment = installmentDao.getInstallmentById(item.installmentId)
                 val parentExpense = installment?.let { dao.getExpenseById(it.expenseId) }
 
@@ -212,12 +259,8 @@ class ExpenseRepositoryImpl(
                     categoryIcon = parentExpense?.category?.icon
                 )
             }
-        } else {
-            dao.getExpenseById(id)?.let {
-                val items = installmentDao.getItemsByInstallmentIdForId(it.installment?.id ?: -1)
-                it.toDomain(items.groupBy { it.installmentId })
-            }
         }
+        return null
     }
 
     override suspend fun getTitleSuggestions(query: String): List<String> {
@@ -263,7 +306,7 @@ class ExpenseRepositoryImpl(
     }
 
     override suspend fun insertExpense(expense: Expense): Long {
-        val expenseToInsert = if (expense.id >= INSTALLMENT_PAYMENT_ID_OFFSET) {
+        val expenseToInsert = if (expense.isInstallmentPayment) {
             expense.copy(id = 0)
         } else {
             expense
@@ -274,8 +317,22 @@ class ExpenseRepositoryImpl(
     }
 
     override suspend fun updateExpense(expense: Expense) {
-        if (expense.id >= INSTALLMENT_PAYMENT_ID_OFFSET) {
-            val itemId = expense.id - INSTALLMENT_PAYMENT_ID_OFFSET
+        if (com.sans.finance.core.util.RecurringOccurrenceCalculator.isSyntheticRecurringId(expense.id) ||
+            (expense.isRecurringInstance && expense.parentRecurringId != null)
+        ) {
+            val parentId = expense.parentRecurringId ?: com.sans.finance.core.util.RecurringOccurrenceCalculator.extractParentRuleId(expense.id)
+            val parentEntity = dao.getExpenseById(parentId)?.expense
+            if (parentEntity != null) {
+                dao.updateExpense(
+                    expense.copy(id = parentId, isRecurringInstance = false).toEntity()
+                )
+                notifyWidgets()
+                return
+            }
+        }
+
+        if (expense.isInstallmentPayment && expense.id < 0) {
+            val itemId = -expense.id
             val oldItem = installmentDao.getInstallmentItemById(itemId)
             if (oldItem != null) {
                 installmentDao.insertInstallmentItem(
@@ -294,17 +351,30 @@ class ExpenseRepositoryImpl(
                         )
                     )
                 }
+                notifyWidgets()
+                return
             }
-        } else {
-            dao.updateExpense(expense.toEntity())
         }
+        dao.updateExpense(expense.toEntity())
         notifyWidgets()
     }
 
     override suspend fun deleteExpense(expense: Expense) {
-        if (expense.id >= INSTALLMENT_PAYMENT_ID_OFFSET) {
-            val itemId = expense.id - INSTALLMENT_PAYMENT_ID_OFFSET
-            installmentDao.getInstallmentItemById(itemId)?.let { item ->
+        if (com.sans.finance.core.util.RecurringOccurrenceCalculator.isSyntheticRecurringId(expense.id) ||
+            (expense.isRecurringInstance && expense.parentRecurringId != null)
+        ) {
+            val parentId = expense.parentRecurringId ?: com.sans.finance.core.util.RecurringOccurrenceCalculator.extractParentRuleId(expense.id)
+            dao.getExpenseById(parentId)?.let {
+                dao.deleteExpense(it.expense)
+            }
+            notifyWidgets()
+            return
+        }
+
+        if (expense.isInstallmentPayment && expense.id < 0) {
+            val itemId = -expense.id
+            val item = installmentDao.getInstallmentItemById(itemId)
+            if (item != null) {
                 installmentDao.updateInstallmentItemStatus(itemId, "Pending")
                 val installment = installmentDao.getInstallmentById(item.installmentId)
                 if (installment != null) {
@@ -312,23 +382,24 @@ class ExpenseRepositoryImpl(
                         installment.copy(status = "Active")
                     )
                 }
+                notifyWidgets()
+                return
             }
-        } else {
-            dao.deleteExpense(expense.toEntity())
         }
+        dao.deleteExpense(expense.toEntity())
         notifyWidgets()
     }
 
     override fun getTotalSpentSince(since: Long): Flow<Long?> {
-        return dao.getTotalSpentSince(since)
+        return getTotalSpentBetween(since, Long.MAX_VALUE)
     }
 
     override fun getTotalSpentBetween(since: Long, until: Long): Flow<Long?> {
-        return dao.getTotalSpentBetween(since, until)
+        return getTotalAmountByTypeBetween(since, until, "EXPENSE")
     }
 
     override fun getAllTimeSpent(): Flow<Long?> {
-        return dao.getAllTimeSpent()
+        return getTotalSpentBetween(0L, Long.MAX_VALUE)
     }
 
     override fun getOldestExpenseDate(): Flow<Long?> {
@@ -463,7 +534,7 @@ class ExpenseRepositoryImpl(
         since: Long,
         until: Long
     ): Flow<List<CategorySpent>> {
-        return dao.getSpendingByCategoryBetween(since, until)
+        return getBreakdownByCategoryBetween(since, until, "EXPENSE")
     }
 
     override fun getBreakdownByCategoryBetween(
@@ -471,7 +542,43 @@ class ExpenseRepositoryImpl(
         until: Long,
         type: String
     ): Flow<List<CategorySpent>> {
-        return dao.getBreakdownByCategoryBetween(since, until, type)
+        val breakdownFlow = dao.getBreakdownByCategoryBetween(since, until, type)
+        val recurringFlow = dao.getRecurringExpenses()
+        val ratesFlow = db.currencyDao.getAllRates()
+
+        return combine(breakdownFlow, recurringFlow, ratesFlow) { dbBreakdown, recurringEntities, rates ->
+            val ratesMap = rates.associate { it.code to it.rateToIdr }
+            val projectedExpenses = projectRecurringOccurrences(
+                recurringEntities = recurringEntities,
+                since = since,
+                until = until,
+                types = listOf(type)
+            )
+
+            if (projectedExpenses.isEmpty()) {
+                dbBreakdown
+            } else {
+                val categoryMap = dbBreakdown.associateBy { it.categoryId }.toMutableMap()
+                for (expense in projectedExpenses) {
+                    val rate = if (expense.currency == "IDR") 1.0 else ratesMap[expense.currency] ?: 1.0
+                    val amountInIdr = (expense.amount * rate).toLong()
+                    val existing = categoryMap[expense.categoryId]
+                    if (existing != null) {
+                        categoryMap[expense.categoryId] = existing.copy(
+                            totalAmount = existing.totalAmount + amountInIdr
+                        )
+                    } else {
+                        categoryMap[expense.categoryId] = CategorySpent(
+                            categoryId = expense.categoryId,
+                            categoryName = expense.categoryName ?: "Uncategorized",
+                            categoryIcon = expense.categoryIcon ?: "📁",
+                            totalAmount = amountInIdr
+                        )
+                    }
+                }
+                categoryMap.values.sortedByDescending { it.totalAmount }
+            }
+        }
     }
 
     override fun getTotalAmountByTypeBetween(
@@ -479,14 +586,64 @@ class ExpenseRepositoryImpl(
         until: Long,
         type: String
     ): Flow<Long?> {
-        return dao.getTotalAmountByTypeBetween(since, until, type)
+        val totalFlow = dao.getTotalAmountByTypeBetween(since, until, type)
+        val recurringFlow = dao.getRecurringExpenses()
+        val ratesFlow = db.currencyDao.getAllRates()
+
+        return combine(totalFlow, recurringFlow, ratesFlow) { dbTotal, recurringEntities, rates ->
+            val ratesMap = rates.associate { it.code to it.rateToIdr }
+            val projectedExpenses = projectRecurringOccurrences(
+                recurringEntities = recurringEntities,
+                since = since,
+                until = until,
+                types = listOf(type)
+            )
+
+            val baseTotal = dbTotal ?: 0L
+            val projectedTotal = projectedExpenses.sumOf { expense ->
+                val rate = if (expense.currency == "IDR") 1.0 else ratesMap[expense.currency] ?: 1.0
+                (expense.amount * rate).toLong()
+            }
+
+            baseTotal + projectedTotal
+        }
     }
 
     override fun getDailySpendingBetween(
         since: Long,
         until: Long
     ): Flow<List<DaySpent>> {
-        return dao.getDailySpendingBetween(since, until)
+        val dailyFlow = dao.getDailySpendingBetween(since, until)
+        val recurringFlow = dao.getRecurringExpenses()
+        val ratesFlow = db.currencyDao.getAllRates()
+
+        return combine(dailyFlow, recurringFlow, ratesFlow) { dbDaily, recurringEntities, rates ->
+            val ratesMap = rates.associate { it.code to it.rateToIdr }
+            val projectedExpenses = projectRecurringOccurrences(
+                recurringEntities = recurringEntities,
+                since = since,
+                until = until,
+                types = listOf("EXPENSE")
+            )
+
+            if (projectedExpenses.isEmpty()) {
+                dbDaily
+            } else {
+                val dailyMap = dbDaily.associateBy { it.day }.toMutableMap()
+                for (expense in projectedExpenses) {
+                    val dayMs = (expense.date / 86400000L) * 86400000L
+                    val rate = if (expense.currency == "IDR") 1.0 else ratesMap[expense.currency] ?: 1.0
+                    val amountInIdr = (expense.amount * rate).toLong()
+                    val existing = dailyMap[dayMs]
+                    if (existing != null) {
+                        dailyMap[dayMs] = existing.copy(amount = existing.amount + amountInIdr)
+                    } else {
+                        dailyMap[dayMs] = DaySpent(day = dayMs, amount = amountInIdr)
+                    }
+                }
+                dailyMap.values.sortedBy { it.day }
+            }
+        }
     }
 
     override fun getDailyBreakdownByCategoryBetween(
@@ -495,14 +652,89 @@ class ExpenseRepositoryImpl(
         categoryId: Long,
         type: String
     ): Flow<List<DaySpent>> {
-        return dao.getDailyBreakdownByCategoryBetween(since, until, categoryId, type)
+        val dailyFlow = dao.getDailyBreakdownByCategoryBetween(since, until, categoryId, type)
+        val recurringFlow = dao.getRecurringExpenses()
+        val ratesFlow = db.currencyDao.getAllRates()
+
+        return combine(dailyFlow, recurringFlow, ratesFlow) { dbDaily, recurringEntities, rates ->
+            val ratesMap = rates.associate { it.code to it.rateToIdr }
+            val projectedExpenses = projectRecurringOccurrences(
+                recurringEntities = recurringEntities,
+                since = since,
+                until = until,
+                categoryIds = listOf(categoryId),
+                types = listOf(type)
+            )
+
+            if (projectedExpenses.isEmpty()) {
+                dbDaily
+            } else {
+                val dailyMap = dbDaily.associateBy { it.day }.toMutableMap()
+                for (expense in projectedExpenses) {
+                    val dayMs = (expense.date / 86400000L) * 86400000L
+                    val rate = if (expense.currency == "IDR") 1.0 else ratesMap[expense.currency] ?: 1.0
+                    val amountInIdr = (expense.amount * rate).toLong()
+                    val existing = dailyMap[dayMs]
+                    if (existing != null) {
+                        dailyMap[dayMs] = existing.copy(amount = existing.amount + amountInIdr)
+                    } else {
+                        dailyMap[dayMs] = DaySpent(day = dayMs, amount = amountInIdr)
+                    }
+                }
+                dailyMap.values.sortedBy { it.day }
+            }
+        }
     }
 
     override fun getMonthlyBreakdownByCategory(
         categoryId: Long,
         type: String
     ): Flow<List<DaySpent>> {
-        return dao.getMonthlyBreakdownByCategory(categoryId, type)
+        val monthlyFlow = dao.getMonthlyBreakdownByCategory(categoryId, type)
+        val recurringFlow = dao.getRecurringExpenses()
+        val ratesFlow = db.currencyDao.getAllRates()
+
+        return combine(monthlyFlow, recurringFlow, ratesFlow) { dbMonthly, recurringEntities, rates ->
+            val ratesMap = rates.associate { it.code to it.rateToIdr }
+            val now = System.currentTimeMillis()
+            val projectedExpenses = projectRecurringOccurrences(
+                recurringEntities = recurringEntities,
+                since = 0L,
+                until = now + (365L * 86400000L),
+                categoryIds = listOf(categoryId),
+                types = listOf(type)
+            )
+
+            if (projectedExpenses.isEmpty()) {
+                dbMonthly
+            } else {
+                val monthlyMap = dbMonthly.associateBy { getStartOfMonth(it.day) }.toMutableMap()
+                for (expense in projectedExpenses) {
+                    val monthMs = getStartOfMonth(expense.date)
+                    val rate = if (expense.currency == "IDR") 1.0 else ratesMap[expense.currency] ?: 1.0
+                    val amountInIdr = (expense.amount * rate).toLong()
+                    val existing = monthlyMap[monthMs]
+                    if (existing != null) {
+                        monthlyMap[monthMs] = existing.copy(amount = existing.amount + amountInIdr)
+                    } else {
+                        monthlyMap[monthMs] = DaySpent(day = monthMs, amount = amountInIdr)
+                    }
+                }
+                monthlyMap.values.sortedBy { it.day }
+            }
+        }
+    }
+
+    private fun getStartOfMonth(dateMs: Long): Long {
+        val cal = java.util.Calendar.getInstance().apply {
+            timeInMillis = dateMs
+            set(java.util.Calendar.DAY_OF_MONTH, 1)
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }
+        return cal.timeInMillis
     }
 
     private fun com.sans.finance.data.local.entity.ExpenseWithTags.toDomain(
@@ -526,12 +758,18 @@ class ExpenseRepositoryImpl(
             isInstallment = expense.isInstallment,
             recurrenceInterval = expense.recurrenceInterval,
             nextDueDate = expense.nextDueDate,
+            recurrenceEndType = expense.recurrenceEndType ?: "NEVER",
+            recurrenceEndDate = expense.recurrenceEndDate,
+            recurrenceTotalOccurrences = expense.recurrenceTotalOccurrences,
+            recurrenceIntervalMultiplier = expense.recurrenceIntervalMultiplier,
+            recurrenceStatus = expense.recurrenceStatus,
             accountId = expense.accountId,
             toAccountId = expense.toAccountId,
             type = expense.type,
             details = expense.details,
             tags = tags.map { it.name },
             currency = expense.currency,
+            status = expense.status,
             totalPaid = totalPaid,
             remainingBalance = remainingBalance,
             monthlyPayment = monthlyPayment,
@@ -551,18 +789,94 @@ class ExpenseRepositoryImpl(
             isInstallment = isInstallment,
             recurrenceInterval = recurrenceInterval,
             nextDueDate = nextDueDate,
+            recurrenceEndType = recurrenceEndType,
+            recurrenceEndDate = recurrenceEndDate,
+            recurrenceTotalOccurrences = recurrenceTotalOccurrences,
+            recurrenceIntervalMultiplier = recurrenceIntervalMultiplier,
+            recurrenceStatus = recurrenceStatus,
             accountId = accountId,
             toAccountId = toAccountId,
             type = type,
             details = details,
             currency = currency,
-            status = "completed"
+            status = status
         )
+    }
+
+    private fun projectRecurringOccurrences(
+        recurringEntities: List<com.sans.finance.data.local.entity.ExpenseWithTags>,
+        since: Long,
+        until: Long,
+        query: String? = null,
+        categoryIds: List<Long> = emptyList(),
+        accountIds: List<Long> = emptyList(),
+        minAmount: Long? = null,
+        maxAmount: Long? = null,
+        tags: List<String> = emptyList(),
+        types: List<String> = emptyList()
+    ): List<Expense> {
+        val projected = mutableListOf<Expense>()
+        val now = System.currentTimeMillis()
+
+        for (entity in recurringEntities) {
+            val rule = entity.toDomain()
+            if (rule.recurrenceStatus.equals("CANCELLED", ignoreCase = true) ||
+                rule.recurrenceStatus.equals("PAUSED", ignoreCase = true)
+            ) {
+                continue
+            }
+
+            if (!query.isNullOrBlank()) {
+                val matchesTitle = rule.title.contains(query, ignoreCase = true)
+                val matchesDetails = rule.details?.contains(query, ignoreCase = true) == true
+                if (!matchesTitle && !matchesDetails) continue
+            }
+            if (categoryIds.isNotEmpty() && !categoryIds.contains(rule.categoryId)) continue
+            if (accountIds.isNotEmpty() && !accountIds.contains(rule.accountId)) continue
+            if (minAmount != null && rule.amount < minAmount) continue
+            if (maxAmount != null && rule.amount > maxAmount) continue
+            if (tags.isNotEmpty() && !rule.tags.any { tags.contains(it) }) continue
+            if (types.isNotEmpty() && !types.contains(rule.type)) continue
+
+            val occurrences = com.sans.finance.core.util.RecurringOccurrenceCalculator.calculateOccurrences(
+                startDate = rule.date,
+                interval = rule.recurrenceInterval,
+                multiplier = rule.recurrenceIntervalMultiplier,
+                endType = rule.recurrenceEndType,
+                endDate = rule.recurrenceEndDate,
+                totalOccurrences = rule.recurrenceTotalOccurrences,
+                status = rule.recurrenceStatus,
+                since = since,
+                until = until
+            )
+
+            for (occ in occurrences) {
+                if (occ.occurrenceIndex > 0) {
+                    val syntheticId = com.sans.finance.core.util.RecurringOccurrenceCalculator.generateSyntheticId(
+                        rule.id,
+                        occ.occurrenceIndex
+                    )
+                    val status = if (occ.date <= now) "Paid" else "Pending"
+                    projected.add(
+                        rule.copy(
+                            id = syntheticId,
+                            date = occ.date,
+                            status = status,
+                            isRecurring = true,
+                            isRecurringInstance = true,
+                            parentRecurringId = rule.id,
+                            recurringOccurrenceIndex = occ.occurrenceIndex
+                        )
+                    )
+                }
+            }
+        }
+        return projected
     }
 
     private fun com.sans.finance.data.local.entity.InstallmentPaymentRow.toDomain(): Expense {
         return Expense(
-            id = this.id + INSTALLMENT_PAYMENT_ID_OFFSET,
+            id = -this.id,
             amount = this.amount,
             date = this.date,
             title = this.title,

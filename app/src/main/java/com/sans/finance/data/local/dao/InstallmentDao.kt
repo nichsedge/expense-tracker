@@ -41,6 +41,9 @@ interface InstallmentDao {
     @Query("SELECT * FROM installment_items WHERE installment_id = :installmentId")
     suspend fun getItemsByInstallmentIdForId(installmentId: Long): List<com.sans.finance.data.local.entity.InstallmentItemEntity>
 
+    @Query("SELECT * FROM installment_items WHERE status = 'Pending'")
+    fun getAllPendingItems(): Flow<List<com.sans.finance.data.local.entity.InstallmentItemEntity>>
+
     @Query("UPDATE installment_items SET status = :status WHERE id = :itemId")
     suspend fun updateInstallmentItemStatus(itemId: Long, status: String)
 

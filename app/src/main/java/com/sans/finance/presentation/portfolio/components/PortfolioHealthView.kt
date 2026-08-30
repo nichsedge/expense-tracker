@@ -53,6 +53,9 @@ fun PortfolioHealthView(
     isPrivacyModeEnabled: Boolean,
     currentCurrency: String,
     modifier: Modifier = Modifier,
+    comparison: com.sans.finance.domain.model.PortfolioBenchmarkComparison? = null,
+    selectedBenchmark: com.sans.finance.domain.model.BenchmarkType = com.sans.finance.domain.model.BenchmarkType.SP500,
+    onSelectBenchmark: (com.sans.finance.domain.model.BenchmarkType) -> Unit = {},
     onTargetClick: (AssetClassHealth) -> Unit = {}
 ) {
     if (healthList.isEmpty()) {
@@ -66,6 +69,12 @@ fun PortfolioHealthView(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        PortfolioBenchmarkCard(
+            comparison = comparison,
+            selectedBenchmark = selectedBenchmark,
+            onSelectBenchmark = onSelectBenchmark
+        )
+
         DiversificationSummary(healthList)
 
         CurrencyExposureCard(currencyBreakdowns, currentCurrency)

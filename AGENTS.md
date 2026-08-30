@@ -56,23 +56,33 @@ The project follows **Clean Architecture** with a Kotlin Multiplatform core.
 ### Layers (App)
 
 **Domain** (`app/src/main/java/com/sans/finance/domain/`) — Pure Kotlin.
-- `model/` — Core models: `Expense`, `Account`, `PortfolioHolding`, `Goal`, `Budget`.
+- `model/` — Core models: `Expense`, `Account`, `PortfolioHolding`, `Goal`, `Budget`, `DividendYieldSummary`, `DailySafeToSpend`, `InstallmentHorizonRoadmap`.
 - `repository/` — Interfaces for data access.
-- `usecase/` — Business logic (e.g., `AddTransactionUseCase`, `PredictTransactionUseCase`).
+- `usecase/` — Business logic:
+  - `MonteCarloFireSimulator` — Stochastic geometric Brownian motion simulation (1,000 iterations, 10th/50th/90th percentile fan chart, FIRE probability score).
+  - `GetDividendYieldSummaryUseCase` — Aggregated passive yield, weighted yield-on-cost, and lifestyle expense coverage.
+  - `GetCashInjectionRebalanceUseCase` — Optimal capital allocation across underweight asset classes without triggering asset sales.
+  - `GetCashFlowPacingUseCase` — Safe-to-spend daily discretionary allowance and billing cycle runway pacing.
+  - `GetInstallmentHorizonUseCase` — Future installment commitments and debt payoff liberation matrix.
+  - `GetEmergencyFundStressTestUseCase` — Emergency fund safety runway and stress scenario testing (Job loss, 50% pay cut, +25% cost shock, -30% market drawdown).
+  - `GetSavingsRateVelocityUseCase` — Savings rate acceleration tracking, 3/6-month velocity averages, and momentum trends.
+  - `MaintainDatabaseUseCase` — SQLite `VACUUM` defragmentation, `PRAGMA optimize`, `ANALYZE`, and orphaned tag cleanup.
 
 **Data** (`app/src/main/java/com/sans/finance/data/`)
-- `local/entity/` — Room entities (database version 31).
+- `local/entity/` — Room entities (database version 37).
 - `local/dao/` — Room DAOs with complex queries for analytics.
 - `repository/` — Implementations mapping entities to domain models.
 
-**Presentation** (`app/presentation/`) — Compose + ViewModel.
+**Presentation** (`app/presentation/`) — Compose + ViewModel + Jetpack Glance.
 - ViewModels use `StateFlow` to expose UI state.
-- Screen list: `Dashboard`, `ExpenseList`, `AddTransaction`, `Wealth`, `Portfolio`, `Goals`, `Budgets`, `MonthlyReview`, `DebtStrategist`, `Search`, etc.
-- Navigation: Type-safe routes using Kotlinx Serialization in `Screen.kt`.
+- Screen list: `Dashboard`, `ExpenseList`, `AddTransaction`, `Wealth`, `Portfolio` (Overview, Health, Yield), `Goals`, `Budgets` (Safe-to-Spend runway), `Installments` (Horizon timeline), `MonthlyReview`, `DataManagement` (Database Optimization & Audit), `WealthForecasting` (Monte Carlo Simulation), etc.
+- Navigation: Type-safe routes using Kotlinx Serialization in `Screen.kt` with fluid Material 3 enter/exit motion transitions.
+- AppWidgets: Jetpack Glance-powered home screen widgets (`FinancialSummaryGlanceWidget`, `QuickAddGlanceWidget`) alongside legacy RemoteViews.
 
 ## Database
 
-Room database is at **version 36**. It includes:
+Room database is at **version 38**. It includes:
+- Recurring expense projection with end conditions (`recurrence_end_type`, `recurrence_end_date`, `recurrence_total_occurrences`, `recurrence_interval_multiplier`, `recurrence_status`)
 - Compound indices on `installment_items` (`due_date`, `status`) and `expenses` (`is_recurring`, `date`)
 - Multi-currency valuation with historical FX rates (`fx_rates` table via `FxRateEntity`)
 - Configurable tag visibility and ordering (`tags` table via `TagEntity`)
@@ -87,10 +97,10 @@ Reference snapshot: `sans_finance_db_snapshot.sqlite`.
 - **Google Cloud Storage (GCS, Optional)**: Service-account JWT authentication for snapshots and SQLite database backup uploads.
 - Background sync and automated backups scheduled via Android `WorkManager` with exponential backoff retry policies.
 
-## AI Integration
+## AI Integration Strategy
 
-- **Cloud AI**: Support for **OpenAI** and OpenAI-compatible APIs (e.g., **OpenRouter**). Used for advanced features like "Analyze with AI" in the Monthly Review.
-- **Local AI (Planned)**: Integration with LiteRT-LM for on-device insights and receipt scanning is on the roadmap but not yet implemented.
+- **Cloud AI Only**: Support for **OpenAI** and OpenAI-compatible APIs (e.g., **OpenRouter**). Used strictly for high-value on-demand analysis (e.g. "Analyze with AI" in Monthly Review and Portfolio Health Insights).
+- **No On-Device AI / LLM**: Do not implement or suggest on-device LLMs or on-device AI engines (such as LiteRT-LM / edge SLMs). They introduce excessive battery drain, thermal throttling, and large binary footprints with negligible user benefit for personal finance. All core calculations must remain pure deterministic Kotlin algorithms, while complex LLM summaries use cloud APIs.
 
 ## Coding Style
 

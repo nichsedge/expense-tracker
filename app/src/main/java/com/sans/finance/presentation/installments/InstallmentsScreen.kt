@@ -43,9 +43,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sans.finance.R
@@ -133,6 +135,13 @@ fun InstallmentsScreen(
                 }
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    state.horizonRoadmap?.let { horizon ->
+                        if (state.selectedTab == 0 && state.activeInstallments.isNotEmpty()) {
+                            item {
+                                InstallmentHorizonRoadmapCard(roadmap = horizon)
+                            }
+                        }
+                    }
                     items(currentList) { item ->
                         ExpandableInstallment(item, state.currentCurrency, viewModel)
                     }
@@ -338,3 +347,100 @@ fun ExpandableInstallment(
         }
     }
 }
+
+@Composable
+fun InstallmentHorizonRoadmapCard(
+    roadmap: com.sans.finance.domain.model.InstallmentHorizonRoadmap
+) {
+    val monthYearFormat = remember { java.text.SimpleDateFormat("MMM yyyy", Locale.getDefault()) }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        "INSTALLMENT HORIZON & CASH FLOW FREEDOM",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 1.sp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            Text(
+                "Projected monthly payment reductions and freed cash flow as debt is paid off:",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            roadmap.milestones.take(4).forEach { milestone ->
+                val dateLabel = monthYearFormat.format(Date(milestone.targetDateEpochMs))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            "+${milestone.monthsAhead} mo ($dateLabel)",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            "${milestone.remainingActivePlansCount} active plan(s) left",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            com.sans.finance.core.util.CurrencyFormatter.formatAmount(milestone.monthlyPaymentDue, roadmap.currencyCode),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Black,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        if (milestone.monthlyCashFlowFreed > 0) {
+                            Text(
+                                "Freed: +${com.sans.finance.core.util.CurrencyFormatter.formatAmountCompact(milestone.monthlyCashFlowFreed, roadmap.currencyCode)}/mo",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF4CAF50)
+                            )
+                        }
+                    }
+                }
+            }
+
+            roadmap.fullyPaidDateEpochMs?.let { fullyPaidMs ->
+                androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                Text(
+                    "🎉 Estimated Debt-Free Horizon: ${monthYearFormat.format(Date(fullyPaidMs))}",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+            }
+        }
+    }
+}
+

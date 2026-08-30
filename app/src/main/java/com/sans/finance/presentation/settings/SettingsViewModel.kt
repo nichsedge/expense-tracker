@@ -175,37 +175,48 @@ class SettingsViewModel @Inject constructor(
 
                 if (!dbFile.exists()) {
                     _error.value = "Database not found"
-                    _isLoading.value = false
                     return@launch
                 }
 
                 val snapshotName = "sans_finance_db_snapshot.sqlite"
                 val resolver = context.contentResolver
-                val relativePath = "${android.os.Environment.DIRECTORY_DOWNLOADS}/"
+                val collectionUri = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    android.provider.MediaStore.Downloads.getContentUri(android.provider.MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                } else {
+                    android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI
+                }
 
-                val selection = "${android.provider.MediaStore.MediaColumns.DISPLAY_NAME} = ?"
-                val selectionArgs = arrayOf(snapshotName)
-                resolver.delete(
-                    android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-                    selection,
-                    selectionArgs
-                )
+                // Delete any existing snapshot files (including old duplicate numbered files)
+                try {
+                    val projection = arrayOf(android.provider.MediaStore.MediaColumns._ID)
+                    val selection = "${android.provider.MediaStore.MediaColumns.DISPLAY_NAME} LIKE 'sans_finance_db_snapshot%.sqlite'"
+                    resolver.query(collectionUri, projection, selection, null, null)?.use { cursor ->
+                        val idColumn = cursor.getColumnIndexOrThrow(android.provider.MediaStore.MediaColumns._ID)
+                        while (cursor.moveToNext()) {
+                            val id = cursor.getLong(idColumn)
+                            val itemUri = android.content.ContentUris.withAppendedId(collectionUri, id)
+                            try {
+                                resolver.delete(itemUri, null, null)
+                            } catch (_: Exception) {
+                            }
+                        }
+                    }
+                } catch (_: Exception) {
+                }
 
                 val contentValues = android.content.ContentValues().apply {
                     put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, snapshotName)
                     put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "application/x-sqlite3")
-                    put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                        put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "${android.os.Environment.DIRECTORY_DOWNLOADS}/")
                         put(android.provider.MediaStore.MediaColumns.IS_PENDING, 1)
                     }
                 }
 
-                val uri = resolver.insert(
-                    android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-                    contentValues
-                )
-                uri?.let {
-                    resolver.openOutputStream(it, "wt")?.use { outputStream ->
+                val targetUri = resolver.insert(collectionUri, contentValues)
+
+                targetUri?.let { uri ->
+                    resolver.openOutputStream(uri, "wt")?.use { outputStream ->
                         java.io.FileInputStream(dbFile).use { inputStream ->
                             inputStream.copyTo(outputStream)
                         }
@@ -214,16 +225,15 @@ class SettingsViewModel @Inject constructor(
                         val done = android.content.ContentValues().apply {
                             put(android.provider.MediaStore.MediaColumns.IS_PENDING, 0)
                         }
-                        resolver.update(it, done, null, null)
+                        resolver.update(uri, done, null, null)
                     }
                     _syncMessage.value = "Snapshot Saved: $snapshotName"
-                    _isLoading.value = false
                 } ?: run {
                     _error.value = "Failed to create snapshot"
-                    _isLoading.value = false
                 }
             } catch (e: Exception) {
                 _error.value = e.message
+            } finally {
                 _isLoading.value = false
             }
         }

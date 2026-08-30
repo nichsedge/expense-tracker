@@ -41,17 +41,18 @@ class GoalViewModel @Inject constructor(
         portfolioRepository.getLatestSnapshotHeader(),
         userPreferencesRepository.userPreferences.map { it.isPrivacyModeEnabled }
     ) { goals, latestHoldings, latestHeader, privacyMode ->
-        val categories = latestHoldings.map { it.category }.distinct().sorted()
-        val assetClasses = latestHoldings.map { it.assetClass }.distinct().sorted()
+        val categories = latestHoldings.map { it.category }.filter { it.isNotBlank() }.distinct().sorted()
+        val defaultAssetClasses = com.sans.finance.domain.model.PortfolioHealthDefaults.targets.map { it.assetClass }
+        val assetClasses = (latestHoldings.map { it.assetClass } + defaultAssetClasses).filter { it.isNotBlank() }.distinct().sorted()
         val exchangeRate = latestHeader?.exchangeRateUsd ?: 16000.0
 
         val goalsWithProgress = goals.map { goal ->
             val currentAmountIdr = when (goal.targetType) {
                 "TOTAL" -> latestHoldings.sumOf { it.valueIdr }
-                "CATEGORY" -> latestHoldings.filter { it.category == goal.targetName }
+                "CATEGORY" -> latestHoldings.filter { it.category.equals(goal.targetName, ignoreCase = true) }
                     .sumOf { it.valueIdr }
 
-                "ASSET_CLASS" -> latestHoldings.filter { it.assetClass == goal.targetName }
+                "ASSET_CLASS" -> latestHoldings.filter { it.assetClass.equals(goal.targetName, ignoreCase = true) }
                     .sumOf { it.valueIdr }
 
                 else -> 0.0

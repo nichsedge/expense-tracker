@@ -135,6 +135,7 @@ class FinancialSummaryWidgetProvider : AppWidgetProvider() {
     companion object {
         fun updateAllWidgets(context: Context) {
             try {
+                com.sans.finance.presentation.widget.glance.FinancialSummaryGlanceReceiver.updateAll(context)
                 val appWidgetManager = AppWidgetManager.getInstance(context)
                 val componentName = ComponentName(context, FinancialSummaryWidgetProvider::class.java)
                 val widgetIds = appWidgetManager.getAppWidgetIds(componentName)

@@ -127,6 +127,7 @@ class QuickAddWidgetProvider : AppWidgetProvider() {
     companion object {
         fun updateAllWidgets(context: Context) {
             try {
+                com.sans.finance.presentation.widget.glance.QuickAddGlanceReceiver.updateAll(context)
                 val appWidgetManager = AppWidgetManager.getInstance(context)
                 val componentName = ComponentName(context, QuickAddWidgetProvider::class.java)
                 val widgetIds = appWidgetManager.getAppWidgetIds(componentName)

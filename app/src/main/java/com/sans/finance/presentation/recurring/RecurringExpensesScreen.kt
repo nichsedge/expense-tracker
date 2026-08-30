@@ -220,11 +220,12 @@ fun RecurringExpensesScreen(
 }
 
 private fun calculateMonthlyAmount(expense: Expense): Long {
+    val mult = expense.recurrenceIntervalMultiplier.coerceAtLeast(1)
     return when (expense.recurrenceInterval) {
-        "DAILY" -> expense.amount * 30
-        "WEEKLY" -> expense.amount * 4
-        "MONTHLY" -> expense.amount
-        "YEARLY" -> expense.amount / 12
+        "DAILY" -> (expense.amount * 30) / mult
+        "WEEKLY" -> (expense.amount * 4) / mult
+        "MONTHLY" -> expense.amount / mult
+        "YEARLY" -> expense.amount / (12 * mult)
         else -> expense.amount
     }
 }

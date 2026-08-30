@@ -82,20 +82,47 @@ class ValuatePortfolioUseCase @Inject constructor(
                 }
             }
 
-            val histValueInBase = originalNominal * histFx
+            // Attempt to extract cost basis or purchase price from details if present (e.g. "cost_basis: 1000", "avg_buy: 50", etc.)
+            var costBasisNominal: Double? = null
+            holding.details?.let { detailsStr ->
+                val costMatch = Regex("""(?:cost_basis|cost|modal|beli)[:=\s]+([0-9.,]+)""", RegexOption.IGNORE_CASE).find(detailsStr)
+                if (costMatch != null) {
+                    val rawNum = costMatch.groupValues[1].replace(",", "")
+                    costBasisNominal = rawNum.toDoubleOrNull()
+                } else {
+                    val avgBuyMatch = Regex("""(?:avg_buy|avg_price|harga_beli)[:=\s]+([0-9.,]+)""", RegexOption.IGNORE_CASE).find(detailsStr)
+                    if (avgBuyMatch != null && holding.quantity > 0) {
+                        val rawPrice = avgBuyMatch.groupValues[1].replace(",", "")
+                        costBasisNominal = rawPrice.toDoubleOrNull()?.let { it * holding.quantity }
+                    }
+                }
+            }
+
+            val histCostInBase = if (costBasisNominal != null && costBasisNominal > 0) {
+                costBasisNominal * histFx
+            } else {
+                originalNominal * histFx
+            }
+
             val currValueInBase = originalNominal * currFx
+
+            // Price gain is nominal value appreciation relative to cost basis
+            val priceGainInBase = if (costBasisNominal != null && costBasisNominal > 0) {
+                (originalNominal - costBasisNominal) * histFx
+            } else {
+                0.0
+            }
 
             // FX gain is the change in value purely due to currency exchange rate movement
             val fxGainInBase = originalNominal * (currFx - histFx)
-            val priceGainInBase = 0.0 // Default 0 when using snapshot holding price
-            val totalGainInBase = (currValueInBase - histValueInBase)
-            val totalGainPercent = if (histValueInBase > 0) (totalGainInBase / histValueInBase) * 100.0 else 0.0
+            val totalGainInBase = priceGainInBase + fxGainInBase
+            val totalGainPercent = if (histCostInBase > 0) (totalGainInBase / histCostInBase) * 100.0 else 0.0
 
             ValuedHolding(
                 holding = holding,
                 baseCurrency = baseCurrency,
                 currentValueInBase = currValueInBase,
-                historicalValueInBase = histValueInBase,
+                historicalValueInBase = histCostInBase,
                 historicalFxRate = histFx,
                 currentFxRate = currFx,
                 priceGainInBase = priceGainInBase,

@@ -131,27 +131,10 @@ class ExpenseListViewModel @Inject constructor(
     }
 
     private fun setupObservations() {
-        observeCommitmentCounts()
         observePrivacyMode()
         observeInitialData()
         observeHistoricalStats()
         observeExpenses()
-    }
-
-    private fun observeCommitmentCounts() {
-        combine(
-            installmentRepository.getActiveInstallments(),
-            repository.getRecurringExpenses()
-        ) { activeInstallments, recurringExpenses ->
-            Pair(activeInstallments.size, recurringExpenses.size)
-        }.onEach { (activeCount, recurringCount) ->
-            _state.update {
-                it.copy(
-                    activeInstallmentCount = activeCount,
-                    recurringExpenseCount = recurringCount
-                )
-            }
-        }.launchIn(viewModelScope)
     }
 
     private fun observePrivacyMode() {
@@ -230,7 +213,7 @@ class ExpenseListViewModel @Inject constructor(
 
                         val shouldDisplay = when (commitmentFilter) {
                             TimelineCommitmentFilter.ALL -> isValid
-                            TimelineCommitmentFilter.INSTALLMENTS -> exp.isInstallment || exp.isInstallmentPayment
+                            TimelineCommitmentFilter.INSTALLMENTS -> isValid && (exp.isInstallment || exp.isInstallmentPayment)
                             TimelineCommitmentFilter.RECURRING -> isValid && exp.isRecurring
                         }
                         if (shouldDisplay) {
@@ -275,6 +258,9 @@ class ExpenseListViewModel @Inject constructor(
                         avgMonthlyExpense = totalExpense / months
                     }
 
+                    val installmentCount = validExpenses.count { it.isInstallment || it.isInstallmentPayment }
+                    val recurringCount = validExpenses.count { it.isRecurring }
+
                     ProcessedExpenses(
                         expenses = expenses,
                         grouped = grouped,
@@ -283,7 +269,9 @@ class ExpenseListViewModel @Inject constructor(
                         income = totalIncome,
                         expense = totalExpense,
                         dailyMap = dailyMap,
-                        avgMonthlyExpense = avgMonthlyExpense
+                        avgMonthlyExpense = avgMonthlyExpense,
+                        installmentCount = installmentCount,
+                        recurringCount = recurringCount
                     )
                 }
             }
@@ -299,6 +287,8 @@ class ExpenseListViewModel @Inject constructor(
                         totalFilteredExpense = processed.expense,
                         dailySpending = processed.dailyMap,
                         avgMonthlyExpense = processed.avgMonthlyExpense,
+                        activeInstallmentCount = processed.installmentCount,
+                        recurringExpenseCount = processed.recurringCount,
                         isLoading = false
                     )
                 }
@@ -314,7 +304,9 @@ class ExpenseListViewModel @Inject constructor(
         val income: Long,
         val expense: Long,
         val dailyMap: Map<Long, Long>,
-        val avgMonthlyExpense: Long
+        val avgMonthlyExpense: Long,
+        val installmentCount: Int,
+        val recurringCount: Int
     )
 
     fun updateSearchQuery(query: String) {
@@ -664,6 +656,19 @@ class ExpenseListViewModel @Inject constructor(
     fun deleteRecurringExpense(expense: Expense) {
         viewModelScope.launch {
             repository.deleteExpense(expense)
+            closeRecurringDetail()
+        }
+    }
+
+    fun togglePauseRecurring(expense: Expense) {
+        viewModelScope.launch {
+            val nextStatus = if (expense.recurrenceStatus.equals("PAUSED", ignoreCase = true)) "ACTIVE" else "PAUSED"
+            val targetExpense = if (expense.isRecurringInstance && expense.parentRecurringId != null) {
+                repository.getExpenseById(expense.parentRecurringId) ?: expense
+            } else {
+                expense
+            }
+            repository.updateExpense(targetExpense.copy(recurrenceStatus = nextStatus))
             closeRecurringDetail()
         }
     }

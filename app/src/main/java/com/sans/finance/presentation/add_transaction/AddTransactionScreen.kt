@@ -78,10 +78,7 @@ fun AddTransactionScreen(
 ) {
     val categories by viewModel.categories.collectAsStateWithLifecycle()
     val accounts by viewModel.accounts.collectAsStateWithLifecycle()
-    val datePickerState =
-        rememberDatePickerState(initialSelectedDateMillis = viewModel.selectedDate)
     var showDatePicker by remember { androidx.compose.runtime.mutableStateOf(false) }
-    val dateFormatter = DateFormatterUtils.getStandardFormatter()
     val focusManager = LocalFocusManager.current
     val focusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
@@ -90,6 +87,8 @@ fun AddTransactionScreen(
     var accountExpanded by remember { androidx.compose.runtime.mutableStateOf(false) }
     var toAccountExpanded by remember { androidx.compose.runtime.mutableStateOf(false) }
     var recurrenceExpanded by remember { androidx.compose.runtime.mutableStateOf(false) }
+    var multiplierExpanded by remember { androidx.compose.runtime.mutableStateOf(false) }
+    var showEndDatePicker by remember { androidx.compose.runtime.mutableStateOf(false) }
     var showDeleteDialog by remember { androidx.compose.runtime.mutableStateOf(false) }
 
     androidx.compose.runtime.LaunchedEffect(Unit) {
@@ -518,7 +517,7 @@ fun AddTransactionScreen(
 
             // Date Picker Field
             OutlinedTextField(
-                value = dateFormatter.format(Date(viewModel.selectedDate)),
+                value = DateFormatterUtils.formatStandardDate(viewModel.selectedDate),
                 onValueChange = { },
                 label = { Text("Transaction Date", fontSize = 12.sp) },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
@@ -533,6 +532,9 @@ fun AddTransactionScreen(
             )
 
             if (showDatePicker) {
+                val datePickerState = rememberDatePickerState(
+                    initialSelectedDateMillis = viewModel.selectedDate
+                )
                 DatePickerDialog(
                     onDismissRequest = { showDatePicker = false },
                     confirmButton = {
@@ -789,40 +791,233 @@ fun AddTransactionScreen(
             }
 
             if (viewModel.isRecurring) {
-                @OptIn(ExperimentalMaterial3Api::class)
-                ExposedDropdownMenuBox(
-                    expanded = recurrenceExpanded,
-                    onExpandedChange = { recurrenceExpanded = !recurrenceExpanded }
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    OutlinedTextField(
-                        value = viewModel.recurrenceInterval.lowercase()
-                            .replaceFirstChar { it.uppercase() },
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Recurrence Interval", fontSize = 12.sp) },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = recurrenceExpanded) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 48.dp)
-                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-                        shape = MaterialTheme.shapes.small,
-                        textStyle = MaterialTheme.typography.bodyMedium
-                    )
-                    ExposedDropdownMenu(
-                        expanded = recurrenceExpanded,
-                        onDismissRequest = { recurrenceExpanded = false }
+                    // Cadence row: Multiplier + Interval
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        listOf("DAILY", "WEEKLY", "MONTHLY", "YEARLY").forEach { type ->
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        type.lowercase().replaceFirstChar { it.uppercase() })
-                                },
-                                onClick = {
-                                    viewModel.recurrenceInterval = type
-                                    recurrenceExpanded = false
-                                }
+                        @OptIn(ExperimentalMaterial3Api::class)
+                        ExposedDropdownMenuBox(
+                            expanded = multiplierExpanded,
+                            onExpandedChange = { multiplierExpanded = !multiplierExpanded },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            OutlinedTextField(
+                                value = "Every ${viewModel.recurrenceIntervalMultiplier}",
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Frequency", fontSize = 12.sp) },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = multiplierExpanded) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 48.dp)
+                                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                                shape = MaterialTheme.shapes.small,
+                                textStyle = MaterialTheme.typography.bodyMedium
                             )
+                            ExposedDropdownMenu(
+                                expanded = multiplierExpanded,
+                                onDismissRequest = { multiplierExpanded = false }
+                            ) {
+                                listOf(1, 2, 3, 6, 12).forEach { num ->
+                                    DropdownMenuItem(
+                                        text = { Text("Every $num") },
+                                        onClick = {
+                                            viewModel.recurrenceIntervalMultiplier = num
+                                            multiplierExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        @OptIn(ExperimentalMaterial3Api::class)
+                        ExposedDropdownMenuBox(
+                            expanded = recurrenceExpanded,
+                            onExpandedChange = { recurrenceExpanded = !recurrenceExpanded },
+                            modifier = Modifier.weight(1.3f)
+                        ) {
+                            val intervalText = when (viewModel.recurrenceInterval) {
+                                "DAILY" -> if (viewModel.recurrenceIntervalMultiplier > 1) "Days" else "Day"
+                                "WEEKLY" -> if (viewModel.recurrenceIntervalMultiplier > 1) "Weeks" else "Week"
+                                "MONTHLY" -> if (viewModel.recurrenceIntervalMultiplier > 1) "Months" else "Month"
+                                "YEARLY" -> if (viewModel.recurrenceIntervalMultiplier > 1) "Years" else "Year"
+                                else -> "Month"
+                            }
+                            OutlinedTextField(
+                                value = intervalText,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Unit", fontSize = 12.sp) },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = recurrenceExpanded) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 48.dp)
+                                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                                shape = MaterialTheme.shapes.small,
+                                textStyle = MaterialTheme.typography.bodyMedium
+                            )
+                            ExposedDropdownMenu(
+                                expanded = recurrenceExpanded,
+                                onDismissRequest = { recurrenceExpanded = false }
+                            ) {
+                                listOf("DAILY", "WEEKLY", "MONTHLY", "YEARLY").forEach { type ->
+                                    val label = when (type) {
+                                        "DAILY" -> if (viewModel.recurrenceIntervalMultiplier > 1) "Days" else "Day"
+                                        "WEEKLY" -> if (viewModel.recurrenceIntervalMultiplier > 1) "Weeks" else "Week"
+                                        "MONTHLY" -> if (viewModel.recurrenceIntervalMultiplier > 1) "Months" else "Month"
+                                        "YEARLY" -> if (viewModel.recurrenceIntervalMultiplier > 1) "Years" else "Year"
+                                        else -> type
+                                    }
+                                    DropdownMenuItem(
+                                        text = { Text(label) },
+                                        onClick = {
+                                            viewModel.recurrenceInterval = type
+                                            recurrenceExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // End Condition Section
+                    Text(
+                        text = "End Condition",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        FilterChip(
+                            selected = viewModel.recurrenceEndType == "NEVER",
+                            onClick = { viewModel.recurrenceEndType = "NEVER" },
+                            label = { Text("Ongoing") },
+                            shape = androidx.compose.foundation.shape.CircleShape,
+                            modifier = Modifier.height(32.dp)
+                        )
+                        FilterChip(
+                            selected = viewModel.recurrenceEndType == "UNTIL_DATE",
+                            onClick = {
+                                viewModel.recurrenceEndType = "UNTIL_DATE"
+                                if (viewModel.recurrenceEndDate == null) {
+                                    val cal = java.util.Calendar.getInstance().apply {
+                                        timeInMillis = viewModel.selectedDate
+                                        add(java.util.Calendar.MONTH, 6)
+                                    }
+                                    viewModel.recurrenceEndDate = cal.timeInMillis
+                                }
+                            },
+                            label = { Text("Until Date") },
+                            shape = androidx.compose.foundation.shape.CircleShape,
+                            modifier = Modifier.height(32.dp)
+                        )
+                        FilterChip(
+                            selected = viewModel.recurrenceEndType == "AFTER_COUNT",
+                            onClick = { viewModel.recurrenceEndType = "AFTER_COUNT" },
+                            label = { Text("After Count") },
+                            shape = androidx.compose.foundation.shape.CircleShape,
+                            modifier = Modifier.height(32.dp)
+                        )
+                    }
+
+                    if (viewModel.recurrenceEndType == "UNTIL_DATE") {
+                        val endFormatted = remember(viewModel.recurrenceEndDate) {
+                            val endMs = viewModel.recurrenceEndDate ?: viewModel.selectedDate
+                            com.sans.finance.core.util.DateFormatterUtils.formatStandardDate(endMs)
+                        }
+                        Surface(
+                            onClick = { showEndDatePicker = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.small,
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text("Ends On", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(endFormatted, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                }
+                                Icon(Icons.Default.DateRange, contentDescription = "Pick End Date", tint = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                    }
+
+                    if (viewModel.recurrenceEndType == "AFTER_COUNT") {
+                        OutlinedTextField(
+                            value = viewModel.recurrenceTotalOccurrences,
+                            onValueChange = { viewModel.recurrenceTotalOccurrences = it },
+                            label = { Text("Total Occurrences (e.g. 12)", fontSize = 12.sp) },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            shape = MaterialTheme.shapes.small,
+                            textStyle = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+
+                    if (showEndDatePicker) {
+                        val initialDate = viewModel.recurrenceEndDate ?: (viewModel.selectedDate + 180L * 86400000L)
+                        val datePickerState = rememberDatePickerState(
+                            initialSelectedDateMillis = initialDate
+                        )
+                        DatePickerDialog(
+                            onDismissRequest = { showEndDatePicker = false },
+                            confirmButton = {
+                                TextButton(onClick = {
+                                    datePickerState.selectedDateMillis?.let {
+                                        viewModel.recurrenceEndDate = it
+                                    }
+                                    showEndDatePicker = false
+                                }) {
+                                    Text("OK")
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showEndDatePicker = false }) {
+                                    Text(stringResource(R.string.cancel))
+                                }
+                            }
+                        ) {
+                            DatePicker(state = datePickerState)
+                        }
+                    }
+
+                    // Status toggle in edit mode
+                    if (viewModel.isEditMode) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Status", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                FilterChip(
+                                    selected = viewModel.recurrenceStatus == "ACTIVE",
+                                    onClick = { viewModel.recurrenceStatus = "ACTIVE" },
+                                    label = { Text("Active") },
+                                    shape = androidx.compose.foundation.shape.CircleShape,
+                                    modifier = Modifier.height(30.dp)
+                                )
+                                FilterChip(
+                                    selected = viewModel.recurrenceStatus == "PAUSED",
+                                    onClick = { viewModel.recurrenceStatus = "PAUSED" },
+                                    label = { Text("Paused") },
+                                    shape = androidx.compose.foundation.shape.CircleShape,
+                                    modifier = Modifier.height(30.dp)
+                                )
+                            }
                         }
                     }
                 }

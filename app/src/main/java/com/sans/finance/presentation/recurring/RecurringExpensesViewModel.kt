@@ -20,7 +20,7 @@ class RecurringExpensesViewModel @Inject constructor(
     private val localeManager: com.sans.finance.data.util.LocaleManager
 ) : ViewModel() {
 
-    private val _expenses = expenseRepository.getAllExpenses()
+    private val _expenses = expenseRepository.getRecurringExpenses()
 
     private val _viewMode = kotlinx.coroutines.flow.MutableStateFlow(RecurringViewMode.MONTHLY)
 
@@ -28,9 +28,9 @@ class RecurringExpensesViewModel @Inject constructor(
         _expenses,
         categoryRepository.getAllCategories(),
         _viewMode
-    ) { expenses, categories, viewMode ->
-        val recurringExpenses = expenses.filter { it.isRecurring }
-        val totalMonthly = recurringExpenses.sumOf {
+    ) { recurringExpenses, categories, viewMode ->
+        val activeExpenses = recurringExpenses.filter { !it.recurrenceStatus.equals("PAUSED", ignoreCase = true) }
+        val totalMonthly = activeExpenses.sumOf {
             calculateMonthlyAmount(it)
         }
 
@@ -55,12 +55,20 @@ class RecurringExpensesViewModel @Inject constructor(
         }
     }
 
+    fun togglePauseExpense(expense: Expense) {
+        viewModelScope.launch {
+            val nextStatus = if (expense.recurrenceStatus.equals("PAUSED", ignoreCase = true)) "ACTIVE" else "PAUSED"
+            expenseRepository.updateExpense(expense.copy(recurrenceStatus = nextStatus))
+        }
+    }
+
     private fun calculateMonthlyAmount(expense: Expense): Long {
+        val mult = expense.recurrenceIntervalMultiplier.coerceAtLeast(1)
         return when (expense.recurrenceInterval) {
-            "DAILY" -> expense.amount * 30
-            "WEEKLY" -> expense.amount * 4
-            "MONTHLY" -> expense.amount
-            "YEARLY" -> expense.amount / 12
+            "DAILY" -> (expense.amount * 30) / mult
+            "WEEKLY" -> (expense.amount * 4) / mult
+            "MONTHLY" -> expense.amount / mult
+            "YEARLY" -> expense.amount / (12 * mult)
             else -> expense.amount
         }
     }

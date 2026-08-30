@@ -167,6 +167,70 @@ object DatabaseMigrations {
         }
     }
 
+    /**
+     * Migration 36→37: Clean up synthetic installment ID collision.
+     *
+     * Prior versions used `id + 100_000_000` as synthetic IDs for installment payment items.
+     * SQLite autoincrement surpassed this offset, causing real expenses to be assigned IDs
+     * in the synthetic range (100_000_000+). This migration:
+     *
+     * 1. Deletes any orphaned synthetic rows that leaked into the expenses table.
+     * 2. Reassigns real expense IDs that ended up above the old offset threshold
+     *    back to sequential values, updating expense_tag_ref foreign keys.
+     * 3. Resets sqlite_sequence for expenses to MAX(id) after reassignment.
+     */
+    val MIGRATION_36_37 = object : Migration(36, 37) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            val oldOffset = 100_000_000L
+
+            // Step 1: Delete orphaned synthetic rows (id >= offset AND maps to installment_item)
+            db.execSQL(
+                "DELETE FROM expenses WHERE id >= $oldOffset AND (id - $oldOffset) IN (SELECT id FROM installment_items)"
+            )
+
+            // Step 2: Find the max real ID below the old offset range
+            val cursor = db.query("SELECT COALESCE(MAX(id), 0) FROM expenses WHERE id < $oldOffset")
+            var nextId = 1L
+            if (cursor.moveToFirst()) {
+                nextId = cursor.getLong(0) + 1
+            }
+            cursor.close()
+
+            // Step 3: Reassign IDs for real expenses stuck in the synthetic range
+            val realExpCursor = db.query("SELECT id FROM expenses WHERE id >= $oldOffset ORDER BY id ASC")
+            while (realExpCursor.moveToNext()) {
+                val oldId = realExpCursor.getLong(0)
+                val newId = nextId++
+                db.execSQL("UPDATE expenses SET id = $newId WHERE id = $oldId")
+                db.execSQL("UPDATE expense_tag_ref SET expenseId = $newId WHERE expenseId = $oldId")
+            }
+            realExpCursor.close()
+
+            // Step 4: Reset autoincrement sequence to the new max id
+            val maxIdCursor = db.query("SELECT COALESCE(MAX(id), 0) FROM expenses")
+            var maxId = 0L
+            if (maxIdCursor.moveToFirst()) {
+                maxId = maxIdCursor.getLong(0)
+            }
+            maxIdCursor.close()
+            db.execSQL("UPDATE sqlite_sequence SET seq = $maxId WHERE name = 'expenses'")
+
+            // Step 5: Rebuild FTS index to reflect the reassigned IDs
+            db.execSQL("DELETE FROM expenses_fts")
+            db.execSQL("INSERT INTO expenses_fts(expenses_fts) VALUES('rebuild')")
+        }
+    }
+
+    val MIGRATION_37_38 = object : Migration(37, 38) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `expenses` ADD COLUMN `recurrence_end_type` TEXT DEFAULT 'NEVER'")
+            db.execSQL("ALTER TABLE `expenses` ADD COLUMN `recurrence_end_date` INTEGER")
+            db.execSQL("ALTER TABLE `expenses` ADD COLUMN `recurrence_total_occurrences` INTEGER")
+            db.execSQL("ALTER TABLE `expenses` ADD COLUMN `recurrence_interval_multiplier` INTEGER NOT NULL DEFAULT 1")
+            db.execSQL("ALTER TABLE `expenses` ADD COLUMN `recurrence_status` TEXT NOT NULL DEFAULT 'ACTIVE'")
+        }
+    }
+
     val ALL = arrayOf(
         MIGRATION_25_27,
         MIGRATION_27_28,
@@ -177,6 +241,8 @@ object DatabaseMigrations {
         MIGRATION_32_33,
         MIGRATION_33_34,
         MIGRATION_34_35,
-        MIGRATION_35_36
+        MIGRATION_35_36,
+        MIGRATION_36_37,
+        MIGRATION_37_38
     )
 }

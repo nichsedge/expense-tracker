@@ -233,6 +233,16 @@ fun PortfolioScreen(
                                 )
                             }
                         )
+                        Tab(
+                            selected = state.selectedTab == 2,
+                            onClick = { viewModel.selectTab(2) },
+                            text = {
+                                Text(
+                                    "Yield",
+                                    fontWeight = if (state.selectedTab == 2) FontWeight.Black else FontWeight.Medium
+                                )
+                            }
+                        )
                     }
 
                     if (state.selectedTab == 0) {
@@ -451,7 +461,7 @@ fun PortfolioScreen(
 
                             item { Spacer(modifier = Modifier.height(32.dp)) }
                         }
-                    } else {
+                    } else if (state.selectedTab == 1) {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(16.dp),
@@ -473,9 +483,23 @@ fun PortfolioScreen(
                                     currencyBreakdowns = state.currencyBreakdowns,
                                     isPrivacyModeEnabled = state.isPrivacyModeEnabled,
                                     currentCurrency = state.currentCurrency,
+                                    comparison = state.benchmarkComparison,
+                                    selectedBenchmark = state.selectedBenchmark,
+                                    onSelectBenchmark = viewModel::selectBenchmark,
                                     onTargetClick = { editingTarget = it }
                                 )
                             }
+                        }
+                    } else if (state.selectedTab == 2) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(12.dp)
+                        ) {
+                            com.sans.finance.presentation.portfolio.components.DividendYieldView(
+                                summary = state.dividendSummary,
+                                isPrivacyModeEnabled = state.isPrivacyModeEnabled
+                            )
                         }
                     }
                 }
@@ -759,7 +783,7 @@ fun PortfolioHeader(state: PortfolioScreenState, onForecastingClick: () -> Unit)
             }
 
             // Gain Breakdown (Total Gain + FX Gain + Price Gain)
-            if (state.totalGainInBase != 0.0 || state.totalFxGainInBase != 0.0) {
+            if (state.totalGainInBase != 0.0 || state.totalFxGainInBase != 0.0 || state.totalPriceGainInBase != 0.0) {
                 val gainColor = if (state.totalGainInBase >= 0) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
                 val gainSign = if (state.totalGainInBase >= 0) "+" else ""
 
@@ -814,40 +838,49 @@ fun PortfolioHeader(state: PortfolioScreenState, onForecastingClick: () -> Unit)
                         }
                     }
                 }
-            } else {
-                state.previousTotalIdr?.let { prev ->
-                    val diff = (if (state.totalValueInBase > 0) state.totalValueInBase else state.totalValueIdr) - prev
-                    val percent = if (prev != 0.0) (diff / prev) * 100 else 0.0
-                    val color =
-                        if (diff >= 0) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
+            } else if (state.previousTotalIdr != null) {
+                val currentVal = if (state.totalValueInBase > 0) state.totalValueInBase else state.totalValueIdr
+                val prev = state.previousTotalIdr
+                val diff = currentVal - prev
+                val percent = if (prev != 0.0) (diff / prev) * 100 else 0.0
+                val color = if (diff >= 0) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
+                val sign = if (diff >= 0) "+" else ""
 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .padding(top = 10.dp)
-                            .background(color.copy(alpha = 0.1f), CircleShape)
-                            .padding(horizontal = 12.dp, vertical = 4.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (diff >= 0) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
-                            contentDescription = null,
-                            tint = color,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            text = "${if (diff >= 0) "+" else ""}${
-                                String.format(
-                                    Locale.US,
-                                    "%.2f",
-                                    percent
-                                )
-                            }% vs last snapshot",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = color,
-                            fontWeight = FontWeight.Black
-                        )
-                    }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .background(color.copy(alpha = 0.1f), CircleShape)
+                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = if (diff >= 0) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
+                        contentDescription = null,
+                        tint = color,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = "$sign${com.sans.finance.core.util.CurrencyFormatter.formatAmountCompact((diff * 100).toLong(), state.currentCurrency)} (${String.format(Locale.US, "%+.2f%%", percent)}) vs last snapshot",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = color,
+                        fontWeight = FontWeight.Black
+                    )
+                }
+            } else {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
+                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = "Initial snapshot • Sync over time to track returns",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             }
 

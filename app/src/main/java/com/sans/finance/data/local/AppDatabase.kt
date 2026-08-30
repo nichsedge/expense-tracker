@@ -43,7 +43,7 @@ import com.sans.finance.data.local.entity.TagEntity
         com.sans.finance.data.local.entity.InvestmentMetadataEntity::class,
         FxRateEntity::class
     ],
-    version = 36,
+    version = 38,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -86,5 +86,9 @@ abstract class AppDatabase : RoomDatabase() {
                 java.io.File(dbPath).copyTo(targetFile, overwrite = true)
             }
         }
+    }
+
+    companion object {
+        const val DATABASE_VERSION = 38
     }
 }

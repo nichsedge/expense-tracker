@@ -3,44 +3,65 @@ package com.sans.finance.presentation.navigation
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.navigation.NavBackStackEntry
 
 object NavigationTransitions {
-    /**
-     * Power user mode: Instant transitions for maximum speed.
-     */
+    private const val DEFAULT_DURATION_MS = 300
+    private const val MODAL_DURATION_MS = 350
+    private const val FADE_DURATION_MS = 220
+
     val defaultEnterTransition: AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition = {
-        EnterTransition.None
+        slideIntoContainer(
+            towards = AnimatedContentTransitionScope.SlideDirection.Start,
+            animationSpec = tween(DEFAULT_DURATION_MS, easing = FastOutSlowInEasing)
+        ) + fadeIn(animationSpec = tween(FADE_DURATION_MS))
     }
 
     val defaultExitTransition: AnimatedContentTransitionScope<NavBackStackEntry>.() -> ExitTransition = {
-        ExitTransition.None
+        slideOutOfContainer(
+            towards = AnimatedContentTransitionScope.SlideDirection.Start,
+            animationSpec = tween(DEFAULT_DURATION_MS, easing = FastOutSlowInEasing)
+        ) + fadeOut(animationSpec = tween(FADE_DURATION_MS))
     }
 
     val defaultPopEnterTransition: AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition = {
-        EnterTransition.None
+        slideIntoContainer(
+            towards = AnimatedContentTransitionScope.SlideDirection.End,
+            animationSpec = tween(DEFAULT_DURATION_MS, easing = FastOutSlowInEasing)
+        ) + fadeIn(animationSpec = tween(FADE_DURATION_MS))
     }
 
     val defaultPopExitTransition: AnimatedContentTransitionScope<NavBackStackEntry>.() -> ExitTransition = {
-        ExitTransition.None
+        slideOutOfContainer(
+            towards = AnimatedContentTransitionScope.SlideDirection.End,
+            animationSpec = tween(DEFAULT_DURATION_MS, easing = FastOutSlowInEasing)
+        ) + fadeOut(animationSpec = tween(FADE_DURATION_MS))
     }
 
-    /**
-     * Power user mode: Strictly instant transitions for maximum speed.
-     */
     val modalEnterTransition: AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition = {
-        EnterTransition.None
+        slideIntoContainer(
+            towards = AnimatedContentTransitionScope.SlideDirection.Up,
+            animationSpec = tween(MODAL_DURATION_MS, easing = FastOutSlowInEasing)
+        ) + fadeIn(animationSpec = tween(FADE_DURATION_MS))
     }
 
     val modalPopExitTransition: AnimatedContentTransitionScope<NavBackStackEntry>.() -> ExitTransition = {
-        ExitTransition.None
+        slideOutOfContainer(
+            towards = AnimatedContentTransitionScope.SlideDirection.Down,
+            animationSpec = tween(DEFAULT_DURATION_MS, easing = FastOutSlowInEasing)
+        ) + fadeOut(animationSpec = tween(FADE_DURATION_MS))
     }
 
     val tabEnterTransition: AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition = {
-        EnterTransition.None
+        fadeIn(animationSpec = tween(FADE_DURATION_MS))
     }
 
     val tabExitTransition: AnimatedContentTransitionScope<NavBackStackEntry>.() -> ExitTransition = {
-        ExitTransition.None
+        fadeOut(animationSpec = tween(FADE_DURATION_MS))
     }
 }
+

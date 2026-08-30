@@ -161,7 +161,16 @@ class PortfolioRepositoryImpl(
 
     override suspend fun calculateXirr(endDate: Long): Double {
         val accounts = accountDao.getAllAccounts().first()
-        val investmentAccounts = accounts.filter { it.type == "Investment" }.map { it.id }.toSet()
+        val investmentAccounts = accounts.filter { account ->
+            account.type.equals("Investment", ignoreCase = true) ||
+            account.type.contains("Invest", ignoreCase = true) ||
+            account.name.contains("RDN", ignoreCase = true) ||
+            account.name.contains("Stockbit", ignoreCase = true) ||
+            account.name.contains("Ajaib", ignoreCase = true) ||
+            account.name.contains("Bibit", ignoreCase = true) ||
+            account.name.contains("Binance", ignoreCase = true) ||
+            account.name.contains("Pluang", ignoreCase = true)
+        }.map { it.id }.toSet()
         if (investmentAccounts.isEmpty()) return Double.NaN
 
         val transferFlows = expenseDao.getTransferCashFlows(investmentAccounts.toList(), endDate)

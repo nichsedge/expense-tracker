@@ -108,6 +108,15 @@ fun BudgetScreen(
                 BudgetSummaryHeader(state)
             }
 
+            state.safeToSpend?.let { safeToSpend ->
+                item {
+                    DailySafeToSpendCard(
+                        pacing = safeToSpend,
+                        isPrivacyModeEnabled = state.isPrivacyModeEnabled
+                    )
+                }
+            }
+
             if (state.suggestions.isNotEmpty()) {
                 item {
                     Text(
@@ -576,3 +585,97 @@ fun AddBudgetDialog(
         shape = MaterialTheme.shapes.extraLarge
     )
 }
+
+@Composable
+fun DailySafeToSpendCard(
+    pacing: com.sans.finance.domain.model.DailySafeToSpend,
+    isPrivacyModeEnabled: Boolean
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Category,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        "SAFE-TO-SPEND RUNWAY",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 1.sp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .background(
+                            if (pacing.pacingPcnt <= 1.0f) Color(0xFF4CAF50).copy(alpha = 0.15f) else Color(0xFFF44336).copy(alpha = 0.15f),
+                            CircleShape
+                        )
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        if (pacing.pacingPcnt <= 1.0f) "On Track (${(pacing.pacingPcnt * 100).toInt()}%)" else "Fast Pace (${(pacing.pacingPcnt * 100).toInt()}%)",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = if (pacing.pacingPcnt <= 1.0f) Color(0xFF4CAF50) else Color(0xFFF44336)
+                    )
+                }
+            }
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Column {
+                    Text("Daily Discretionary Allowance", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    PrivacyText(
+                        amount = pacing.dailyAllowance,
+                        currencyCode = pacing.currencyCode,
+                        isVisible = !isPrivacyModeEnabled,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        "for next ${pacing.remainingDaysInCycle} days",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("Committed Upcoming Bills", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    PrivacyText(
+                        amount = pacing.committedUpcomingBills,
+                        currencyCode = pacing.currencyCode,
+                        isVisible = !isPrivacyModeEnabled,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Text(
+                        "due this cycle",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+

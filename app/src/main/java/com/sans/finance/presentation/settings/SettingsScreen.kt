@@ -1,7 +1,9 @@
 package com.sans.finance.presentation.settings
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -81,12 +83,12 @@ import java.util.Locale
 @Composable
 fun SettingsScreen(
     onBack: (() -> Unit)? = null,
-    onNavigateToGoals: () -> Unit,
-    onNavigateToBudgets: () -> Unit,
+    onNavigateToGoals: (() -> Unit)? = null,
+    onNavigateToBudgets: (() -> Unit)? = null,
     onNavigateToCategories: () -> Unit,
     onNavigateToTags: () -> Unit,
     onNavigateToAccountTypes: () -> Unit,
-    onNavigateToRecurringExpenses: () -> Unit,
+    onNavigateToRecurringExpenses: (() -> Unit)? = null,
     onNavigateToDataManagement: () -> Unit,
     onNavigateToAiSettings: () -> Unit,
     onNavigateToReSyncDryRun: () -> Unit,
@@ -142,12 +144,9 @@ fun SettingsScreen(
             paddingValues = paddingValues,
             listState = listState,
             viewModel = viewModel,
-            onGoals = onNavigateToGoals,
-            onBudget = onNavigateToBudgets,
             onNavigateToCategories = onNavigateToCategories,
             onNavigateToTags = onNavigateToTags,
             onNavigateToAccountTypes = onNavigateToAccountTypes,
-            onNavigateToRecurringExpenses = onNavigateToRecurringExpenses,
             onNavigateToDataManagement = onNavigateToDataManagement,
             onNavigateToAiSettings = onNavigateToAiSettings,
             exportBackup = { viewModel.exportFullBackup(it) },
@@ -155,7 +154,6 @@ fun SettingsScreen(
             onCurrencyToggle = { showCurrencyDialog = true },
             currentLanguage = currentLanguage,
             currentCurrency = viewModel.currentCurrency.value,
-            currentBudget = currentBudget,
             isLoading = isLoading,
             isPrivacyModeEnabled = viewModel.isPrivacyModeEnabled.value,
             onTogglePrivacyMode = { viewModel.togglePrivacyMode() },
@@ -288,12 +286,9 @@ fun SettingsContent(
     paddingValues: PaddingValues,
     listState: androidx.compose.foundation.lazy.LazyListState,
     viewModel: SettingsViewModel,
-    onGoals: () -> Unit,
-    onBudget: () -> Unit,
     onNavigateToCategories: () -> Unit,
     onNavigateToTags: () -> Unit,
     onNavigateToAccountTypes: () -> Unit,
-    onNavigateToRecurringExpenses: () -> Unit,
     onNavigateToDataManagement: () -> Unit,
     onNavigateToAiSettings: () -> Unit,
     exportBackup: (android.content.Context) -> Unit,
@@ -301,7 +296,6 @@ fun SettingsContent(
     onCurrencyToggle: () -> Unit,
     currentLanguage: String,
     currentCurrency: String,
-    currentBudget: Long,
     isLoading: Boolean,
     isPrivacyModeEnabled: Boolean,
     onTogglePrivacyMode: () -> Unit,
@@ -407,40 +401,12 @@ fun SettingsContent(
         }
 
         item {
-            SettingsSectionTitle("Features")
-            SettingsClickableCard(
-                onClick = onGoals,
-                icon = Icons.Default.Flag,
-                title = "Savings Goals",
-                subtitle = "Track your financial targets"
-            )
-        }
-
-        item {
-            SettingsClickableCard(
-                onClick = onBudget,
-                icon = Icons.Default.ShoppingCart,
-                title = "Monthly Budget",
-                subtitle = if (currentBudget > 0L) {
-                    com.sans.finance.core.util.CurrencyFormatter.formatAmount(currentBudget, currentCurrency)
-                } else "Not Set"
-            )
-        }
-
-        item {
-            SettingsClickableCard(
-                onClick = onNavigateToRecurringExpenses,
-                icon = Icons.Default.Sync,
-                title = stringResource(R.string.recurring_expenses),
-                subtitle = "Manage subscriptions and fixed costs"
-            )
-        }
-
-        item {
+            SettingsSectionTitle("Organization & Structure")
             SettingsClickableCard(
                 onClick = onNavigateToCategories,
                 icon = Icons.Default.ChevronRight,
-                title = stringResource(R.string.categories)
+                title = stringResource(R.string.categories),
+                subtitle = "Expense & income categories"
             )
         }
 
@@ -448,7 +414,8 @@ fun SettingsContent(
             SettingsClickableCard(
                 onClick = onNavigateToTags,
                 icon = Icons.Default.ChevronRight,
-                title = stringResource(R.string.tags)
+                title = stringResource(R.string.tags),
+                subtitle = "Custom tags & transaction labels"
             )
         }
 
@@ -456,7 +423,8 @@ fun SettingsContent(
             SettingsClickableCard(
                 onClick = onNavigateToAccountTypes,
                 icon = Icons.Default.ChevronRight,
-                title = "Account Types"
+                title = "Account Types",
+                subtitle = "Manage account groups & liability types"
             )
         }
 
@@ -548,21 +516,26 @@ private fun SettingsClickableCard(
     icon: ImageVector,
     title: String,
     subtitle: String? = null,
-    containerColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.surfaceVariant,
-    contentColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    containerColor: Color = MaterialTheme.colorScheme.surface,
+    contentColor: Color = MaterialTheme.colorScheme.onSurface,
     isLoading: Boolean = false
 ) {
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = containerColor,
             contentColor = contentColor
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
         )
     ) {
         Row(
             modifier = Modifier
-                .padding(12.dp)
+                .padding(14.dp)
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -570,14 +543,14 @@ private fun SettingsClickableCard(
                 CircularProgressIndicator(
                     modifier = Modifier.size(20.dp),
                     strokeWidth = 2.dp,
-                    color = contentColor
+                    color = MaterialTheme.colorScheme.primary
                 )
             } else {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
                     modifier = Modifier.size(20.dp),
-                    tint = contentColor
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
             Spacer(Modifier.width(12.dp))
@@ -585,13 +558,14 @@ private fun SettingsClickableCard(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 if (subtitle != null) {
                     Text(
                         text = subtitle,
                         style = MaterialTheme.typography.labelSmall,
-                        color = contentColor.copy(alpha = 0.7f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -599,7 +573,7 @@ private fun SettingsClickableCard(
                 Icons.Default.ChevronRight,
                 contentDescription = null,
                 modifier = Modifier.size(16.dp),
-                tint = contentColor.copy(alpha = 0.5f)
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
             )
         }
     }
@@ -611,19 +585,24 @@ private fun SettingsToggleCard(
     onCheckedChange: (Boolean) -> Unit,
     title: String,
     subtitle: String? = null,
-    containerColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.surfaceVariant,
-    contentColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurfaceVariant
+    containerColor: Color = MaterialTheme.colorScheme.surface,
+    contentColor: Color = MaterialTheme.colorScheme.onSurface
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = containerColor,
             contentColor = contentColor
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
         )
     ) {
         Row(
             modifier = Modifier
-                .padding(12.dp)
+                .padding(14.dp)
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -631,13 +610,14 @@ private fun SettingsToggleCard(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 if (subtitle != null) {
                     Text(
                         text = subtitle,
                         style = MaterialTheme.typography.labelSmall,
-                        color = contentColor.copy(alpha = 0.7f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -654,10 +634,10 @@ private fun SettingsToggleCard(
 fun SettingsSectionTitle(title: String) {
     Text(
         text = title,
-        style = MaterialTheme.typography.titleMedium,
+        style = MaterialTheme.typography.titleSmall,
         fontWeight = FontWeight.Bold,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(bottom = 8.dp, start = 8.dp)
+        modifier = Modifier.padding(top = 4.dp, bottom = 4.dp, start = 4.dp)
     )
 }
 
@@ -674,17 +654,22 @@ fun SettingsItem(
     onCheckedChange: ((Boolean) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    Surface(
+    Card(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        )
     ) {
         Row(
             modifier = Modifier
-                .padding(12.dp)
+                .padding(14.dp)
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -694,12 +679,17 @@ fun SettingsItem(
             )
             Spacer(Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
                 if (subtitle != null) {
                     Text(
                         text = subtitle,
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -870,7 +860,7 @@ fun LanguageSelectionDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.language)) },
+        title = { Text(stringResource(R.string.language), color = MaterialTheme.colorScheme.onSurface) },
         text = {
             Column {
                 supportedLanguages.forEach { (code, name) ->
@@ -886,7 +876,11 @@ fun LanguageSelectionDialog(
                             onClick = { onSelect(code) }
                         )
                         Spacer(Modifier.width(8.dp))
-                        Text(name, style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            name,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
                     }
                 }
             }
@@ -908,7 +902,7 @@ fun CurrencySelectionDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Select Currency") },
+        title = { Text("Select Currency", color = MaterialTheme.colorScheme.onSurface) },
         text = {
             LazyColumn(modifier = Modifier.height(300.dp)) {
                 items(enabledCurrencies.size) { index ->
@@ -932,12 +926,13 @@ fun CurrencySelectionDialog(
                                 } catch (e: Exception) {
                                     currency
                                 },
-                                style = MaterialTheme.typography.bodyLarge
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
                                 text = currency,
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.secondary
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -977,7 +972,7 @@ fun AllCurrenciesDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Enable Currencies") },
+        title = { Text("Enable Currencies", color = MaterialTheme.colorScheme.onSurface) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
@@ -1012,12 +1007,13 @@ fun AllCurrenciesDialog(
                                     } catch (e: Exception) {
                                         currency
                                     },
-                                    style = MaterialTheme.typography.bodyMedium
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
                                     text = currency,
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.secondary
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -1051,11 +1047,11 @@ private fun WhatsAppBackupSettingsCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            containerColor = MaterialTheme.colorScheme.surface
         ),
-        border = androidx.compose.foundation.BorderStroke(
+        border = BorderStroke(
             1.dp,
             MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
         )
@@ -1076,7 +1072,8 @@ private fun WhatsAppBackupSettingsCard(
                     Text(
                         text = "Cloud Backup & Sync",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     val timeStr = if (lastBackupTime > 0L) {
                         val sdf = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault())
@@ -1124,7 +1121,8 @@ private fun WhatsAppBackupSettingsCard(
                     Text(
                         "Cloud Storage Provider",
                         style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     val providerLabel = if (provider.equals("CLOUDFLARE_R2", ignoreCase = true) || provider.equals("R2", ignoreCase = true)) {
                         "Cloudflare R2 (Free Tier / Zero Egress)"
@@ -1149,7 +1147,7 @@ private fun WhatsAppBackupSettingsCard(
                 Icon(
                     Icons.Default.ChevronRight,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                 )
             }
 
@@ -1166,7 +1164,8 @@ private fun WhatsAppBackupSettingsCard(
                     Text(
                         "Auto-Backup Schedule",
                         style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     val freqLabel = when (frequency) {
                         "DAILY" -> "Daily"
@@ -1186,7 +1185,7 @@ private fun WhatsAppBackupSettingsCard(
                 Icon(
                     Icons.Default.ChevronRight,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                 )
             }
 
@@ -1202,7 +1201,8 @@ private fun WhatsAppBackupSettingsCard(
                     Text(
                         "Back up over Wi-Fi only",
                         style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         "Prevents cellular data usage",
@@ -1228,7 +1228,8 @@ private fun WhatsAppBackupSettingsCard(
                     Text(
                         "Back up only while charging",
                         style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         "Zero battery drain during normal use",

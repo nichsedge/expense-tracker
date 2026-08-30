@@ -131,6 +131,11 @@ class AddTransactionViewModel @Inject constructor(
     val isInstallment get() = paymentType == "INSTALLMENT"
     val isRecurring get() = paymentType == "RECURRING"
     var recurrenceInterval by mutableStateOf("MONTHLY")
+    var recurrenceEndType by mutableStateOf("NEVER") // "NEVER", "UNTIL_DATE", "AFTER_COUNT"
+    var recurrenceEndDate by mutableStateOf<Long?>(null)
+    var recurrenceTotalOccurrences by mutableStateOf("12")
+    var recurrenceIntervalMultiplier by mutableIntStateOf(1)
+    var recurrenceStatus by mutableStateOf("ACTIVE") // "ACTIVE", "PAUSED"
     var durationMonths by mutableStateOf("")
     var selectedDate by mutableLongStateOf(System.currentTimeMillis())
     var selectedTags by mutableStateOf(listOf<String>())
@@ -266,7 +271,11 @@ class AddTransactionViewModel @Inject constructor(
         editExpenseId?.let { id ->
             viewModelScope.launch {
                 getExpenseByIdUseCase(id)?.let { expense ->
-                    amount = kotlin.math.ceil(expense.amount / 100.0).toLong().toString()
+                    amount = if (expense.amount % 100 == 0L) {
+                        (expense.amount / 100).toString()
+                    } else {
+                        String.format(java.util.Locale.US, "%.2f", expense.amount / 100.0).trimEnd('0').trimEnd('.')
+                    }
                     title = expense.title
                     details = expense.details ?: ""
                     categoryId = expense.categoryId
@@ -294,6 +303,11 @@ class AddTransactionViewModel @Inject constructor(
                     }
 
                     recurrenceInterval = expense.recurrenceInterval ?: "MONTHLY"
+                    recurrenceEndType = expense.recurrenceEndType ?: "NEVER"
+                    recurrenceEndDate = expense.recurrenceEndDate
+                    recurrenceTotalOccurrences = expense.recurrenceTotalOccurrences?.toString() ?: "12"
+                    recurrenceIntervalMultiplier = expense.recurrenceIntervalMultiplier.coerceAtLeast(1)
+                    recurrenceStatus = expense.recurrenceStatus
                     selectedDate = expense.date
                     currency = expense.currency
                     isInstallmentPayment = expense.isInstallmentPayment
@@ -330,13 +344,21 @@ class AddTransactionViewModel @Inject constructor(
                 }
             }
             .launchIn(viewModelScope)
+
+        var previousType = transactionType
         snapshotFlow { transactionType }
             .distinctUntilChanged()
             .onEach { type ->
-                val currentCats = allCategories.value
-                val firstMatch = currentCats.firstOrNull { it.type == type }
-                if (firstMatch != null) {
-                    categoryId = firstMatch.id
+                if (previousType != type) {
+                    previousType = type
+                    val currentCats = allCategories.value
+                    val currentCatMatches = currentCats.any { it.id == categoryId && (it.type == type || type == "TRANSFER") }
+                    if (!currentCatMatches) {
+                        val firstMatch = currentCats.firstOrNull { it.type == type }
+                        if (firstMatch != null) {
+                            categoryId = firstMatch.id
+                        }
+                    }
                 }
             }
             .launchIn(viewModelScope)
@@ -427,15 +449,16 @@ class AddTransactionViewModel @Inject constructor(
         val effectiveTitle = title.trim().ifBlank { buildDefaultTitle() }
 
         val nextDueDateVal = if (isRecurring) {
-            val calendar = Calendar.getInstance()
-            calendar.timeInMillis = selectedDate
-            when (recurrenceInterval) {
-                "DAILY" -> calendar.add(Calendar.DAY_OF_YEAR, 1)
-                "WEEKLY" -> calendar.add(Calendar.WEEK_OF_YEAR, 1)
-                "MONTHLY" -> calendar.add(Calendar.MONTH, 1)
-                "YEARLY" -> calendar.add(Calendar.YEAR, 1)
-            }
-            calendar.timeInMillis
+            com.sans.finance.core.util.RecurringOccurrenceCalculator.calculateNextDueDate(
+                startDate = selectedDate,
+                interval = recurrenceInterval,
+                multiplier = recurrenceIntervalMultiplier,
+                endType = recurrenceEndType,
+                endDate = recurrenceEndDate,
+                totalOccurrences = recurrenceTotalOccurrences.toIntOrNull(),
+                status = recurrenceStatus,
+                afterTime = selectedDate + 1000L
+            )
         } else null
 
         viewModelScope.launch {
@@ -452,6 +475,11 @@ class AddTransactionViewModel @Inject constructor(
                 isRecurring = isRecurring,
                 recurrenceInterval = if (isRecurring) recurrenceInterval else null,
                 nextDueDate = nextDueDateVal,
+                recurrenceEndType = if (isRecurring) recurrenceEndType else "NEVER",
+                recurrenceEndDate = if (isRecurring && recurrenceEndType == "UNTIL_DATE") recurrenceEndDate else null,
+                recurrenceTotalOccurrences = if (isRecurring && recurrenceEndType == "AFTER_COUNT") recurrenceTotalOccurrences.toIntOrNull() else null,
+                recurrenceIntervalMultiplier = if (isRecurring) recurrenceIntervalMultiplier else 1,
+                recurrenceStatus = if (isRecurring) recurrenceStatus else "ACTIVE",
                 details = details.ifBlank { null },
                 tags = selectedTags,
                 currency = currency,
@@ -504,7 +532,7 @@ class AddTransactionViewModel @Inject constructor(
     }
 
     private fun String.toSafeLongCents(): Long? {
-        val trimmed = this.trim()
+        val trimmed = this.trim().replace(" ", "").replace("\u00A0", "")
         if (com.sans.finance.core.util.MathExpressionEvaluator.hasArithmetic(trimmed)) {
             val evaluatedCents = com.sans.finance.core.util.MathExpressionEvaluator.evaluateToCents(trimmed)
             if (evaluatedCents != null) return evaluatedCents

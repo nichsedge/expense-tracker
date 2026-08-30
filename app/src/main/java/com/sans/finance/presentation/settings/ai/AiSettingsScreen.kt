@@ -1,5 +1,6 @@
 package com.sans.finance.presentation.settings.ai
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -62,10 +63,20 @@ fun AiSettingsScreen(
         ) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                shape = MaterialTheme.shapes.large,
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Privacy", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text(
+                        "Privacy",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
                     Text(
                         "AI is optional. Your API keys are stored encrypted on-device. When enabled, monthly review summaries will send aggregates (not your full DB).",
                         style = MaterialTheme.typography.bodySmall,
@@ -154,7 +165,11 @@ private fun ProviderRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         RadioButton(selected = selected, onClick = onSelect)
-        Text(label, style = MaterialTheme.typography.bodyLarge)
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface
+        )
     }
 }
 

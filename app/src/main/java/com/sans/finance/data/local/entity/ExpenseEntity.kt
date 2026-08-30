@@ -32,6 +32,11 @@ data class ExpenseEntity(
     @ColumnInfo(name = "is_installment") val isInstallment: Boolean = false,
     @ColumnInfo(name = "recurrence_interval") val recurrenceInterval: String? = null,
     @ColumnInfo(name = "next_due_date") val nextDueDate: Long? = null,
+    @ColumnInfo(name = "recurrence_end_type") val recurrenceEndType: String? = "NEVER",
+    @ColumnInfo(name = "recurrence_end_date") val recurrenceEndDate: Long? = null,
+    @ColumnInfo(name = "recurrence_total_occurrences") val recurrenceTotalOccurrences: Int? = null,
+    @ColumnInfo(name = "recurrence_interval_multiplier") val recurrenceIntervalMultiplier: Int = 1,
+    @ColumnInfo(name = "recurrence_status") val recurrenceStatus: String = "ACTIVE",
     @ColumnInfo(name = "created_at") val createdAt: Long = System.currentTimeMillis(),
     @ColumnInfo(name = "updated_at") val updatedAt: Long = System.currentTimeMillis()
 )

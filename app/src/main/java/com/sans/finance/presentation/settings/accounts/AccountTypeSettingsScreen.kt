@@ -1,5 +1,6 @@
 package com.sans.finance.presentation.settings.accounts
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -195,7 +196,11 @@ fun AccountTypeItem(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        )
     ) {
         Row(
             modifier = Modifier
@@ -221,7 +226,8 @@ fun AccountTypeItem(
                 Text(
                     text = accountType.name,
                     style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = if (accountType.isLiability) "Liability" else "Asset",
@@ -231,14 +237,14 @@ fun AccountTypeItem(
             }
             if (isReorderMode) {
                 IconButton(onClick = onMoveUp) {
-                    Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Move Up", modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Move Up", modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
                 }
                 IconButton(onClick = onMoveDown) {
-                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Move Down", modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Move Down", modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
                 }
             }
             IconButton(onClick = onEdit) {
-                Icon(Icons.Default.Edit, contentDescription = "Edit", modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.Edit, contentDescription = "Edit", modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             IconButton(onClick = onDelete) {
                 Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))

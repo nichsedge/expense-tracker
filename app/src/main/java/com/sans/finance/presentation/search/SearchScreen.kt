@@ -327,7 +327,8 @@ fun SearchScreen(
             ),
             onDismiss = viewModel::closeRecurringDetail,
             onEditExpense = onExpenseClick,
-            onDeleteExpense = viewModel::deleteRecurringExpense
+            onDeleteExpense = viewModel::deleteRecurringExpense,
+            onTogglePause = viewModel::togglePauseRecurring
         )
     }
 

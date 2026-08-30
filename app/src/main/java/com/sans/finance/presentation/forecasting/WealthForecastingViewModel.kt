@@ -15,9 +15,14 @@ data class ForecastingState(
     val monthlySavings: Long = 0L,
     val monthlyExpenses: Long = 0L,
     val expectedRoi: Float = 0.07f, // 7% default
+    val volatility: Float = 0.15f,   // 15% default
     val projectionYears: Int = 20,
     val projections: List<ProjectionPoint> = emptyList(),
     val whatIfProjections: List<ProjectionPoint> = emptyList(),
+    val monteCarloP10: List<ProjectionPoint> = emptyList(),
+    val monteCarloP50: List<ProjectionPoint> = emptyList(),
+    val monteCarloP90: List<ProjectionPoint> = emptyList(),
+    val fireSuccessRate: Float = 0f,
     val isLoading: Boolean = true,
     val currentCurrency: String = "USD",
     val fireNumber: Long = 0L,
@@ -41,6 +46,7 @@ class WealthForecastingViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _expectedRoi = MutableStateFlow(0.07f)
+    private val _volatility = MutableStateFlow(0.15f)
     private val _projectionYears = MutableStateFlow(25)
     private val _emergencyFundMonths = MutableStateFlow(6)
     private val _extraMonthlyContribution = MutableStateFlow(0L)
@@ -48,15 +54,38 @@ class WealthForecastingViewModel @Inject constructor(
     val state = combine(
         getWealthMetricsUseCase(),
         _expectedRoi,
+        _volatility,
         _projectionYears,
         _emergencyFundMonths,
         _extraMonthlyContribution
-    ) { metrics, roi, years, efMonths, extraContrib ->
+    ) { args ->
+        val metrics = args[0] as com.sans.finance.domain.model.WealthMetrics
+        val roi = args[1] as Float
+        val vol = args[2] as Float
+        val years = args[3] as Int
+        val efMonths = args[4] as Int
+        val extraContrib = args[5] as Long
         val currentNetWorth = metrics.cashAssets + metrics.portfolioValue
+        val fireNumber = metrics.monthlyBurn * 12 * 25
+
         val projections = calculateProjections(currentNetWorth, metrics.monthlySavings, roi, years)
         val whatIfProjections = calculateProjections(currentNetWorth, metrics.monthlySavings + extraContrib, roi, years)
 
-        val fireNumber = metrics.monthlyBurn * 12 * 25
+        val mcResult = com.sans.finance.core.util.MonteCarloFireSimulator.simulate(
+            initialWealth = currentNetWorth,
+            annualSavings = (metrics.monthlySavings + extraContrib) * 12,
+            meanReturn = roi.toDouble(),
+            volatility = vol.toDouble(),
+            inflation = 0.025,
+            years = years,
+            fireTarget = fireNumber,
+            iterations = 1000
+        )
+
+        val mcP10 = mcResult.p10Projections.mapIndexed { idx, v -> ProjectionPoint(idx, v) }
+        val mcP50 = mcResult.p50Projections.mapIndexed { idx, v -> ProjectionPoint(idx, v) }
+        val mcP90 = mcResult.p90Projections.mapIndexed { idx, v -> ProjectionPoint(idx, v) }
+
         val yearsToFire = projections.find { it.value >= fireNumber }?.year
         val whatIfYearsToFire = whatIfProjections.find { it.value >= fireNumber }?.year
 
@@ -68,9 +97,14 @@ class WealthForecastingViewModel @Inject constructor(
             monthlySavings = metrics.monthlySavings,
             monthlyExpenses = metrics.monthlyBurn,
             expectedRoi = roi,
+            volatility = vol,
             projectionYears = years,
             projections = projections,
             whatIfProjections = whatIfProjections,
+            monteCarloP10 = mcP10,
+            monteCarloP50 = mcP50,
+            monteCarloP90 = mcP90,
+            fireSuccessRate = mcResult.successRate,
             isLoading = false,
             currentCurrency = metrics.currencyCode,
             fireNumber = fireNumber,
@@ -89,6 +123,10 @@ class WealthForecastingViewModel @Inject constructor(
 
     fun updateRoi(roi: Float) {
         _expectedRoi.value = roi
+    }
+
+    fun updateVolatility(vol: Float) {
+        _volatility.value = vol
     }
 
     fun updateExtraContribution(amount: Long) {

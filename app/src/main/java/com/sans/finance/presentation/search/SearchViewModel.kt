@@ -361,4 +361,17 @@ class SearchViewModel @Inject constructor(
             closeRecurringDetail()
         }
     }
+
+    fun togglePauseRecurring(expense: Expense) {
+        viewModelScope.launch {
+            val nextStatus = if (expense.recurrenceStatus.equals("PAUSED", ignoreCase = true)) "ACTIVE" else "PAUSED"
+            val targetExpense = if (expense.isRecurringInstance && expense.parentRecurringId != null) {
+                repository.getExpenseById(expense.parentRecurringId) ?: expense
+            } else {
+                expense
+            }
+            repository.updateExpense(targetExpense.copy(recurrenceStatus = nextStatus))
+            closeRecurringDetail()
+        }
+    }
 }

@@ -56,16 +56,19 @@ fun RecurringDetailBottomSheet(
     onDismiss: () -> Unit,
     onEditExpense: (expenseId: Long) -> Unit,
     onDeleteExpense: (expense: Expense) -> Unit,
+    onTogglePause: ((expense: Expense) -> Unit)? = null,
     sheetState: SheetState = rememberModalBottomSheetState()
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     val expense = context.expense
+    val targetExpenseId = expense.parentRecurringId ?: expense.id
 
+    val mult = expense.recurrenceIntervalMultiplier.coerceAtLeast(1)
     val monthlyAmount = when (expense.recurrenceInterval) {
-        "DAILY" -> expense.amount * DAYS_IN_MONTH
-        "WEEKLY" -> expense.amount * WEEKS_IN_MONTH
-        "MONTHLY" -> expense.amount
-        "YEARLY" -> expense.amount / MONTHS_IN_YEAR
+        "DAILY" -> (expense.amount * DAYS_IN_MONTH) / mult
+        "WEEKLY" -> (expense.amount * WEEKS_IN_MONTH) / mult
+        "MONTHLY" -> expense.amount / mult
+        "YEARLY" -> expense.amount / (MONTHS_IN_YEAR * mult)
         else -> expense.amount
     }
     val annualAmount = monthlyAmount * MONTHS_IN_YEAR
@@ -111,10 +114,23 @@ fun RecurringDetailBottomSheet(
                     .padding(top = 8.dp, bottom = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                if (onTogglePause != null) {
+                    val isPaused = expense.recurrenceStatus.equals("PAUSED", ignoreCase = true)
+                    OutlinedButton(
+                        onClick = {
+                            onTogglePause(expense)
+                            onDismiss()
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = MaterialTheme.shapes.small
+                    ) {
+                        Text(if (isPaused) "Resume" else "Pause")
+                    }
+                }
                 OutlinedButton(
                     onClick = {
                         onDismiss()
-                        onEditExpense(expense.id)
+                        onEditExpense(targetExpenseId)
                     },
                     modifier = Modifier.weight(1f),
                     shape = MaterialTheme.shapes.small
@@ -181,6 +197,35 @@ private fun RecurringDetailHeader(
 
 @Composable
 private fun RecurringCadenceCard(expense: Expense) {
+    val mult = expense.recurrenceIntervalMultiplier.coerceAtLeast(1)
+    val unit = when (expense.recurrenceInterval) {
+        "DAILY" -> if (mult > 1) "Days" else "Day"
+        "WEEKLY" -> if (mult > 1) "Weeks" else "Week"
+        "MONTHLY" -> if (mult > 1) "Months" else "Month"
+        "YEARLY" -> if (mult > 1) "Years" else "Year"
+        else -> "Month"
+    }
+    val cadenceText = if (mult == 1) {
+        "Every ${expense.recurrenceInterval?.lowercase()?.replaceFirstChar { it.uppercase() } ?: "Month"}"
+    } else {
+        "Every $mult $unit"
+    }
+
+    val endText = when (expense.recurrenceEndType) {
+        "UNTIL_DATE" -> {
+            if (expense.recurrenceEndDate != null) {
+                "Ends on " + com.sans.finance.core.util.DateFormatterUtils.formatStandardDate(expense.recurrenceEndDate)
+            } else "Ends on set date"
+        }
+        "AFTER_COUNT" -> {
+            val total = expense.recurrenceTotalOccurrences ?: 1
+            "Ends after $total cycles"
+        }
+        else -> "Ongoing (Never ends)"
+    }
+
+    val isPaused = expense.recurrenceStatus.equals("PAUSED", ignoreCase = true)
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -188,45 +233,67 @@ private fun RecurringCadenceCard(expense: Expense) {
         ),
         shape = MaterialTheme.shapes.medium
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Default.Repeat,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(10.dp))
-                Column {
-                    Text(
-                        text = "Cadence",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Repeat,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
                     )
-                    val cadenceText = (expense.recurrenceInterval ?: "MONTHLY")
-                        .lowercase()
-                        .replaceFirstChar { it.uppercase() }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "Cadence",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                        )
+                        Text(
+                            text = cadenceText,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+
+                Text(
+                    text = CurrencyFormatter.formatAmount(expense.amount, expense.currency),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Condition: $endText",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                )
+                if (isPaused) {
                     Text(
-                        text = cadenceText,
-                        style = MaterialTheme.typography.titleMedium,
+                        text = "PAUSED",
+                        style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        color = MaterialTheme.colorScheme.error
                     )
                 }
             }
-
-            Text(
-                text = CurrencyFormatter.formatAmount(expense.amount, expense.currency),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.primary
-            )
         }
     }
 }

@@ -20,8 +20,8 @@ android {
         applicationId = "com.sans.finance"
         minSdk = 36
         targetSdk = 37
-        versionCode = 3
-        versionName = "1.2"
+        versionCode = 4
+        versionName = "1.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -94,6 +94,11 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.androidx.security.crypto)
     implementation("javax.inject:javax.inject:1")
+
+    // Jetpack Glance AppWidgets
+    implementation(libs.androidx.glance)
+    implementation(libs.androidx.glance.appwidget)
+    implementation(libs.androidx.glance.material3)
 
 
 

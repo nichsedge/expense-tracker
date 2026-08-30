@@ -27,7 +27,12 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -438,15 +443,21 @@ fun AddGoalDialog(
                 ) {
                     listOf("TOTAL", "CATEGORY", "ASSET_CLASS").forEach { type ->
                         val isSelected = targetType == type
-                        androidx.compose.material3.FilterChip(
+                        FilterChip(
                             selected = isSelected,
                             onClick = {
                                 targetType = type
-                                if (type == "TOTAL") targetName = ""
-                                else if (type == "CATEGORY" && !categories.contains(targetName)) targetName =
-                                    categories.firstOrNull() ?: ""
-                                else if (type == "ASSET_CLASS" && !assetClasses.contains(targetName)) targetName =
-                                    assetClasses.firstOrNull() ?: ""
+                                if (type == "TOTAL") {
+                                    targetName = ""
+                                } else if (type == "CATEGORY") {
+                                    if (targetName.isBlank() || !categories.contains(targetName)) {
+                                        targetName = categories.firstOrNull() ?: ""
+                                    }
+                                } else if (type == "ASSET_CLASS") {
+                                    if (targetName.isBlank() || !assetClasses.contains(targetName)) {
+                                        targetName = assetClasses.firstOrNull() ?: ""
+                                    }
+                                }
                             },
                             label = {
                                 Text(
@@ -464,40 +475,51 @@ fun AddGoalDialog(
 
                 if (targetType != "TOTAL") {
                     val options = if (targetType == "CATEGORY") categories else assetClasses
-                    var expanded by remember { mutableStateOf(false) }
+                    val label = if (targetType == "CATEGORY") "Category" else "Asset Class"
+                    var dropdownExpanded by remember { mutableStateOf(false) }
 
-                    Column {
-                        OutlinedTextField(
-                            value = targetName,
-                            onValueChange = { targetName = it },
-                            label = { Text(if (targetType == "CATEGORY") "Select Category" else "Select Asset Class") },
-                            modifier = Modifier.fillMaxWidth(),
-                            readOnly = true,
-                            shape = MaterialTheme.shapes.large,
-                            trailingIcon = {
-                                IconButton(onClick = { expanded = !expanded }) {
-                                    Icon(
-                                        imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                                        contentDescription = null
+                    if (options.isNotEmpty()) {
+                        ExposedDropdownMenuBox(
+                            expanded = dropdownExpanded,
+                            onExpandedChange = { dropdownExpanded = it }
+                        ) {
+                            OutlinedTextField(
+                                value = targetName,
+                                onValueChange = {},
+                                label = { Text("Select $label") },
+                                readOnly = true,
+                                trailingIcon = {
+                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownExpanded)
+                                },
+                                modifier = Modifier
+                                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                                    .fillMaxWidth(),
+                                shape = MaterialTheme.shapes.large
+                            )
+                            ExposedDropdownMenu(
+                                expanded = dropdownExpanded,
+                                onDismissRequest = { dropdownExpanded = false }
+                            ) {
+                                options.forEach { option ->
+                                    DropdownMenuItem(
+                                        text = { Text(option) },
+                                        onClick = {
+                                            targetName = option
+                                            dropdownExpanded = false
+                                        }
                                     )
                                 }
                             }
-                        )
-                        androidx.compose.material3.DropdownMenu(
-                            expanded = expanded,
-                            onDismissRequest = { expanded = false },
-                            modifier = Modifier.fillMaxWidth(0.8f)
-                        ) {
-                            options.forEach { option ->
-                                androidx.compose.material3.DropdownMenuItem(
-                                    text = { Text(option) },
-                                    onClick = {
-                                        targetName = option
-                                        expanded = false
-                                    }
-                                )
-                            }
                         }
+                    } else {
+                        OutlinedTextField(
+                            value = targetName,
+                            onValueChange = { targetName = it },
+                            label = { Text("Enter $label Name") },
+                            placeholder = { Text(if (targetType == "CATEGORY") "e.g. US Stocks" else "e.g. Crypto") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.large
+                        )
                     }
                 }
             }
@@ -505,7 +527,11 @@ fun AddGoalDialog(
         confirmButton = {
             Button(onClick = {
                 val target = amount.toDoubleOrNull() ?: 0.0
-                onConfirm(name, target, targetType, if (targetType == "TOTAL") null else targetName, deadline)
+                val finalTargetName = when (targetType) {
+                    "TOTAL" -> null
+                    else -> targetName.trim().ifEmpty { null }
+                }
+                onConfirm(name, target, targetType, finalTargetName, deadline)
             }, shape = MaterialTheme.shapes.large) {
                 Text(if (isEditing) "Save" else "Create", fontWeight = FontWeight.Bold)
             }

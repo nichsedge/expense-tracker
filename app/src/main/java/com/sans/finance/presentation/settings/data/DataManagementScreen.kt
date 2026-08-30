@@ -2,6 +2,7 @@ package com.sans.finance.presentation.settings.data
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,6 +36,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -178,15 +180,30 @@ fun DataManagementScreen(
             }
 
             item {
+                DatabaseMaintenanceCard(
+                    isMaintaining = state.isMaintainingDb,
+                    report = state.dbHealthReport,
+                    dbVersion = state.dbVersion,
+                    onRunMaintenance = { viewModel.runDatabaseMaintenance() }
+                )
+            }
+
+            item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    shape = MaterialTheme.shapes.large,
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
                             "About Formats",
                             style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(Modifier.height(8.dp))
                         Text(
@@ -256,51 +273,68 @@ fun DataSection(
     onExportCsv: (() -> Unit)? = null,
     onExportJson: (() -> Unit)? = null
 ) {
-    Column {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.width(12.dp))
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        }
-        Spacer(Modifier.height(4.dp))
-        Text(
-            description,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
         )
-        Spacer(Modifier.height(16.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(
-                onClick = onImport,
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(horizontal = 8.dp)
-            ) {
-                Icon(Icons.Default.FileUpload, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Import")
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
             }
-
-            if (onExportCsv != null) {
-                OutlinedButton(
-                    onClick = onExportCsv,
+            Spacer(Modifier.height(4.dp))
+            Text(
+                description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(16.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = onImport,
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 8.dp)
                 ) {
-                    Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.FileUpload, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("CSV")
+                    Text("Import")
                 }
-            }
 
-            if (onExportJson != null) {
-                OutlinedButton(
-                    onClick = onExportJson,
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 8.dp)
-                ) {
-                    Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("JSON")
+                if (onExportCsv != null) {
+                    OutlinedButton(
+                        onClick = onExportCsv,
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 8.dp)
+                    ) {
+                        Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("CSV")
+                    }
+                }
+
+                if (onExportJson != null) {
+                    OutlinedButton(
+                        onClick = onExportJson,
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 8.dp)
+                    ) {
+                        Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("JSON")
+                    }
                 }
             }
         }
@@ -328,12 +362,22 @@ private fun PortfolioAutomationCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
-            containerColor = if (isStale) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceVariant
+            containerColor = if (isStale) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            1.dp,
+            if (isStale) MaterialTheme.colorScheme.error.copy(alpha = 0.3f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
         )
     ) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Automation status", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            Text(
+                "Automation status",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
             Text(
                 "Latest snapshot: $dateText • $holdingsCount holdings",
                 style = MaterialTheme.typography.bodySmall,
@@ -348,7 +392,7 @@ private fun PortfolioAutomationCard(
                 Text(
                     "Snapshot looks older than a month. Run your backfill pipeline to refresh.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onErrorContainer
+                    color = MaterialTheme.colorScheme.error
                 )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -357,3 +401,103 @@ private fun PortfolioAutomationCard(
         }
     }
 }
+
+@Composable
+fun DatabaseMaintenanceCard(
+    isMaintaining: Boolean,
+    report: com.sans.finance.domain.usecase.DatabaseHealthReport?,
+    dbVersion: Int,
+    onRunMaintenance: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Database Health & Optimization",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Surface(
+                    shape = MaterialTheme.shapes.extraSmall,
+                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f)
+                ) {
+                    Text(
+                        text = "Room v$dbVersion",
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+            }
+            Text(
+                "Runs SQLite VACUUM defragmentation, query analyzer optimization, removes orphaned cross-references, and verifies ledger consistency.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            if (report != null) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        "✅ VACUUM & ANALYZE completed (${report.executionTimeMs} ms)",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "🧹 Cleaned ${report.orphanedTagsCleaned} orphaned tag references",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "🔍 Audited ${report.totalTransactionsChecked} transactions across database",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "✨ Schema & Index Optimization: All ${report.analyzedTablesCount} tables analyzed (Schema v${report.dbVersion})",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.tertiary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Button(
+                onClick = onRunMaintenance,
+                enabled = !isMaintaining,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (isMaintaining) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Optimizing Database...")
+                } else {
+                    Text("Optimize & Audit Database")
+                }
+            }
+        }
+    }
+}
+

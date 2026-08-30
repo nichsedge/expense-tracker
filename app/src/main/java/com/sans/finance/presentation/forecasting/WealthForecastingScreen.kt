@@ -171,6 +171,27 @@ fun WealthForecastingScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
+                        "MARKET VOLATILITY (STD DEV)",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                    Text(
+                        "${(state.volatility * 100).toInt()}% annual volatility",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Black
+                    )
+                    Slider(
+                        value = state.volatility,
+                        onValueChange = { viewModel.updateVolatility(it) },
+                        valueRange = 0.05f..0.35f,
+                        steps = 29
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
                         "EXTRA MONTHLY SAVINGS (WHAT-IF)",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
@@ -185,8 +206,7 @@ fun WealthForecastingScreen(
                     Slider(
                         value = state.extraMonthlyContribution.toFloat(),
                         onValueChange = { viewModel.updateExtraContribution(it.toLong()) },
-                        valueRange = 0f..100_000_000f, // Max 1M USD roughly in cents is 100k USD. 100M IDR is reasonable.
-                        // Actually let's just use reasonable steps
+                        valueRange = 0f..100_000_000f,
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -263,73 +283,220 @@ fun WealthForecastingScreen(
                 border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        "Growth Trajectory",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                "Growth Trajectory",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Black,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                "1,000 Monte Carlo stochastic runs",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Chart Legend
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp, 3.dp)
+                                    .background(MaterialTheme.colorScheme.primary, MaterialTheme.shapes.extraSmall)
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text("Planned", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp, 6.dp)
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.25f), MaterialTheme.shapes.extraSmall)
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text("10th–90th %ile", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp, 2.dp)
+                                    .background(MaterialTheme.colorScheme.secondary, MaterialTheme.shapes.extraSmall)
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text("Median", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
                     TrajectoryChart(
                         projections = state.projections,
                         whatIfProjections = if (state.extraMonthlyContribution > 0) state.whatIfProjections else null,
+                        p10Projections = state.monteCarloP10,
+                        p50Projections = state.monteCarloP50,
+                        p90Projections = state.monteCarloP90,
                         currencyCode = state.currentCurrency
                     )
                 }
             }
 
-            // FIRE Index
+            // Monte Carlo Probability & FIRE Index
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.extraLarge,
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f)),
-                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f))
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.Info,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.tertiary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            "FIRE INDEX",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Black,
-                            letterSpacing = 1.sp
-                        )
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f), CircleShape)
+                                    .padding(6.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Info,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "RETIREMENT PROBABILITY",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Black,
+                                letterSpacing = 1.sp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+
+                        Surface(
+                            shape = CircleShape,
+                            color = if (state.fireSuccessRate >= 0.85f) Color(0xFF4CAF50).copy(alpha = 0.15f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                        ) {
+                            Text(
+                                text = "${(state.fireSuccessRate * 100).toInt()}% Success",
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Black,
+                                color = if (state.fireSuccessRate >= 0.85f) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
-                    Spacer(Modifier.height(16.dp))
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Bottom
+                    ) {
                         Column {
-                            Text("Target (25x Expenses)", style = MaterialTheme.typography.labelSmall)
+                            Text("Target FIRE Number", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Text(
                                 CurrencyFormatter.formatAmountCompact(state.fireNumber, state.currentCurrency),
-                                style = MaterialTheme.typography.titleMedium,
+                                style = MaterialTheme.typography.headlineSmall,
                                 fontWeight = FontWeight.Black
                             )
                         }
                         Column(horizontalAlignment = Alignment.End) {
-                            Text("Years to Freedom", style = MaterialTheme.typography.labelSmall)
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Est. Freedom", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                state.yearsToFire?.let { "$it Years" } ?: "∞",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Black,
+                                color = MaterialTheme.colorScheme.tertiary
+                            )
+                        }
+                    }
+
+                    // 3-Tile Percentile Bento Grid
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Pessimistic
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            shape = MaterialTheme.shapes.medium,
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(10.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text("Pessimistic", style = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Bold), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("10th %ile", style = TextStyle(fontSize = 10.sp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+                                Spacer(Modifier.height(4.dp))
                                 Text(
-                                    state.yearsToFire?.let { "$it Years" } ?: "∞",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Black,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    CurrencyFormatter.formatAmountCompact(state.monteCarloP10.lastOrNull()?.value ?: 0L, state.currentCurrency),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Black
                                 )
-                                if (state.whatIfYearsToFire != null && state.whatIfYearsToFire != state.yearsToFire) {
-                                    Spacer(Modifier.width(8.dp))
-                                    Icon(Icons.Default.Info, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.tertiary)
-                                    Text(
-                                        "${state.whatIfYearsToFire}y",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Black,
-                                        color = MaterialTheme.colorScheme.tertiary
-                                    )
-                                }
+                            }
+                        }
+
+                        // Median
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            shape = MaterialTheme.shapes.medium,
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(10.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text("Median", style = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Bold), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("50th %ile", style = TextStyle(fontSize = 10.sp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    CurrencyFormatter.formatAmountCompact(state.monteCarloP50.lastOrNull()?.value ?: 0L, state.currentCurrency),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Black
+                                )
+                            }
+                        }
+
+                        // Optimistic
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            shape = MaterialTheme.shapes.medium,
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(10.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text("Optimistic", style = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Bold), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("90th %ile", style = TextStyle(fontSize = 10.sp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    CurrencyFormatter.formatAmountCompact(state.monteCarloP90.lastOrNull()?.value ?: 0L, state.currentCurrency),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Black
+                                )
                             }
                         }
                     }
@@ -343,27 +510,54 @@ fun WealthForecastingScreen(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        "Emergency Fund (${state.emergencyFundMonths} Months)",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Black
-                    )
-                    Spacer(Modifier.height(12.dp))
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Emergency Fund (${state.emergencyFundMonths} Months)",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Black
+                        )
+                        val progress = if (state.emergencyFundTarget > 0) (state.currentEmergencyFund.toFloat() / state.emergencyFundTarget).coerceIn(0f, 1f) else 0f
+                        Surface(
+                            shape = CircleShape,
+                            color = if (progress >= 1f) Color(0xFF4CAF50).copy(alpha = 0.15f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                        ) {
+                            Text(
+                                "${(progress * 100).toInt()}% Covered",
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = if (progress >= 1f) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
                     val progress = if (state.emergencyFundTarget > 0) (state.currentEmergencyFund.toFloat() / state.emergencyFundTarget).coerceIn(0f, 1f) else 0f
                     androidx.compose.material3.LinearProgressIndicator(
                         progress = { progress },
-                        modifier = Modifier.fillMaxWidth().height(8.dp).clip(MaterialTheme.shapes.small),
-                        color = if (progress >= 1f) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(MaterialTheme.shapes.small),
+                        color = if (progress >= 1f) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary,
                         trackColor = MaterialTheme.colorScheme.surfaceVariant
                     )
-                    Spacer(Modifier.height(8.dp))
+
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("${(progress * 100).toInt()}% Covered", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = if (progress >= 1f) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary)
                         Text(
-                            "${CurrencyFormatter.formatAmountCompact(state.currentEmergencyFund, state.currentCurrency)} / ${CurrencyFormatter.formatAmountCompact(state.emergencyFundTarget, state.currentCurrency)}",
+                            "Target: ${CurrencyFormatter.formatAmountCompact(state.emergencyFundTarget, state.currentCurrency)}",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            "Current: ${CurrencyFormatter.formatAmountCompact(state.currentEmergencyFund, state.currentCurrency)}",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
@@ -424,6 +618,9 @@ fun InfoItem(label: String, value: String) {
 fun TrajectoryChart(
     projections: List<ProjectionPoint>,
     whatIfProjections: List<ProjectionPoint>? = null,
+    p10Projections: List<ProjectionPoint> = emptyList(),
+    p50Projections: List<ProjectionPoint> = emptyList(),
+    p90Projections: List<ProjectionPoint> = emptyList(),
     currencyCode: String
 ) {
     if (projections.isEmpty()) return
@@ -435,6 +632,8 @@ fun TrajectoryChart(
     )
     val primaryColor = MaterialTheme.colorScheme.primary
     val whatIfColor = MaterialTheme.colorScheme.tertiary
+    val mcFanColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+    val p50Color = MaterialTheme.colorScheme.secondary
     val gridColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
     var selectedIndex by remember { mutableStateOf<Int?>(null) }
     val tooltipStyle = MaterialTheme.typography.labelMedium.copy(
@@ -445,10 +644,12 @@ fun TrajectoryChart(
         color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
     )
 
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(220.dp)
+            .height(240.dp)
     ) {
         Canvas(
             modifier = Modifier
@@ -456,20 +657,26 @@ fun TrajectoryChart(
                 .pointerInput(projections.size) {
                     detectDragGestures(
                         onDragStart = { offset ->
-                            val chartLeft = 80f
-                            val chartRight = size.width - 20f
+                            val chartLeft = 96f
+                            val chartRight = size.width - 24f
                             val chartWidth = chartRight - chartLeft
                             val index = ((offset.x - chartLeft) / chartWidth * (projections.size - 1)).toInt()
                                 .coerceIn(0, projections.size - 1)
-                            selectedIndex = index
+                            if (selectedIndex != index) {
+                                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                selectedIndex = index
+                            }
                         },
                         onDrag = { change, _ ->
-                            val chartLeft = 80f
-                            val chartRight = size.width - 20f
+                            val chartLeft = 96f
+                            val chartRight = size.width - 24f
                             val chartWidth = chartRight - chartLeft
                             val index = ((change.position.x - chartLeft) / chartWidth * (projections.size - 1)).toInt()
                                 .coerceIn(0, projections.size - 1)
-                            selectedIndex = index
+                            if (selectedIndex != index) {
+                                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                selectedIndex = index
+                            }
                         },
                         onDragEnd = { selectedIndex = null },
                         onDragCancel = { selectedIndex = null }
@@ -478,12 +685,15 @@ fun TrajectoryChart(
                 .pointerInput(projections.size) {
                     detectTapGestures(
                         onPress = { offset ->
-                            val chartLeft = 80f
-                            val chartRight = size.width - 20f
+                            val chartLeft = 96f
+                            val chartRight = size.width - 24f
                             val chartWidth = chartRight - chartLeft
                             val index = ((offset.x - chartLeft) / chartWidth * (projections.size - 1)).toInt()
                                 .coerceIn(0, projections.size - 1)
-                            selectedIndex = index
+                            if (selectedIndex != index) {
+                                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                selectedIndex = index
+                            }
                             tryAwaitRelease()
                             selectedIndex = null
                         }
@@ -491,17 +701,18 @@ fun TrajectoryChart(
                 }
         ) {
             val padding = 60f
-            val chartTop = 20f
+            val chartTop = 28f
             val chartBottom = size.height - padding
-            val chartLeft = 80f
-            val chartRight = size.width - 20f
+            val chartLeft = 96f
+            val chartRight = size.width - 24f
             val chartHeight = chartBottom - chartTop
             val chartWidth = chartRight - chartLeft
 
             val maxValNormal = projections.maxOf { it.value }
             val maxValWhatIf = whatIfProjections?.maxOf { it.value } ?: 0L
-            val maxVal = maxOf(maxValNormal, maxValWhatIf).coerceAtLeast(1L)
-            val range = maxVal.toFloat()
+            val maxValP90 = p90Projections.maxOfOrNull { it.value } ?: 0L
+            val peakVal = maxOf(maxValNormal, maxValWhatIf, maxValP90).coerceAtLeast(1L)
+            val range = (peakVal.toDouble() * 1.08).toFloat()
 
             // Draw Y-axis
             val yLines = 5
@@ -521,7 +732,7 @@ fun TrajectoryChart(
             }
 
             // Draw X-axis
-            val xSteps = listOf(0, 5, 10, 15, 20, 25).filter { it <= projections.last().year }
+            val xSteps = listOf(0, 5, 10, 15, 20, 25, 30, 40, 50).filter { it <= projections.last().year }
             xSteps.forEach { year ->
                 val xFraction = year.toFloat() / projections.last().year.toFloat()
                 val x = chartLeft + (xFraction * chartWidth)
@@ -540,12 +751,35 @@ fun TrajectoryChart(
                 return path
             }
 
-            // Normal path
-            drawPath(buildPath(projections), primaryColor, style = Stroke(width = 6f))
+            // Draw Monte Carlo Fan Area (P10 to P90 corridor)
+            if (p10Projections.size == p90Projections.size && p10Projections.isNotEmpty()) {
+                val fanPath = Path()
+                p90Projections.forEachIndexed { index, point ->
+                    val x = chartLeft + (point.year.toFloat() / p90Projections.last().year.toFloat() * chartWidth)
+                    val y = chartBottom - (point.value.toFloat() / range * chartHeight)
+                    if (index == 0) fanPath.moveTo(x, y) else fanPath.lineTo(x, y)
+                }
+                for (i in p10Projections.indices.reversed()) {
+                    val point = p10Projections[i]
+                    val x = chartLeft + (point.year.toFloat() / p10Projections.last().year.toFloat() * chartWidth)
+                    val y = chartBottom - (point.value.toFloat() / range * chartHeight)
+                    fanPath.lineTo(x, y)
+                }
+                fanPath.close()
+                drawPath(fanPath, mcFanColor)
+            }
+
+            // Deterministic normal path
+            drawPath(buildPath(projections), primaryColor, style = Stroke(width = 5f))
 
             // What-if path
             whatIfProjections?.let {
-                drawPath(buildPath(it), whatIfColor, style = Stroke(width = 4f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 10f), 0f)))
+                drawPath(buildPath(it), whatIfColor, style = Stroke(width = 3.5f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 10f), 0f)))
+            }
+
+            // Monte Carlo Median (P50) path
+            if (p50Projections.isNotEmpty()) {
+                drawPath(buildPath(p50Projections), p50Color.copy(alpha = 0.7f), style = Stroke(width = 2.5f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f), 0f)))
             }
 
             // Selected Tooltip
@@ -564,28 +798,32 @@ fun TrajectoryChart(
                 drawCircle(primaryColor, 6.dp.toPx(), Offset(x, y))
 
                 val pWhatIf = whatIfProjections?.getOrNull(idx)
-                val yWhatIf = pWhatIf?.let { chartBottom - (it.value.toFloat() / range * chartHeight) }
-                if (yWhatIf != null) {
-                    drawCircle(whatIfColor, 6.dp.toPx(), Offset(x, yWhatIf))
-                }
+                val p10 = p10Projections.getOrNull(idx)
+                val p50 = p50Projections.getOrNull(idx)
+                val p90 = p90Projections.getOrNull(idx)
 
                 // Tooltip box
                 val yearStr = "Year ${p.year}"
-                val valStr = CurrencyFormatter.formatAmountCompact(p.value, currencyCode)
+                val valStr = "Base: " + CurrencyFormatter.formatAmountCompact(p.value, currencyCode)
+                val mcStr = if (p50 != null && p10 != null && p90 != null) {
+                    "MC 50%: ${CurrencyFormatter.formatAmountCompact(p50.value, currencyCode)} (${CurrencyFormatter.formatAmountCompact(p10.value, currencyCode)} - ${CurrencyFormatter.formatAmountCompact(p90.value, currencyCode)})"
+                } else null
+
                 val whatIfStr = pWhatIf?.let { "What-if: " + CurrencyFormatter.formatAmountCompact(it.value, currencyCode) }
 
                 val layouts = listOfNotNull(
                     textMeasurer.measure(yearStr, tooltipYearStyle),
                     textMeasurer.measure(valStr, tooltipStyle),
+                    mcStr?.let { textMeasurer.measure(it, tooltipStyle.copy(color = Color(0xFFFFD54F))) },
                     whatIfStr?.let { textMeasurer.measure(it, tooltipStyle.copy(color = whatIfColor)) }
                 )
 
                 val tooltipWidth = layouts.maxOf { it.size.width } + 24.dp.toPx()
                 val tooltipHeight = layouts.sumOf { it.size.height } + 16.dp.toPx()
                 val tx = (x - tooltipWidth / 2f).coerceIn(chartLeft + 4f, chartRight - tooltipWidth - 4f)
-                val ty = (minOf(y, yWhatIf ?: y) - tooltipHeight - 16.dp.toPx()).coerceAtLeast(chartTop + 4f)
+                val ty = (y - tooltipHeight - 16.dp.toPx()).coerceAtLeast(chartTop + 4f)
 
-                drawRoundRect(primaryColor.copy(alpha = 0.9f), Offset(tx, ty), Size(tooltipWidth, tooltipHeight), CornerRadius(8.dp.toPx()))
+                drawRoundRect(primaryColor.copy(alpha = 0.92f), Offset(tx, ty), Size(tooltipWidth, tooltipHeight), CornerRadius(8.dp.toPx()))
                 var currentY = ty + 8.dp.toPx()
                 layouts.forEach {
                     drawText(textLayoutResult = it, color = Color.White, topLeft = Offset(tx + 12.dp.toPx(), currentY))
@@ -595,3 +833,4 @@ fun TrajectoryChart(
         }
     }
 }
+

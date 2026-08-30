@@ -1,5 +1,6 @@
 package com.sans.finance.presentation.settings.tags
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -173,9 +174,13 @@ fun TagCardItem(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
-        shape = MaterialTheme.shapes.medium,
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
         )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -192,13 +197,14 @@ fun TagCardItem(
                     Text(
                         text = tag.name,
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
                         text = if (tag.isVisible) "Shown in transaction form" else "Hidden (Temporary tag)",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Switch(
@@ -210,7 +216,7 @@ fun TagCardItem(
 
             Spacer(Modifier.height(10.dp))
             HorizontalDivider(
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f)
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
             )
             Spacer(Modifier.height(6.dp))
 

@@ -42,7 +42,10 @@ data class DataManagementState(
     val latestPortfolioSnapshotDate: Long? = null,
     val latestPortfolioHoldingsCount: Int = 0,
     val latestPortfolioSources: List<Pair<String, Int>> = emptyList(),
-    val isPortfolioStale: Boolean = false
+    val isPortfolioStale: Boolean = false,
+    val dbHealthReport: com.sans.finance.domain.usecase.DatabaseHealthReport? = null,
+    val isMaintainingDb: Boolean = false,
+    val dbVersion: Int = com.sans.finance.data.local.AppDatabase.DATABASE_VERSION
 )
 
 @HiltViewModel
@@ -50,6 +53,7 @@ class DataManagementViewModel @Inject constructor(
     private val expenseRepository: ExpenseRepository,
     private val portfolioRepository: PortfolioRepository,
     private val userPreferencesRepository: com.sans.finance.domain.repository.UserPreferencesRepository,
+    private val maintainDatabaseUseCase: com.sans.finance.domain.usecase.MaintainDatabaseUseCase,
     @param:ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -270,6 +274,23 @@ class DataManagementViewModel @Inject constructor(
             }
         }
         _state.value = _state.value.copy(message = "Settings exported successfully")
+    }
+
+    fun runDatabaseMaintenance() {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isMaintainingDb = true)
+            try {
+                val report = maintainDatabaseUseCase()
+                _state.value = _state.value.copy(
+                    dbHealthReport = report,
+                    message = "Database optimized in ${report.executionTimeMs}ms"
+                )
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(message = "Maintenance error: ${e.message}")
+            } finally {
+                _state.value = _state.value.copy(isMaintainingDb = false)
+            }
+        }
     }
 
     fun clearMessage() {

@@ -28,12 +28,14 @@ data class Expense(
     val remainingBalance: Long = 0L,
     val monthlyPayment: Long = 0L,
     val categoryName: String? = null,
-    val categoryIcon: String? = null
-) {
-    val isSyntheticInstallmentPayment: Boolean
-        get() = isInstallmentPayment || id >= SYNTHETIC_INSTALLMENT_OFFSET
-
-    companion object {
-        const val SYNTHETIC_INSTALLMENT_OFFSET = 100_000_000L
-    }
-}
+    val categoryIcon: String? = null,
+    // Recurring specific fields
+    val recurrenceEndType: String? = "NEVER",
+    val recurrenceEndDate: Long? = null,
+    val recurrenceTotalOccurrences: Int? = null,
+    val recurrenceIntervalMultiplier: Int = 1,
+    val recurrenceStatus: String = "ACTIVE",
+    val isRecurringInstance: Boolean = false,
+    val parentRecurringId: Long? = null,
+    val recurringOccurrenceIndex: Int = 0
+)

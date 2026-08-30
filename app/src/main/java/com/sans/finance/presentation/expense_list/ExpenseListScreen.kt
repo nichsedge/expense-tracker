@@ -397,7 +397,8 @@ fun ExpenseListScreen(
             ),
             onDismiss = viewModel::closeRecurringDetail,
             onEditExpense = onExpenseClick,
-            onDeleteExpense = viewModel::deleteRecurringExpense
+            onDeleteExpense = viewModel::deleteRecurringExpense,
+            onTogglePause = viewModel::togglePauseRecurring
         )
     }
 
@@ -477,9 +478,7 @@ private fun TimelineHeader(
 
     val cal = com.sans.finance.core.util.CalendarUtils.getInstance().apply { timeInMillis = date }
     val day = cal.get(java.util.Calendar.DAY_OF_MONTH).toString().padStart(2, '0')
-    val dayOfWeek = com.sans.finance.core.util.DateFormatterUtils.getStandardFormatter().apply {
-        applyPattern("EEE")
-    }.format(cal.time)
+    val dayOfWeek = com.sans.finance.core.util.DateFormatterUtils.formatDayOfWeek(cal.time)
 
     Surface(
         modifier = Modifier.fillMaxWidth(),

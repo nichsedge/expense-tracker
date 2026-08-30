@@ -32,6 +32,7 @@ data class BudgetState(
     val budgetStatuses: List<BudgetStatus> = emptyList(),
     val categories: List<Category> = emptyList(),
     val suggestions: List<BudgetSuggestion> = emptyList(),
+    val safeToSpend: com.sans.finance.domain.model.DailySafeToSpend? = null,
     val currentCurrency: String = "USD",
     val isLoading: Boolean = true,
     val isPrivacyModeEnabled: Boolean = false
@@ -43,6 +44,7 @@ class BudgetViewModel @Inject constructor(
     private val categoryRepository: CategoryRepository,
     private val expenseRepository: ExpenseRepository,
     private val suggestBudgetsUseCase: SuggestBudgetsUseCase,
+    private val getCashFlowPacingUseCase: com.sans.finance.domain.usecase.GetCashFlowPacingUseCase,
     private val userPreferencesRepository: UserPreferencesRepository,
     private val localeManager: com.sans.finance.data.util.LocaleManager
 ) : ViewModel() {
@@ -65,8 +67,9 @@ class BudgetViewModel @Inject constructor(
         budgetRepository.getAllBudgets(),
         _categories,
         _suggestions,
+        getCashFlowPacingUseCase(),
         userPreferencesRepository.userPreferences.map { it.isPrivacyModeEnabled }
-    ) { budgets, categories, suggestions, privacyMode ->
+    ) { budgets, categories, suggestions, pacing, privacyMode ->
         val calendar = CalendarUtils.getInstance()
         calendar.set(Calendar.DAY_OF_MONTH, 1)
         calendar.set(Calendar.HOUR_OF_DAY, 0)
@@ -102,6 +105,7 @@ class BudgetViewModel @Inject constructor(
             budgetStatuses = statuses,
             categories = categories,
             suggestions = suggestions,
+            safeToSpend = pacing,
             currentCurrency = localeManager.getCurrency(),
             isLoading = false,
             isPrivacyModeEnabled = privacyMode

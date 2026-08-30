@@ -17,6 +17,7 @@ data class InstallmentsState(
     val historyInstallments: List<Installment> = emptyList(),
     val totalMonthlyDue: Long = 0L,
     val totalRemainingBalance: Long = 0L,
+    val horizonRoadmap: com.sans.finance.domain.model.InstallmentHorizonRoadmap? = null,
     val selectedTab: Int = 0, // 0 for Active, 1 for History
     val currentCurrency: String = "USD"
 )
@@ -25,6 +26,7 @@ data class InstallmentsState(
 class InstallmentsViewModel @Inject constructor(
     private val installmentRepository: InstallmentRepository,
     private val expenseRepository: com.sans.finance.domain.repository.ExpenseRepository,
+    private val getInstallmentHorizonUseCase: com.sans.finance.domain.usecase.GetInstallmentHorizonUseCase,
     private val localeManager: com.sans.finance.data.util.LocaleManager
 ) : ViewModel() {
 
@@ -35,16 +37,18 @@ class InstallmentsViewModel @Inject constructor(
         viewModelScope.launch {
             combine(
                 installmentRepository.getActiveInstallments(),
-                installmentRepository.getCompletedInstallments()
-            ) { active, history ->
-                Pair(active, history)
-            }.collect { (active, history) ->
+                installmentRepository.getCompletedInstallments(),
+                getInstallmentHorizonUseCase()
+            ) { active, history, horizon ->
+                Triple(active, history, horizon)
+            }.collect { (active, history, horizon) ->
                 _state.update { currentState ->
                     currentState.copy(
                         activeInstallments = active,
                         historyInstallments = history,
                         totalMonthlyDue = active.sumOf { it.monthlyPayment },
                         totalRemainingBalance = active.sumOf { it.remainingBalance },
+                        horizonRoadmap = horizon,
                         currentCurrency = localeManager.getCurrency()
                     )
                 }

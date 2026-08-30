@@ -207,6 +207,28 @@ class ExpenseListViewModelTest {
     }
 
     @Test
+    fun `filtered expenses update activeInstallmentCount and recurringExpenseCount based on visible period`() = runTest {
+        val viewModel = createViewModel()
+        viewModel.state.test {
+            filteredResult.value = FilteredExpensesData(
+                expenses = listOf(
+                    expense(id = 1, amount = 10_000),
+                    expense(id = 2, amount = 25_000, isInstallmentPayment = true),
+                    expense(id = 3, amount = 30_000, isInstallmentPayment = true),
+                    expense(id = 4, amount = 50_000, isRecurring = true)
+                ),
+                dailySpending = emptyList()
+            )
+            var s = awaitItem()
+            while (s.activeInstallmentCount != 2 || s.recurringExpenseCount != 1) {
+                s = awaitItem()
+            }
+            assertEquals(2, s.activeInstallmentCount)
+            assertEquals(1, s.recurringExpenseCount)
+        }
+    }
+
+    @Test
     fun `state emits updates through turbine`() = runTest {
         val viewModel = createViewModel()
         viewModel.state.test {
