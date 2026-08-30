@@ -1,40 +1,52 @@
 # Sans Finance 🏦
 
-Sans Finance is a premium, AI-powered personal finance and wealth management application. It provides a comprehensive dashboard to track your entire financial life—from daily expenses to long-term net worth, including investments and portfolio tracking.
+[![Release](https://img.shields.io/github/v/release/nichsedge/sansfinance?style=for-the-badge&logo=github&color=brightgreen)](https://github.com/nichsedge/sansfinance/releases/latest)
+[![Android](https://img.shields.io/badge/Android-SDK%2036%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://developer.android.com)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.x-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org)
+[![Compose](https://img.shields.io/badge/Jetpack-Compose-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white)](https://developer.android.com/compose)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-<img width="1376" height="3058" alt="Gemini_Generated_Image_mbod72mbod72mbod" src="https://github.com/user-attachments/assets/3fabaac4-d548-4f75-a6b2-9857826bda7a" />
+Sans Finance is a modern, privacy-first personal finance and wealth management application for Android. Built with 100% deterministic mathematical modeling and Clean Architecture, it provides comprehensive financial intelligence—from daily cash flow pacing and debt horizon timelines to advanced Monte Carlo FIRE simulations, emergency runway stress testing, and optional Cloud AI analysis.
+
+<img width="1376" height="3058" alt="Sans Finance Preview" src="https://github.com/user-attachments/assets/3fabaac4-d548-4f75-a6b2-9857826bda7a" />
 
 ## 📥 Download
 
-[![Download Latest APK](https://img.shields.io/badge/Download-Release%20v1.3-brightgreen?style=for-the-badge&logo=android)](https://github.com/nichsedge/sansfinance/releases/tag/v1.3)
+[![Download Latest APK](https://img.shields.io/badge/Download-Release%20v1.3-brightgreen?style=for-the-badge&logo=android)](https://github.com/nichsedge/sansfinance/releases/latest)
 
-Get the latest release directly from [GitHub Releases](https://github.com/nichsedge/sansfinance/releases/latest).
+Get the latest signed APK directly from [GitHub Releases](https://github.com/nichsedge/sansfinance/releases/latest).
+
+---
 
 ## ✨ Features
 
-- **Daily Financial Operations Dashboard:** Monitor your Net Worth, Monthly Cash Flow, Pacing & Velocity, Upcoming Bills, and Recent Transactions in an uncluttered, high-velocity view.
-- **Home Screen Widgets (Jetpack Glance):** Modern, reactive Material 3 widgets for quick transaction entry and real-time financial health summary with pacing alerts.
+### 📊 Wealth & Analytics Engine
 - **Monte Carlo FIRE Simulation:** 1,000-run stochastic geometric Brownian motion simulator modeling market volatility, inflation, and sequence-of-returns risk with 10th/50th/90th percentile fan charts and FIRE probability scores.
+- **Emergency Fund Runway Stress Testing:** Liquid safety buffer calculator simulating 4 dynamic shock scenarios: Job Loss, 50% Pay Cut & Essential Budget, +25% Cost Shock, and -30% Portfolio Drawdown.
+- **Savings Rate & Net Worth Velocity:** Track real-time savings rate acceleration, 3/6-month velocity averages, and monthly accumulation momentum ($\Delta\text{NW}/\text{month}$) with interactive haptic gesture scrubbing.
+- **Smart Cash-Injection Rebalancing:** Calculate optimal buy allocations for fresh deposits across underweight asset classes to achieve target allocations without triggering taxable asset sales.
 - **Dividend & Cash Yield Tracker:** Dedicated portfolio yield analysis tracking annual passive run-rate, weighted yield-on-cost %, coupon schedules, and lifestyle expense coverage.
-- **Smart Cash-Injection Rebalancing:** Calculate optimal buy allocations for fresh deposits across underweight asset classes to achieve target allocations without triggering taxable sales.
+
+### ⚡ Daily Financial Operations
 - **Safe-to-Spend Runway Pacing:** Real-time calculation of daily discretionary allowances after accounting for upcoming committed bills and billing cycle days.
 - **Installment Horizon Roadmap:** Timeline matrix projecting future monthly debt obligation reductions and freed cash flow milestones.
+- **Home Screen Widgets (Jetpack Glance):** Reactive Material 3 widgets for instant financial health glance and one-tap transaction logging.
 - **Database Health & Maintenance Utility:** One-tap SQLite `VACUUM` defragmentation, `PRAGMA optimize`, `ANALYZE`, and orphaned tag reference cleanup.
-- **Emergency Fund Stress Testing:** Liquid safety buffer calculator with interactive shock scenarios (job loss, 50% pay cut, +25% cost-of-living shock, -30% portfolio drawdown).
-- **Savings Rate & Net Worth Velocity:** Track real-time savings rate acceleration, 3/6-month velocity averages, and momentum trends with interactive haptic scrubbing.
-- **Adaptive Wide-Screen Layouts:** Responsive multi-pane Material 3 design for foldables, tablets, and landscape orientations.
-- **Wealth & Strategy Hub:** Centralized capital allocation (Asset Class, Category, Currency), Financial Independence (FIRE) suite with interactive simulation, and modern Bento Grid navigation.
-- **AI-Powered Insights**: Advanced monthly reviews and portfolio health analysis via **OpenAI** or **OpenRouter** (Cloud AI).
-- **Privacy First:** Core data processing is local with global privacy mode toggle, ensuring your financial privacy.
+
+### 🔒 Privacy & Architecture
+- **100% Deterministic Core:** All calculations, simulations, valuations, and financial modeling run locally and offline on pure Kotlin algorithms.
+- **Optional Cloud AI Connector:** Connect your own **OpenAI** or **OpenRouter** API key on demand for comprehensive monthly closures and portfolio health commentary.
+- **Global Privacy Mode:** One-tap toggle to mask financial amounts and account balances across the entire app.
 
 ## 🛠 Tech Stack
 
-- **Architecture:** Clean Architecture
-- **Mobile UI:** [Jetpack Compose](https://developer.android.com/compose)
-- **Dependency Injection:** [Hilt](https://dagger.dev/hilt/) (Android)
-- **Local Database:** [Room](https://developer.android.com/training/data-storage/room) (SQLite) - Version 38
-- **AI:** OpenAI & OpenAI-compatible APIs (OpenRouter)
-- **Data Persistence:** DataStore (Preferences)
+- **Architecture:** Clean Architecture (Domain, Data, Presentation)
+- **UI Toolkit:** [Jetpack Compose](https://developer.android.com/compose) & Material 3
+- **Widgets:** Jetpack Glance
+- **Dependency Injection:** [Hilt](https://dagger.dev/hilt/)
+- **Local Database:** [Room](https://developer.android.com/training/data-storage/room) (SQLite) — Schema Version 38
+- **Optional AI:** Cloud AI connector (OpenAI / OpenRouter)
+- **Data Persistence:** DataStore (Preferences) & Cloudflare R2 / GCS Backups
 
 ## 🚀 Project Structure
 
